@@ -17,17 +17,50 @@ graph TD
     F --> H[Mailready]
     I[System Config] -.-> All[All Tables]
     J[Processing Logs] -.-> All
+    A --> K[Property Owners]
+    L[Lead Providers] --> A
 ```
 
-## Step 1: Create the Properties Table
+## Step 1: Create the Lead Providers Table
+
+**What we're doing:** Creating a table to store information about different lead providers.
+
+**Why:** This allows the system to support multiple lead providers with a consistent field naming convention.
+
+```sql
+CREATE TABLE lead_providers (
+    provider_id SERIAL PRIMARY KEY,
+    provider_name VARCHAR(100) NOT NULL UNIQUE,
+    provider_code VARCHAR(20) NOT NULL UNIQUE,
+    api_key VARCHAR(255),
+    api_endpoint VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    
+    -- Tracking fields
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Insert initial lead provider
+INSERT INTO lead_providers (provider_name, provider_code) 
+VALUES ('PropertyRadar', 'PR');
+
+-- Create indexes
+CREATE INDEX idx_lead_providers_active ON lead_providers(is_active);
+```
+
+**Expected outcome:** You now have a table to store information about different lead providers, with PropertyRadar as the initial provider.
+
+## Step 2: Create the Properties Table
 
 **What we're doing:** Creating the main table to store property information.
 
-**Why:** This is the foundation of your system - it stores all the property data you get from PropertyRadar.
+**Why:** This is the foundation of your system - it stores all the property data you get from lead providers.
 
 ```sql
 CREATE TABLE properties (
     property_id SERIAL PRIMARY KEY,
+    provider_id INTEGER REFERENCES lead_providers(provider_id),
     radar_id VARCHAR(50) NOT NULL UNIQUE,
     
     -- Core property data
@@ -37,54 +70,43 @@ CREATE TABLE properties (
     property_zip VARCHAR(10),
     property_type VARCHAR(50),
     property_type_code VARCHAR(10),
+    county VARCHAR(100),
+    apn VARCHAR(50),
     year_built INTEGER,
     
-    -- Owner 1 information
-    owner1_first_name VARCHAR(100),
-    owner1_last_name VARCHAR(100),
-    owner1_full_name VARCHAR(255),
-    owner1_email VARCHAR(255),
-    owner1_phone VARCHAR(20),
-    
-    -- Owner 2 information
-    owner2_first_name VARCHAR(100),
-    owner2_last_name VARCHAR(100),
-    owner2_full_name VARCHAR(255),
-    owner2_email VARCHAR(255),
-    owner2_phone VARCHAR(20),
-    
-    -- Owner 3 information
-    owner3_first_name VARCHAR(100),
-    owner3_last_name VARCHAR(100),
-    owner3_full_name VARCHAR(255),
-    owner3_email VARCHAR(255),
-    owner3_phone VARCHAR(20),
-    
-    -- Owner 4 information
-    owner4_first_name VARCHAR(100),
-    owner4_last_name VARCHAR(100),
-    owner4_full_name VARCHAR(255),
-    owner4_email VARCHAR(255),
-    owner4_phone VARCHAR(20),
-    
-    -- Shared owner information
+    -- Ownership information
     ownership_type VARCHAR(50), -- 'INDIVIDUAL', 'JOINT', 'TRUST', 'LLC', etc.
-    owner_mailing_address VARCHAR(255),
-    owner_mailing_city VARCHAR(100),
-    owner_mailing_state VARCHAR(2),
-    owner_mailing_zip VARCHAR(10),
+    is_same_mailing_or_exempt BOOLEAN,
+    is_mail_vacant BOOLEAN,
     
     -- Financial information
-    estimated_value DECIMAL(15, 2),
-    assessed_value DECIMAL(15, 2),
+    avm DECIMAL(15, 2),
+    available_equity DECIMAL(15, 2),
+    equity_percent DECIMAL(5, 2),
+    cltv DECIMAL(5, 2),
+    total_loan_balance DECIMAL(15, 2),
+    number_loans INTEGER,
     annual_taxes DECIMAL(15, 2),
+    estimated_tax_rate DECIMAL(5, 3),
     
-    -- Additional fields
+    -- Transaction information
+    last_transfer_rec_date DATE,
+    last_transfer_value DECIMAL(15, 2),
+    last_transfer_down_payment_percent DECIMAL(5, 2),
+    last_transfer_seller VARCHAR(255),
+    
+    -- Status flags
     is_owner_occupied BOOLEAN,
     is_vacant BOOLEAN,
     is_listed_for_sale BOOLEAN,
-    last_sale_date DATE,
-    last_sale_price DECIMAL(15, 2),
+    listing_price DECIMAL(15, 2),
+    days_on_market INTEGER,
+    in_foreclosure BOOLEAN,
+    foreclosure_stage VARCHAR(100),
+    default_amount DECIMAL(15, 2),
+    in_tax_delinquency BOOLEAN,
+    delinquent_amount DECIMAL(15, 2),
+    delinquent_year INTEGER,
     
     -- Tracking fields
     created_at TIMESTAMP DEFAULT NOW(),
@@ -95,12 +117,60 @@ CREATE TABLE properties (
 -- Create indexes for faster lookups
 CREATE INDEX idx_properties_radar_id ON properties(radar_id);
 CREATE INDEX idx_properties_location ON properties(property_state, property_city);
-CREATE INDEX idx_properties_owner1 ON properties(owner1_last_name, owner1_first_name);
-CREATE INDEX idx_properties_owner2 ON properties(owner2_last_name, owner2_first_name);
+CREATE INDEX idx_properties_provider ON properties(provider_id);
+CREATE INDEX idx_properties_apn ON properties(apn);
+```
 
-**Expected outcome:** You now have a table to store all property information with proper indexes for fast lookups.
+**Expected outcome:** You now have a table to store all property information with proper indexes for fast lookups. Note that owner information has been moved to a separate table.
 
-## Step 2: Create the Loans Table
+## Step 3: Create the Property Owners Table
+
+**What we're doing:** Creating a table to store property owner information.
+
+**Why:** This allows the system to support multiple owners per property.
+
+```sql
+CREATE TABLE property_owners (
+    owner_id SERIAL PRIMARY KEY,
+    property_id INTEGER REFERENCES properties(property_id),
+    
+    -- Owner information
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    full_name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    
+    -- Mailing address (if different from property)
+    mailing_address VARCHAR(255),
+    mailing_city VARCHAR(100),
+    mailing_state VARCHAR(2),
+    mailing_zip VARCHAR(10),
+    
+    -- Owner metadata
+    owner_type VARCHAR(50), -- 'PRIMARY', 'CO_OWNER', 'SPOUSE', 'TRUSTEE', etc.
+    ownership_percentage DECIMAL(5, 2),
+    is_primary_contact BOOLEAN DEFAULT FALSE,
+    
+    -- Contact availability flags
+    phone_availability BOOLEAN DEFAULT FALSE,
+    email_availability BOOLEAN DEFAULT FALSE,
+    
+    -- Tracking fields
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Create indexes for faster lookups
+CREATE INDEX idx_property_owners_property_id ON property_owners(property_id);
+CREATE INDEX idx_property_owners_name ON property_owners(last_name, first_name);
+CREATE INDEX idx_property_owners_primary ON property_owners(property_id, is_primary_contact);
+```
+
+**Expected outcome:** You now have a table to store property owner information, with support for multiple owners per property.
+
+## Step 4: Create the Loans Table
 
 **What we're doing:** Creating a table to store loan information linked to properties.
 
@@ -118,6 +188,8 @@ CREATE TABLE loans (
     loan_balance DECIMAL(15, 2),
     interest_rate DECIMAL(5, 3),
     term_years INTEGER,
+    loan_position INTEGER, -- 1 for first mortgage, 2 for second, etc.
+    rate_type VARCHAR(50), -- 'FIXED', 'ARM', etc.
     
     -- Lender information
     lender_name VARCHAR(255),
@@ -130,6 +202,20 @@ CREATE TABLE loans (
     equity_amount DECIMAL(15, 2),
     equity_percentage DECIMAL(5, 2),
     
+    -- First loan specific fields
+    first_date DATE,
+    first_amount DECIMAL(15, 2),
+    first_rate DECIMAL(5, 3),
+    first_rate_type VARCHAR(50),
+    first_term_in_years INTEGER,
+    first_loan_type VARCHAR(50),
+    first_purpose VARCHAR(100),
+    
+    -- Second loan specific fields
+    second_date DATE,
+    second_amount DECIMAL(15, 2),
+    second_loan_type VARCHAR(50),
+    
     -- Tracking fields
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -140,17 +226,18 @@ CREATE TABLE loans (
 CREATE INDEX idx_loans_property_id ON loans(property_id);
 CREATE INDEX idx_loans_loan_type ON loans(loan_type);
 CREATE INDEX idx_loans_lender ON loans(lender_name);
+CREATE INDEX idx_loans_position ON loans(loan_position);
 ```
 
 **Expected outcome:** You now have a table to store loan information with a link to the properties table.
 
-## Step 3: Set Up the Loan ID Generation System
+## Step 5: Set Up the Loan ID Generation System
 
 **What we're doing:** Creating a system to generate unique loan IDs that follow your format.
 
 **Why:** The loan ID is critical because it appears on mailers and customers reference it when calling in.
 
-### Step 3.1: Create the Loan ID Sequence Table
+### Step 5.1: Create the Loan ID Sequence Table
 
 ```sql
 CREATE TABLE loan_id_sequence (
@@ -160,7 +247,7 @@ CREATE TABLE loan_id_sequence (
     state VARCHAR(2),
     year VARCHAR(2),
     week VARCHAR(2),
-    random_part VARCHAR(5),
+    sequence_number VARCHAR(5),
     generated_at TIMESTAMP DEFAULT NOW(),
     is_used BOOLEAN DEFAULT FALSE,
     used_at TIMESTAMP,
@@ -172,7 +259,7 @@ CREATE INDEX idx_loan_id_sequence_loan_id ON loan_id_sequence(loan_id);
 
 **Why:** This table tracks all generated loan IDs to prevent duplicates.
 
-### Step 3.2: Create the Loan ID Generation Function
+### Step 5.2: Create the Loan ID Generation Function
 
 ```sql
 CREATE OR REPLACE FUNCTION generate_loan_id(p_loan_type TEXT, p_state TEXT)
@@ -182,23 +269,30 @@ DECLARE
     v_week TEXT := LPAD(TO_CHAR(CURRENT_DATE, 'IW'), 2, '0');
     v_loan_type CHAR := SUBSTRING(UPPER(p_loan_type) FROM 1 FOR 1);
     v_state TEXT := UPPER(p_state);
-    v_random TEXT;
+    v_sequence TEXT;
+    v_next_sequence INTEGER;
 BEGIN
-    -- Generate a random 5-character string
-    v_random := array_to_string(ARRAY(
-        SELECT substr('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', floor(random() * 36 + 1)::integer, 1)
-        FROM generate_series(1, 5)
-    ), '');
+    -- Get the next sequence number for this combination
+    SELECT COALESCE(MAX(CAST(sequence_number AS INTEGER)), 0) + 1
+    INTO v_next_sequence
+    FROM loan_id_sequence
+    WHERE year = v_year
+    AND week = v_week
+    AND loan_type = v_loan_type
+    AND state = v_state;
     
-    -- Format: [Type][State][YY][WEEK]-[RANDOM]
-    RETURN v_loan_type || v_state || v_year || v_week || '-' || v_random;
+    -- Format the sequence number with leading zeros
+    v_sequence := LPAD(v_next_sequence::TEXT, 5, '0');
+    
+    -- Format: [Type][State][YY][WEEK]-[Sequence]
+    RETURN v_loan_type || v_state || v_year || v_week || '-' || v_sequence;
 END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Why:** This function creates loan IDs in the format you need (e.g., `VCA2412-XY123`).
+**Why:** This function creates loan IDs in the format you need (e.g., `VCA2512-00001`).
 
-### Step 3.3: Create the Loan ID Trigger
+### Step 5.3: Create the Loan ID Trigger
 
 ```sql
 CREATE OR REPLACE FUNCTION set_loan_id()
@@ -211,7 +305,7 @@ DECLARE
     v_max_attempts INTEGER := 20;
     v_year VARCHAR(2);
     v_week VARCHAR(2);
-    v_random VARCHAR(5);
+    v_sequence VARCHAR(5);
 BEGIN
     -- Get loan type and state
     v_loan_type := NEW.loan_type;
@@ -236,8 +330,8 @@ BEGIN
         IF v_attempts >= v_max_attempts THEN
             v_year := TO_CHAR(CURRENT_DATE, 'YY');
             v_week := LPAD(TO_CHAR(CURRENT_DATE, 'IW'), 2, '0');
-            v_random := LEFT(md5(random()::text), 5);
-            v_loan_id := v_loan_type || v_state || v_year || v_week || '-' || v_random;
+            v_sequence := LEFT(md5(random()::text), 5);
+            v_loan_id := v_loan_type || v_state || v_year || v_week || '-' || v_sequence;
         ELSE
             v_loan_id := generate_loan_id(v_loan_type, v_state);
         END IF;
@@ -245,7 +339,7 @@ BEGIN
         -- Parse the components
         v_year := SUBSTRING(v_loan_id FROM 4 FOR 2);
         v_week := SUBSTRING(v_loan_id FROM 6 FOR 2);
-        v_random := SUBSTRING(v_loan_id FROM 9 FOR 5);
+        v_sequence := SUBSTRING(v_loan_id FROM 9 FOR 5);
         
         -- Check if this loan ID already exists
         BEGIN
@@ -255,7 +349,7 @@ BEGIN
                 state, 
                 year, 
                 week, 
-                random_part, 
+                sequence_number, 
                 is_used, 
                 used_at, 
                 property_id
@@ -266,7 +360,7 @@ BEGIN
                 v_state, 
                 v_year, 
                 v_week, 
-                v_random, 
+                v_sequence, 
                 TRUE, 
                 NOW(), 
                 NEW.property_id
@@ -299,13 +393,13 @@ EXECUTE FUNCTION set_loan_id();
 
 **Expected outcome:** Now when you insert a loan record, it automatically gets a unique loan ID in the format you need.
 
-## Step 4: Create History Tracking Tables
+## Step 6: Create History Tracking Tables
 
-**What we're doing:** Setting up tables and triggers to track changes to properties and loans.
+**What we're doing:** Setting up tables and triggers to track changes to properties, owners, and loans.
 
 **Why:** This gives you an audit trail of all changes, which is important for compliance and troubleshooting.
 
-### Step 4.1: Create the Property History Table
+### Step 6.1: Create the Property History Table
 
 ```sql
 CREATE TABLE property_history (
@@ -322,12 +416,19 @@ CREATE TABLE property_history (
     prev_property_zip VARCHAR(10),
     prev_property_type VARCHAR(50),
     prev_year_built INTEGER,
-    prev_owner_first_name VARCHAR(100),
-    prev_owner_last_name VARCHAR(100),
-    prev_owner_full_name VARCHAR(255),
-    prev_estimated_value DECIMAL(15, 2),
-    prev_assessed_value DECIMAL(15, 2),
+    prev_ownership_type VARCHAR(50),
+    prev_is_same_mailing_or_exempt BOOLEAN,
+    prev_is_mail_vacant BOOLEAN,
+    
+    -- Previous financial values
+    prev_avm DECIMAL(15, 2),
+    prev_available_equity DECIMAL(15, 2),
+    prev_equity_percent DECIMAL(5, 2),
+    prev_cltv DECIMAL(5, 2),
+    prev_total_loan_balance DECIMAL(15, 2),
+    prev_number_loans INTEGER,
     prev_annual_taxes DECIMAL(15, 2),
+    prev_estimated_tax_rate DECIMAL(5, 3),
     
     -- Fields to track what changed
     changed_fields TEXT[]
@@ -336,60 +437,44 @@ CREATE TABLE property_history (
 CREATE INDEX idx_property_history_property_id ON property_history(property_id);
 ```
 
-### Step 4.2: Create the Property History Trigger
+### Step 6.2: Create the Property Owner History Table
 
 ```sql
-CREATE TABLE property_history (
+CREATE TABLE property_owner_history (
     history_id SERIAL PRIMARY KEY,
+    owner_id INTEGER REFERENCES property_owners(owner_id),
     property_id INTEGER REFERENCES properties(property_id),
-    change_type VARCHAR(50) NOT NULL, -- 'UPDATE', 'DELETE', etc.
+    change_type VARCHAR(50) NOT NULL, -- 'UPDATE', 'DELETE', 'INSERT', etc.
     changed_at TIMESTAMP DEFAULT NOW(),
     changed_by VARCHAR(100),
     
     -- Previous values of important fields
-    prev_property_address VARCHAR(255),
-    prev_property_city VARCHAR(100),
-    prev_property_state VARCHAR(2),
-    prev_property_zip VARCHAR(10),
-    prev_property_type VARCHAR(50),
-    prev_year_built INTEGER,
-    
-    -- Previous owner 1 values
-    prev_owner1_first_name VARCHAR(100),
-    prev_owner1_last_name VARCHAR(100),
-    prev_owner1_full_name VARCHAR(255),
-    
-    -- Previous owner 2 values
-    prev_owner2_first_name VARCHAR(100),
-    prev_owner2_last_name VARCHAR(100),
-    prev_owner2_full_name VARCHAR(255),
-    
-    -- Previous owner 3 values
-    prev_owner3_first_name VARCHAR(100),
-    prev_owner3_last_name VARCHAR(100),
-    prev_owner3_full_name VARCHAR(255),
-    
-    -- Previous owner 4 values
-    prev_owner4_first_name VARCHAR(100),
-    prev_owner4_last_name VARCHAR(100),
-    prev_owner4_full_name VARCHAR(255),
-    
-    -- Previous shared owner values
-    prev_ownership_type VARCHAR(50),
-    prev_owner_mailing_address VARCHAR(255),
-    prev_owner_mailing_city VARCHAR(100),
-    prev_owner_mailing_state VARCHAR(2),
-    prev_owner_mailing_zip VARCHAR(10),
-    
-    -- Previous financial values
-    prev_estimated_value DECIMAL(15, 2),
-    prev_assessed_value DECIMAL(15, 2),
-    prev_annual_taxes DECIMAL(15, 2),
+    prev_first_name VARCHAR(100),
+    prev_last_name VARCHAR(100),
+    prev_full_name VARCHAR(255),
+    prev_email VARCHAR(255),
+    prev_phone VARCHAR(20),
+    prev_mailing_address VARCHAR(255),
+    prev_mailing_city VARCHAR(100),
+    prev_mailing_state VARCHAR(2),
+    prev_mailing_zip VARCHAR(10),
+    prev_owner_type VARCHAR(50),
+    prev_ownership_percentage DECIMAL(5, 2),
+    prev_is_primary_contact BOOLEAN,
+    prev_phone_availability BOOLEAN,
+    prev_email_availability BOOLEAN,
     
     -- Fields to track what changed
     changed_fields TEXT[]
 );
 
+CREATE INDEX idx_property_owner_history_owner_id ON property_owner_history(owner_id);
+CREATE INDEX idx_property_owner_history_property_id ON property_owner_history(property_id);
+```
+
+### Step 6.3: Create the Property History Trigger
+
+```sql
 CREATE OR REPLACE FUNCTION track_property_changes()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -421,90 +506,50 @@ BEGIN
         changed_field_list := array_append(changed_field_list, 'year_built');
     END IF;
     
-    -- Owner 1 fields
-    IF OLD.owner1_first_name IS DISTINCT FROM NEW.owner1_first_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner1_first_name');
-    END IF;
-    
-    IF OLD.owner1_last_name IS DISTINCT FROM NEW.owner1_last_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner1_last_name');
-    END IF;
-    
-    IF OLD.owner1_full_name IS DISTINCT FROM NEW.owner1_full_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner1_full_name');
-    END IF;
-    
-    -- Owner 2 fields
-    IF OLD.owner2_first_name IS DISTINCT FROM NEW.owner2_first_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner2_first_name');
-    END IF;
-    
-    IF OLD.owner2_last_name IS DISTINCT FROM NEW.owner2_last_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner2_last_name');
-    END IF;
-    
-    IF OLD.owner2_full_name IS DISTINCT FROM NEW.owner2_full_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner2_full_name');
-    END IF;
-    
-    -- Owner 3 fields
-    IF OLD.owner3_first_name IS DISTINCT FROM NEW.owner3_first_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner3_first_name');
-    END IF;
-    
-    IF OLD.owner3_last_name IS DISTINCT FROM NEW.owner3_last_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner3_last_name');
-    END IF;
-    
-    IF OLD.owner3_full_name IS DISTINCT FROM NEW.owner3_full_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner3_full_name');
-    END IF;
-    
-    -- Owner 4 fields
-    IF OLD.owner4_first_name IS DISTINCT FROM NEW.owner4_first_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner4_first_name');
-    END IF;
-    
-    IF OLD.owner4_last_name IS DISTINCT FROM NEW.owner4_last_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner4_last_name');
-    END IF;
-    
-    IF OLD.owner4_full_name IS DISTINCT FROM NEW.owner4_full_name THEN
-        changed_field_list := array_append(changed_field_list, 'owner4_full_name');
-    END IF;
-    
-    -- Shared owner fields
+    -- Ownership fields
     IF OLD.ownership_type IS DISTINCT FROM NEW.ownership_type THEN
         changed_field_list := array_append(changed_field_list, 'ownership_type');
     END IF;
     
-    IF OLD.owner_mailing_address IS DISTINCT FROM NEW.owner_mailing_address THEN
-        changed_field_list := array_append(changed_field_list, 'owner_mailing_address');
+    IF OLD.is_same_mailing_or_exempt IS DISTINCT FROM NEW.is_same_mailing_or_exempt THEN
+        changed_field_list := array_append(changed_field_list, 'is_same_mailing_or_exempt');
     END IF;
     
-    IF OLD.owner_mailing_city IS DISTINCT FROM NEW.owner_mailing_city THEN
-        changed_field_list := array_append(changed_field_list, 'owner_mailing_city');
-    END IF;
-    
-    IF OLD.owner_mailing_state IS DISTINCT FROM NEW.owner_mailing_state THEN
-        changed_field_list := array_append(changed_field_list, 'owner_mailing_state');
-    END IF;
-    
-    IF OLD.owner_mailing_zip IS DISTINCT FROM NEW.owner_mailing_zip THEN
-        changed_field_list := array_append(changed_field_list, 'owner_mailing_zip');
+    IF OLD.is_mail_vacant IS DISTINCT FROM NEW.is_mail_vacant THEN
+        changed_field_list := array_append(changed_field_list, 'is_mail_vacant');
     END IF;
     
     -- Financial fields
-    IF OLD.estimated_value IS DISTINCT FROM NEW.estimated_value THEN
-        changed_field_list := array_append(changed_field_list, 'estimated_value');
+    IF OLD.avm IS DISTINCT FROM NEW.avm THEN
+        changed_field_list := array_append(changed_field_list, 'avm');
     END IF;
     
-    IF OLD.assessed_value IS DISTINCT FROM NEW.assessed_value THEN
-        changed_field_list := array_append(changed_field_list, 'assessed_value');
+    IF OLD.available_equity IS DISTINCT FROM NEW.available_equity THEN
+        changed_field_list := array_append(changed_field_list, 'available_equity');
+    END IF;
+    
+    IF OLD.equity_percent IS DISTINCT FROM NEW.equity_percent THEN
+        changed_field_list := array_append(changed_field_list, 'equity_percent');
+    END IF;
+    
+    IF OLD.cltv IS DISTINCT FROM NEW.cltv THEN
+        changed_field_list := array_append(changed_field_list, 'cltv');
+    END IF;
+    
+    IF OLD.total_loan_balance IS DISTINCT FROM NEW.total_loan_balance THEN
+        changed_field_list := array_append(changed_field_list, 'total_loan_balance');
+    END IF;
+    
+    IF OLD.number_loans IS DISTINCT FROM NEW.number_loans THEN
+        changed_field_list := array_append(changed_field_list, 'number_loans');
     END IF;
     
     IF OLD.annual_taxes IS DISTINCT FROM NEW.annual_taxes THEN
         changed_field_list := array_append(changed_field_list, 'annual_taxes');
+    END IF;
+    
+    IF OLD.estimated_tax_rate IS DISTINCT FROM NEW.estimated_tax_rate THEN
+        changed_field_list := array_append(changed_field_list, 'estimated_tax_rate');
     END IF;
     
     -- Only track if something changed
@@ -520,26 +565,17 @@ BEGIN
             prev_property_zip,
             prev_property_type,
             prev_year_built,
-            prev_owner1_first_name,
-            prev_owner1_last_name,
-            prev_owner1_full_name,
-            prev_owner2_first_name,
-            prev_owner2_last_name,
-            prev_owner2_full_name,
-            prev_owner3_first_name,
-            prev_owner3_last_name,
-            prev_owner3_full_name,
-            prev_owner4_first_name,
-            prev_owner4_last_name,
-            prev_owner4_full_name,
             prev_ownership_type,
-            prev_owner_mailing_address,
-            prev_owner_mailing_city,
-            prev_owner_mailing_state,
-            prev_owner_mailing_zip,
-            prev_estimated_value,
-            prev_assessed_value,
+            prev_is_same_mailing_or_exempt,
+            prev_is_mail_vacant,
+            prev_avm,
+            prev_available_equity,
+            prev_equity_percent,
+            prev_cltv,
+            prev_total_loan_balance,
+            prev_number_loans,
             prev_annual_taxes,
+            prev_estimated_tax_rate,
             changed_fields
         ) VALUES (
             OLD.property_id,
@@ -551,26 +587,17 @@ BEGIN
             OLD.property_zip,
             OLD.property_type,
             OLD.year_built,
-            OLD.owner1_first_name,
-            OLD.owner1_last_name,
-            OLD.owner1_full_name,
-            OLD.owner2_first_name,
-            OLD.owner2_last_name,
-            OLD.owner2_full_name,
-            OLD.owner3_first_name,
-            OLD.owner3_last_name,
-            OLD.owner3_full_name,
-            OLD.owner4_first_name,
-            OLD.owner4_last_name,
-            OLD.owner4_full_name,
             OLD.ownership_type,
-            OLD.owner_mailing_address,
-            OLD.owner_mailing_city,
-            OLD.owner_mailing_state,
-            OLD.owner_mailing_zip,
-            OLD.estimated_value,
-            OLD.assessed_value,
+            OLD.is_same_mailing_or_exempt,
+            OLD.is_mail_vacant,
+            OLD.avm,
+            OLD.available_equity,
+            OLD.equity_percent,
+            OLD.cltv,
+            OLD.total_loan_balance,
+            OLD.number_loans,
             OLD.annual_taxes,
+            OLD.estimated_tax_rate,
             changed_field_list
         );
     END IF;
@@ -586,7 +613,141 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-### Step 4.3: Create the Loan History Table and Trigger
+-- Trigger to track property changes
+CREATE TRIGGER track_property_changes
+BEFORE UPDATE OR DELETE ON properties
+FOR EACH ROW EXECUTE FUNCTION track_property_changes();
+```
+
+### Step 6.4: Create the Property Owner History Trigger
+
+```sql
+CREATE OR REPLACE FUNCTION track_property_owner_changes()
+RETURNS TRIGGER AS $$
+DECLARE
+    changed_field_list TEXT[] := '{}';
+BEGIN
+    -- Build list of changed fields
+    IF OLD.first_name IS DISTINCT FROM NEW.first_name THEN
+        changed_field_list := array_append(changed_field_list, 'first_name');
+    END IF;
+    
+    IF OLD.last_name IS DISTINCT FROM NEW.last_name THEN
+        changed_field_list := array_append(changed_field_list, 'last_name');
+    END IF;
+    
+    IF OLD.full_name IS DISTINCT FROM NEW.full_name THEN
+        changed_field_list := array_append(changed_field_list, 'full_name');
+    END IF;
+    
+    IF OLD.email IS DISTINCT FROM NEW.email THEN
+        changed_field_list := array_append(changed_field_list, 'email');
+    END IF;
+    
+    IF OLD.phone IS DISTINCT FROM NEW.phone THEN
+        changed_field_list := array_append(changed_field_list, 'phone');
+    END IF;
+    
+    IF OLD.mailing_address IS DISTINCT FROM NEW.mailing_address THEN
+        changed_field_list := array_append(changed_field_list, 'mailing_address');
+    END IF;
+    
+    IF OLD.mailing_city IS DISTINCT FROM NEW.mailing_city THEN
+        changed_field_list := array_append(changed_field_list, 'mailing_city');
+    END IF;
+    
+    IF OLD.mailing_state IS DISTINCT FROM NEW.mailing_state THEN
+        changed_field_list := array_append(changed_field_list, 'mailing_state');
+    END IF;
+    
+    IF OLD.mailing_zip IS DISTINCT FROM NEW.mailing_zip THEN
+        changed_field_list := array_append(changed_field_list, 'mailing_zip');
+    END IF;
+    
+    IF OLD.owner_type IS DISTINCT FROM NEW.owner_type THEN
+        changed_field_list := array_append(changed_field_list, 'owner_type');
+    END IF;
+    
+    IF OLD.ownership_percentage IS DISTINCT FROM NEW.ownership_percentage THEN
+        changed_field_list := array_append(changed_field_list, 'ownership_percentage');
+    END IF;
+    
+    IF OLD.is_primary_contact IS DISTINCT FROM NEW.is_primary_contact THEN
+        changed_field_list := array_append(changed_field_list, 'is_primary_contact');
+    END IF;
+    
+    IF OLD.phone_availability IS DISTINCT FROM NEW.phone_availability THEN
+        changed_field_list := array_append(changed_field_list, 'phone_availability');
+    END IF;
+    
+    IF OLD.email_availability IS DISTINCT FROM NEW.email_availability THEN
+        changed_field_list := array_append(changed_field_list, 'email_availability');
+    END IF;
+    
+    -- Only track if something changed
+    IF array_length(changed_field_list, 1) > 0 THEN
+        -- Store the old data in the history table
+        INSERT INTO property_owner_history(
+            owner_id,
+            property_id,
+            change_type,
+            changed_by,
+            prev_first_name,
+            prev_last_name,
+            prev_full_name,
+            prev_email,
+            prev_phone,
+            prev_mailing_address,
+            prev_mailing_city,
+            prev_mailing_state,
+            prev_mailing_zip,
+            prev_owner_type,
+            prev_ownership_percentage,
+            prev_is_primary_contact,
+            prev_phone_availability,
+            prev_email_availability,
+            changed_fields
+        ) VALUES (
+            OLD.owner_id,
+            OLD.property_id,
+            TG_OP,
+            current_user,
+            OLD.first_name,
+            OLD.last_name,
+            OLD.full_name,
+            OLD.email,
+            OLD.phone,
+            OLD.mailing_address,
+            OLD.mailing_city,
+            OLD.mailing_state,
+            OLD.mailing_zip,
+            OLD.owner_type,
+            OLD.ownership_percentage,
+            OLD.is_primary_contact,
+            OLD.phone_availability,
+            OLD.email_availability,
+            changed_field_list
+        );
+    END IF;
+    
+    -- For updates, return the NEW record with updated timestamp
+    IF TG_OP = 'UPDATE' THEN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+    END IF;
+    
+    -- For deletes, return the OLD record
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to track property owner changes
+CREATE TRIGGER track_property_owner_changes
+BEFORE UPDATE OR DELETE ON property_owners
+FOR EACH ROW EXECUTE FUNCTION track_property_owner_changes();
+```
+
+### Step 6.5: Create the Loan History Table and Trigger
 
 ```sql
 CREATE TABLE loan_history (
@@ -604,7 +765,13 @@ CREATE TABLE loan_history (
     prev_loan_balance DECIMAL(15, 2),
     prev_interest_rate DECIMAL(5, 3),
     prev_term_years INTEGER,
+    prev_loan_position INTEGER,
+    prev_rate_type VARCHAR(50),
     prev_lender_name VARCHAR(255),
+    prev_origination_date DATE,
+    prev_maturity_date DATE,
+    prev_equity_amount DECIMAL(15, 2),
+    prev_equity_percentage DECIMAL(5, 2),
     
     -- Fields to track what changed
     changed_fields TEXT[]
@@ -642,6 +809,14 @@ BEGIN
         changed_field_list := array_append(changed_field_list, 'term_years');
     END IF;
     
+    IF OLD.loan_position IS DISTINCT FROM NEW.loan_position THEN
+        changed_field_list := array_append(changed_field_list, 'loan_position');
+    END IF;
+    
+    IF OLD.rate_type IS DISTINCT FROM NEW.rate_type THEN
+        changed_field_list := array_append(changed_field_list, 'rate_type');
+    END IF;
+    
     IF OLD.lender_name IS DISTINCT FROM NEW.lender_name THEN
         changed_field_list := array_append(changed_field_list, 'lender_name');
     END IF;
@@ -676,6 +851,8 @@ BEGIN
             prev_loan_balance,
             prev_interest_rate,
             prev_term_years,
+            prev_loan_position,
+            prev_rate_type,
             prev_lender_name,
             prev_origination_date,
             prev_maturity_date,
@@ -693,6 +870,8 @@ BEGIN
             OLD.loan_balance,
             OLD.interest_rate,
             OLD.term_years,
+            OLD.loan_position,
+            OLD.rate_type,
             OLD.lender_name,
             OLD.origination_date,
             OLD.maturity_date,
@@ -719,9 +898,9 @@ BEFORE UPDATE OR DELETE ON loans
 FOR EACH ROW EXECUTE FUNCTION track_loan_changes();
 ```
 
-**Expected outcome:** Now whenever properties or loans are updated or deleted, the changes are automatically tracked in the history tables.
+**Expected outcome:** Now whenever properties, owners, or loans are updated or deleted, the changes are automatically tracked in the history tables.
 
-## Step 5: Create the DNM (Do Not Mail) Registry
+## Step 7: Create the DNM (Do Not Mail) Registry
 
 **What we're doing:** Setting up a table to track properties that should not receive mail.
 
@@ -754,13 +933,13 @@ CREATE INDEX idx_dnm_registry_active ON dnm_registry(is_active);
 
 **Expected outcome:** You now have a table to track properties that should not receive mail.
 
-## Step 6: Set Up the Mail Campaign Structure
+## Step 8: Set Up the Mail Campaign Structure
 
 **What we're doing:** Creating tables to manage mail campaigns and recipients.
 
 **Why:** This organizes your mailings and tracks which properties have been contacted.
 
-### Step 6.1: Create the Mail Campaigns Table
+### Step 8.1: Create the Mail Campaigns Table
 
 ```sql
 CREATE TABLE mail_campaigns (
@@ -786,7 +965,7 @@ CREATE INDEX idx_mail_campaigns_status ON mail_campaigns(status);
 CREATE INDEX idx_mail_campaigns_date ON mail_campaigns(campaign_date);
 ```
 
-### Step 6.2: Create the Mail Recipients Table
+### Step 8.2: Create the Mail Recipients Table
 
 ```sql
 CREATE TABLE mail_recipients (
@@ -794,6 +973,7 @@ CREATE TABLE mail_recipients (
     campaign_id INTEGER REFERENCES mail_campaigns(campaign_id),
     property_id INTEGER REFERENCES properties(property_id),
     loan_id VARCHAR(20) REFERENCES loans(loan_id),
+    owner_id INTEGER REFERENCES property_owners(owner_id),
     
     -- Mailing information
     first_name VARCHAR(100),
@@ -826,11 +1006,13 @@ CREATE TABLE mail_recipients (
 );
 
 CREATE INDEX idx_mail_recipients_campaign_id ON mail_recipients(campaign_id);
+CREATE INDEX idx_mail_recipients_property_id ON mail_recipients(property_id);
 CREATE INDEX idx_mail_recipients_loan_id ON mail_recipients(loan_id);
+CREATE INDEX idx_mail_recipients_owner_id ON mail_recipients(owner_id);
 CREATE INDEX idx_mail_recipients_status ON mail_recipients(status);
 ```
 
-### Step 6.3: Create the Mailready Table (For Backward Compatibility)
+### Step 8.3: Create the Mailready Table (For Backward Compatibility)
 
 ```sql
 CREATE TABLE mailready (
@@ -864,7 +1046,7 @@ CREATE INDEX idx_mailready_loan_id ON mailready(loan_id);
 
 **Expected outcome:** You now have tables to manage mail campaigns, track recipients, and maintain backward compatibility with your existing processes.
 
-## Step 7: Create the DNM Enforcement Trigger
+## Step 9: Create the DNM Enforcement Trigger
 
 **What we're doing:** Setting up a trigger to prevent mailing to properties in the DNM registry.
 
@@ -896,7 +1078,7 @@ FOR EACH ROW EXECUTE FUNCTION check_dnm_status();
 
 **Expected outcome:** Now if you try to add a property to a mail campaign that's in the DNM registry, the database will prevent it automatically.
 
-## Step 8: Set Up the System Configuration Table
+## Step 10: Set Up the System Configuration Table
 
 **What we're doing:** Creating a table to store system configuration values.
 
@@ -934,7 +1116,7 @@ INSERT INTO system_config (config_key, config_value, description, is_sensitive) 
 
 **Expected outcome:** You now have a table to store configuration values, with your current constants pre-loaded.
 
-## Step 9: Create the Mail Date Calculation Function
+## Step 11: Create the Mail Date Calculation Function
 
 **What we're doing:** Creating a function to calculate mail campaign dates.
 
@@ -979,7 +1161,7 @@ $$ LANGUAGE plpgsql;
 
 **Expected outcome:** You now have a function to calculate mail dates based on your configuration values.
 
-## Step 10: Create the Processing Logs Table
+## Step 12: Create the Processing Logs Table
 
 **What we're doing:** Setting up a table to log system events and errors.
 
@@ -1011,13 +1193,13 @@ CREATE INDEX idx_processing_logs_time ON processing_logs(occurred_at);
 
 **Expected outcome:** You now have a table to log system events and errors.
 
-## Step 11: Create Database Views
+## Step 13: Create Database Views
 
 **What we're doing:** Creating views to simplify common queries.
 
 **Why:** This makes it easier to get the information you need without writing complex joins every time.
 
-### Step 11.1: Create the Complete Property View for Loan Officers
+### Step 13.1: Create the Complete Property View for Loan Officers
 
 ```sql
 CREATE VIEW complete_property_view AS
@@ -1031,52 +1213,45 @@ SELECT
     p.property_zip,
     p.property_type,
     p.property_type_code,
+    p.county,
+    p.apn,
     p.year_built,
     p.is_owner_occupied,
     p.is_vacant,
     p.is_listed_for_sale,
-    
-    -- Owner 1 Information
-    p.owner1_first_name,
-    p.owner1_last_name,
-    p.owner1_full_name,
-    p.owner1_email,
-    p.owner1_phone,
-    
-    -- Owner 2 Information
-    p.owner2_first_name,
-    p.owner2_last_name,
-    p.owner2_full_name,
-    p.owner2_email,
-    p.owner2_phone,
-    
-    -- Owner 3 Information
-    p.owner3_first_name,
-    p.owner3_last_name,
-    p.owner3_full_name,
-    p.owner3_email,
-    p.owner3_phone,
-    
-    -- Owner 4 Information
-    p.owner4_first_name,
-    p.owner4_last_name,
-    p.owner4_full_name,
-    p.owner4_email,
-    p.owner4_phone,
-    
-    -- Shared Owner Information
     p.ownership_type,
-    p.owner_mailing_address,
-    p.owner_mailing_city,
-    p.owner_mailing_state,
-    p.owner_mailing_zip,
+    p.is_same_mailing_or_exempt,
+    p.is_mail_vacant,
     
     -- Financial Information
-    p.estimated_value,
-    p.assessed_value,
+    p.avm,
+    p.available_equity,
+    p.equity_percent,
+    p.cltv,
+    p.total_loan_balance,
+    p.number_loans,
     p.annual_taxes,
-    p.last_sale_date,
-    p.last_sale_price,
+    p.estimated_tax_rate,
+    p.last_transfer_rec_date,
+    p.last_transfer_value,
+    
+    -- Lead Provider Information
+    lp.provider_name,
+    lp.provider_code,
+    
+    -- Primary Owner Information (using a subquery to get the primary owner)
+    po.owner_id AS primary_owner_id,
+    po.first_name AS primary_owner_first_name,
+    po.last_name AS primary_owner_last_name,
+    po.full_name AS primary_owner_full_name,
+    po.email AS primary_owner_email,
+    po.phone AS primary_owner_phone,
+    po.mailing_address AS primary_owner_mailing_address,
+    po.mailing_city AS primary_owner_mailing_city,
+    po.mailing_state AS primary_owner_mailing_state,
+    po.mailing_zip AS primary_owner_mailing_zip,
+    po.phone_availability AS primary_owner_phone_availability,
+    po.email_availability AS primary_owner_email_availability,
     
     -- Loan Information
     l.loan_id,
@@ -1086,11 +1261,23 @@ SELECT
     l.loan_balance,
     l.interest_rate,
     l.term_years,
+    l.loan_position,
+    l.rate_type,
     l.lender_name,
     l.origination_date,
     l.maturity_date,
     l.equity_amount,
     l.equity_percentage,
+    l.first_date,
+    l.first_amount,
+    l.first_rate,
+    l.first_rate_type,
+    l.first_term_in_years,
+    l.first_loan_type,
+    l.first_purpose,
+    l.second_date,
+    l.second_amount,
+    l.second_loan_type,
     
     -- DNM Status
     CASE 
@@ -1126,29 +1313,66 @@ SELECT
 FROM 
     properties p
 LEFT JOIN 
+    lead_providers lp ON p.provider_id = lp.provider_id
+LEFT JOIN 
+    property_owners po ON p.property_id = po.property_id AND po.is_primary_contact = TRUE
+LEFT JOIN 
     loans l ON p.property_id = l.property_id
 LEFT JOIN 
     dnm_registry dnm ON (p.property_id = dnm.property_id OR l.loan_id = dnm.loan_id) AND dnm.is_active = TRUE
 LEFT JOIN 
-    mail_recipients mr ON (p.property_id = mr.property_id AND l.loan_id = mr.loan_id)
+    (
+        SELECT DISTINCT ON (property_id, loan_id)
+            *
+        FROM 
+            mail_recipients
+        ORDER BY 
+            property_id, loan_id, created_at DESC
+    ) mr ON (p.property_id = mr.property_id AND l.loan_id = mr.loan_id)
 LEFT JOIN 
     mail_campaigns mc ON mr.campaign_id = mc.campaign_id
 WHERE
     p.is_active = TRUE
     AND (l.is_active IS NULL OR l.is_active = TRUE);
-    
+```
 
-**Why this view is important:** This view pulls together ALL data points from all tables into a single view that your loan officers can use to render the UI. It includes:
+### Step 13.2: Create the Property Owners View
 
-1. All property details
-2. All loan information
-3. DNM status and reason
-4. Mailing history and status
-5. Campaign information
+```sql
+CREATE VIEW property_owners_view AS
+SELECT 
+    p.property_id,
+    p.radar_id,
+    p.property_address,
+    p.property_city,
+    p.property_state,
+    p.property_zip,
+    p.ownership_type,
+    po.owner_id,
+    po.first_name,
+    po.last_name,
+    po.full_name,
+    po.email,
+    po.phone,
+    po.mailing_address,
+    po.mailing_city,
+    po.mailing_state,
+    po.mailing_zip,
+    po.owner_type,
+    po.ownership_percentage,
+    po.is_primary_contact,
+    po.phone_availability,
+    po.email_availability
+FROM 
+    properties p
+JOIN 
+    property_owners po ON p.property_id = po.property_id
+WHERE 
+    p.is_active = TRUE
+    AND po.is_active = TRUE;
+```
 
-This is the "one-stop shop" for your loan officers to see everything about a property and its loan in one place.
-
-### Step 11.2: Create the Mail Campaign Overview Materialized View
+### Step 13.3: Create the Mail Campaign Overview Materialized View
 
 ```sql
 CREATE MATERIALIZED VIEW mail_campaign_overview_mv AS
@@ -1180,7 +1404,7 @@ CREATE UNIQUE INDEX idx_mail_campaign_overview_mv_id ON mail_campaign_overview_m
 
 **Expected outcome:** You now have views to simplify common queries, including a comprehensive view for loan officers that includes ALL data points from all tables.
 
-## Step 12: Set Up Materialized View Refresh
+## Step 14: Set Up Materialized View Refresh
 
 **What we're doing:** Creating a function to refresh the materialized view.
 
@@ -1208,7 +1432,7 @@ $$ LANGUAGE plpgsql;
 
 **Expected outcome:** You now have a function to refresh the materialized view, which you can call from a cron job.
 
-## Step 13: Create Archive Tables
+## Step 15: Create Archive Tables
 
 **What we're doing:** Setting up tables to archive old data.
 
@@ -1217,13 +1441,14 @@ $$ LANGUAGE plpgsql;
 ```sql
 -- Create archive tables with the same structure as the original tables
 CREATE TABLE property_history_archive (LIKE property_history INCLUDING ALL);
+CREATE TABLE property_owner_history_archive (LIKE property_owner_history INCLUDING ALL);
 CREATE TABLE loan_history_archive (LIKE loan_history INCLUDING ALL);
 CREATE TABLE processing_logs_archive (LIKE processing_logs INCLUDING ALL);
 ```
 
 **Expected outcome:** You now have tables to archive old data.
 
-## Step 14: Create Archival Functions
+## Step 16: Create Archival Functions
 
 **What we're doing:** Creating functions to move old data to archive tables.
 
@@ -1255,277 +1480,81 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create similar functions for loan_history and processing_logs
--- (Code omitted for brevity - follow the same pattern)
-```
-
-**Expected outcome:** You now have functions to archive old data, which you can call from a cron job.
-
-## Step 15: Create a Master Archival Function
-
-**What we're doing:** Creating a function to run all archival processes.
-
-**Why:** This simplifies scheduling by providing a single entry point.
-
-```sql
-CREATE OR REPLACE FUNCTION run_all_archival_processes()
-RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION archive_property_owner_history(p_months INTEGER)
+RETURNS INTEGER AS $$
 DECLARE
-    v_property_history_months INTEGER := 12; -- Default to 12 months
-    v_loan_history_months INTEGER := 12;
-    v_processing_logs_months INTEGER := 6;
+    v_cutoff_date TIMESTAMP;
+    v_archived_count INTEGER;
 BEGIN
-    -- Run archival processes
-    PERFORM archive_property_history(v_property_history_months);
-    PERFORM archive_loan_history(v_loan_history_months);
-    PERFORM archive_processing_logs(v_processing_logs_months);
+    -- Calculate cutoff date
+    v_cutoff_date := NOW() - (p_months || ' months')::INTERVAL;
     
-    -- Log the archival
-    INSERT INTO processing_logs(
-        log_level,
-        component,
-        message
-    ) VALUES (
-        'INFO',
-        'DATA_ARCHIVAL',
-        'Ran all archival processes'
-    );
+    -- Move records to archive
+    WITH moved_rows AS (
+        DELETE FROM property_owner_history
+        WHERE changed_at < v_cutoff_date
+        RETURNING *
+    )
+    INSERT INTO property_owner_history_archive
+    SELECT * FROM moved_rows;
+    
+    -- Get count of archived records
+    GET DIAGNOSTICS v_archived_count = ROW_COUNT;
+    
+    RETURN v_archived_count;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION archive_loan_history(p_months INTEGER)
+RETURNS INTEGER AS $$
+DECLARE
+    v_cutoff_date TIMESTAMP;
+    v_archived_count INTEGER;
+BEGIN
+    -- Calculate cutoff date
+    v_cutoff_date := NOW() - (p_months || ' months')::INTERVAL;
+    
+    -- Move records to archive
+    WITH moved_rows AS (
+        DELETE FROM loan_history
+        WHERE changed_at < v_cutoff_date
+        RETURNING *
+    )
+    INSERT INTO loan_history_archive
+    SELECT * FROM moved_rows;
+    
+    -- Get count of archived records
+    GET DIAGNOSTICS v_archived_count = ROW_COUNT;
+    
+    RETURN v_archived_count;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION archive_processing_logs(p_months INTEGER)
+RETURNS INTEGER AS $$
+DECLARE
+    v_cutoff_date TIMESTAMP;
+    v_archived_count INTEGER;
+BEGIN
+    -- Calculate cutoff date
+    v_cutoff_date := NOW() - (p_months || ' months')::INTERVAL;
+    
+    -- Move records to archive
+    WITH moved_rows AS (
+        DELETE FROM processing_logs
+        WHERE occurred_at < v_cutoff_date
+        RETURNING *
+    )
+    INSERT INTO processing_logs_archive
+    SELECT * FROM moved_rows;
+    
+    -- Get count of archived records
+    GET DIAGNOSTICS v_archived_count = ROW_COUNT;
+    
+    RETURN v_archived_count;
 END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Expected outcome:** You now have a master function to run all archival processes, which you can call from a cron job.
+**Expected outcome:** You now have functions to archive old data, which you can call from a cron job.
 
-## How to Use This Database in Practice
-
-### Example 1: Adding a New Property and Loan
-
-```sql
--- Insert a property
-INSERT INTO properties (
-    radar_id,
-    property_address,
-    property_city,
-    property_state,
-    property_zip,
-    property_type,
-    year_built,
-    owner_first_name,
-    owner_last_name,
-    owner_full_name,
-    estimated_value,
-    assessed_value,
-    annual_taxes,
-    is_owner_occupied
-) VALUES (
-    'P12345',
-    '123 Main St',
-    'Los Angeles',
-    'CA',
-    '90001',
-    'Single Family',
-    1985,
-    'John',
-    'Smith',
-    'John Smith',
-    500000,
-    450000,
-    5000,
-    TRUE
-);
-
--- Get the property_id
-SELECT property_id FROM properties WHERE radar_id = 'P12345';
-
--- Insert a loan (loan_id will be generated automatically)
-INSERT INTO loans (
-    property_id,
-    loan_type,
-    loan_purpose,
-    loan_amount,
-    loan_balance,
-    interest_rate,
-    term_years,
-    lender_name,
-    origination_date,
-    maturity_date,
-    equity_amount,
-    equity_percentage
-) VALUES (
-    1, -- Use the property_id from the previous query
-    'VA',
-    'Purchase',
-    400000,
-    380000,
-    4.5,
-    30,
-    'ABC Mortgage',
-    '2020-01-15',
-    '2050-01-15',
-    120000,
-    24
-);
-```
-
-### Example 2: Creating a Mail Campaign
-
-```sql
--- Create a campaign
-INSERT INTO mail_campaigns (
-    campaign_name,
-    description,
-    campaign_date,
-    target_loan_types,
-    target_states
-) VALUES (
-    'VA Loans California April 2025',
-    'VA loans in California for April 2025 campaign',
-    '2025-04-15',
-    ARRAY['VA'],
-    ARRAY['CA']
-);
-
--- Select recipients
-INSERT INTO mail_recipients (
-    campaign_id,
-    property_id,
-    loan_id,
-    first_name,
-    last_name,
-    address,
-    city,
-    state,
-    zip_code,
-    city_state_zip
-)
-SELECT 
-    1, -- campaign_id
-    p.property_id,
-    l.loan_id,
-    p.owner_first_name,
-    p.owner_last_name,
-    p.property_address,
-    p.property_city,
-    p.property_state,
-    p.property_zip,
-    p.property_city || ', ' || p.property_state || ' ' || p.property_zip
-FROM 
-    properties p
-JOIN 
-    loans l ON p.property_id = l.property_id
-WHERE 
-    l.loan_type = 'VA'
-    AND p.property_state = 'CA'
-    AND NOT EXISTS (
-        SELECT 1 FROM dnm_registry 
-        WHERE (property_id = p.property_id OR loan_id = l.loan_id)
-        AND is_active = TRUE
-    );
-
--- Calculate mail dates
-UPDATE mail_recipients mr
-SET 
-    (close_month, skip_month, next_pay_month, mail_date, phone_number) = 
-    (SELECT close_month, skip_month, next_pay_month, mail_date, phone_number 
-     FROM calculate_mail_dates())
-WHERE 
-    campaign_id = 1;
-
--- Copy to mailready table
-INSERT INTO mailready (
-    first_name, last_name, loan_id, address, city_state_zip,
-    lender, loan_type, balance, close_month, skip_month, 
-    next_pay_month, mail_date, phone_number, city, recipient_id
-)
-SELECT 
-    mr.first_name, mr.last_name, mr.loan_id, mr.address, mr.city_state_zip,
-    l.lender_name, l.loan_type, l.loan_balance, mr.close_month, mr.skip_month,
-    mr.next_pay_month, mr.mail_date, mr.phone_number, mr.city, mr.recipient_id
-FROM 
-    mail_recipients mr
-JOIN 
-    loans l ON mr.loan_id = l.loan_id
-WHERE 
-    mr.campaign_id = 1;
-```
-
-### Example 3: Looking Up a Property by Loan ID
-
-```sql
--- When a customer calls with a loan ID, use the complete_property_view
-SELECT * FROM complete_property_view WHERE loan_id = 'VCA2512-AB123';
-```
-
-This query gives your loan officers EVERYTHING they need to know about the property, loan, mailing history, and DNM status - all in one query!
-
-### Example 4: Adding to DNM Registry
-
-```sql
--- When a customer asks to be removed from mailings
-INSERT INTO dnm_registry (
-    property_id,
-    loan_id,
-    reason,
-    reason_category,
-    source,
-    blocked_by,
-    notes
-) VALUES (
-    (SELECT property_id FROM loans WHERE loan_id = 'VCA2512-AB123'),
-    'VCA2512-AB123',
-    'Customer requested no more mail',
-    'CUSTOMER_REQUEST',
-    'PHONE',
-    'Jane Operator',
-    'Customer called on 2025-04-20 and requested to be removed from all mailings'
-);
-```
-
-### Example 5: Refreshing the Campaign Overview
-
-```sql
--- Refresh the materialized view
-SELECT refresh_mail_campaign_overview_mv();
-
--- Query the materialized view
-SELECT * FROM mail_campaign_overview_mv;
-```
-
-### Example 6: Running Archival Processes
-
-```sql
--- Run all archival processes
-SELECT run_all_archival_processes();
-```
-
-## Maintenance Tasks to Schedule
-
-1. **Refresh Materialized Views**: Daily
-   ```
-   0 1 * * * psql -U your_db_user -d Api-Property-Details -c "SELECT refresh_mail_campaign_overview_mv();"
-   ```
-
-2. **Archive Old Data**: Monthly
-   ```
-   0 3 1 * * psql -U your_db_user -d Api-Property-Details -c "SELECT run_all_archival_processes();"
-   ```
-
-3. **Database Maintenance**: Weekly
-   ```
-   0 2 * * 0 psql -U your_db_user -d Api-Property-Details -c "VACUUM ANALYZE;"
-   ```
-
-## Conclusion
-
-You now have a complete database implementation for your Property Mail System. This design:
-
-1. Stores property and loan information in a structured way
-2. Generates unique loan IDs for your mailers
-3. Tracks changes to properties and loans
-4. Prevents mailing to properties in the DNM registry
-5. Organizes mail campaigns and recipients
-6. Calculates mail dates based on configurable values
-7. Provides a comprehensive view (complete_property_view) that includes ALL data points from ALL tables for your loan officers' UI
-8. Archives old data to keep the system performant
-
-The system is designed to be flexible, maintainable, and scalable, while preserving compatibility with your existing processes.

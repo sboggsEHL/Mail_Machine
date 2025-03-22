@@ -1,7 +1,8 @@
 # Cline Rules
 
 ## Critical Implementation Paths
-- The database implementation must follow the step-by-step guide in `Seans-dumbdumb-db-guide.md`
+- The database implementation must follow a normalized structure to support multiple lead providers
+- The database implementation guide has been updated to match the normalized field mapping
 - Loan ID generation follows the format `[LoanType][State][YY][Week]-[Sequence]` and is critical for tracking
 - The `complete_property_view` is the primary interface for loan officers to access all property and loan data
 - DNM (Do Not Mail) enforcement must be automatic through database triggers
@@ -11,13 +12,16 @@
 - SQL scripts should include comments explaining their purpose and expected outcomes
 - Database design prioritizes quick lookups by loan officers when recipients call
 - Backward compatibility with existing systems is important, particularly the `mailready` table
+- Normalized database structure is preferred over denormalized for flexibility and maintainability
 
 ## Project-Specific Patterns
-- PropertyRadar is the source of truth for property data
+- PropertyRadar is the primary source of truth for property data, but the system should support multiple lead providers
+- Property owners are stored in a separate table to support multiple owners per property
 - Loan IDs are generated automatically through database triggers
 - History tracking is implemented for all important tables
 - System configuration is stored in the database rather than hardcoded
 - Materialized views are used for reporting and must be refreshed regularly
+- Field mapping from PropertyRadar to database fields is documented for reference
 
 ## Known Challenges
 - History tables will grow over time and require archival strategies
@@ -25,12 +29,15 @@
 - DNM enforcement must be reliable to ensure compliance
 - Performance optimization is critical for large data volumes
 - Backward compatibility adds complexity to the design
+- Supporting multiple lead providers requires consistent field naming conventions
 
 ## Evolution of Project Decisions
 - The system has evolved from manual processes to an automated workflow
 - Database-centric design was chosen for its reliability and transaction support
 - Trigger-based automation was selected to ensure consistency
 - The loan ID format was designed to be both human-readable and machine-processable
+- The database structure was normalized to support multiple lead providers and multiple owners per property
+- The database implementation guide was split into two files for better organization
 
 ## Tool Usage Patterns
 - PostgreSQL is the primary database system

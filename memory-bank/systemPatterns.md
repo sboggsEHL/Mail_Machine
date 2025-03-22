@@ -15,7 +15,7 @@ flowchart TD
     H --> I[Loan Officer Lookup]
 ```
 
-The database structure follows this relationship model:
+The database structure follows this normalized relationship model:
 
 ```mermaid
 graph TD
@@ -30,10 +30,13 @@ graph TD
     F --> H[Mailready]
     I[System Config] -.-> All[All Tables]
     J[Processing Logs] -.-> All
+    A --> K[Property Owners]
+    L[Lead Providers] --> A
 ```
 
 ## Key Technical Decisions
 - **PostgreSQL Database**: Using PostgreSQL for its robust transaction support, triggers, and functions.
+- **Normalized Database Structure**: Implementing a normalized structure to support multiple lead providers and multiple owners per property.
 - **Unique Loan ID Generation**: Implementing a specialized format `[LoanType][State][YY][Week]-[Sequence]` with collision handling.
 - **Trigger-Based Automation**: Using database triggers to automate workflows when data changes.
 - **History Tracking**: Maintaining complete history tables for audit and compliance purposes.
@@ -46,14 +49,17 @@ graph TD
 - **Factory Pattern**: Implementing loan ID generation as a factory that creates standardized identifiers.
 - **Strategy Pattern**: Using configurable system parameters to adjust business logic without code changes.
 - **Decorator Pattern**: Enhancing base data with additional information through views and joins.
+- **Adapter Pattern**: Using a consistent field naming convention to adapt data from different lead providers.
 
 ## Component Relationships
 1. **Properties and Loans**: One-to-many relationship where a property can have multiple loans.
-2. **Properties/Loans and History**: One-to-many relationship tracking all changes to core data.
-3. **Properties/Loans and DNM Registry**: Many-to-many relationship managing mailing restrictions.
-4. **Mail Campaigns and Recipients**: One-to-many relationship organizing mailings into campaigns.
-5. **Recipients and Mailready**: One-to-one relationship maintaining backward compatibility.
-6. **System Config**: Global configuration affecting all components.
-7. **Processing Logs**: System-wide logging capturing events across all components.
+2. **Properties and Owners**: One-to-many relationship where a property can have multiple owners.
+3. **Lead Providers and Properties**: One-to-many relationship where a lead provider can supply multiple properties.
+4. **Properties/Loans and History**: One-to-many relationship tracking all changes to core data.
+5. **Properties/Loans and DNM Registry**: Many-to-many relationship managing mailing restrictions.
+6. **Mail Campaigns and Recipients**: One-to-many relationship organizing mailings into campaigns.
+7. **Recipients and Mailready**: One-to-one relationship maintaining backward compatibility.
+8. **System Config**: Global configuration affecting all components.
+9. **Processing Logs**: System-wide logging capturing events across all components.
 
 The system uses database views, particularly the `complete_property_view`, to present unified data across these relationships for loan officer interfaces.

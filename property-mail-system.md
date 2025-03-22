@@ -27,7 +27,7 @@ flowchart TD
 - Contains property details, owner info, and financial metrics
 - Triggers automated workflows when new data arrives
 
-### 2. Data Processing (API Property Details)
+### 2. Data Processing 
 - Standardizes property data format
 - Generates unique loan IDs for tracking
 - Structures data for mail campaigns and lookups
@@ -42,16 +42,6 @@ The loan ID is a crucial identifier used to:
 - Track leads through the system
 - Enable quick lookups when recipients call
 - Connect mail campaigns to responses
-
-#### Loan ID Format
-`[LoanType][State][YY][Week]-[Sequence]`
-- LoanType: First letter of loan type
-- State: State abbreviation
-- YY: Current year (2 digits)
-- Week: ISO week number
-- Sequence: Unique counter (5 digits)
-
-Example: `CCA2412-00001` (Conventional loan, California, 2024, Week 12, Sequence 1)
 
 ## Data Flow Sequence
 
