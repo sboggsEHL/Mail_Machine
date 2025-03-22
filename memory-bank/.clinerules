@@ -1,0 +1,40 @@
+# Cline Rules
+
+## Critical Implementation Paths
+- The database implementation must follow the step-by-step guide in `Seans-dumbdumb-db-guide.md`
+- Loan ID generation follows the format `[LoanType][State][YY][Week]-[Sequence]` and is critical for tracking
+- The `complete_property_view` is the primary interface for loan officers to access all property and loan data
+- DNM (Do Not Mail) enforcement must be automatic through database triggers
+
+## User Preferences and Workflow
+- Documentation should be clear and accessible, with step-by-step instructions
+- SQL scripts should include comments explaining their purpose and expected outcomes
+- Database design prioritizes quick lookups by loan officers when recipients call
+- Backward compatibility with existing systems is important, particularly the `mailready` table
+
+## Project-Specific Patterns
+- PropertyRadar is the source of truth for property data
+- Loan IDs are generated automatically through database triggers
+- History tracking is implemented for all important tables
+- System configuration is stored in the database rather than hardcoded
+- Materialized views are used for reporting and must be refreshed regularly
+
+## Known Challenges
+- History tables will grow over time and require archival strategies
+- Loan ID collision handling needs to be robust
+- DNM enforcement must be reliable to ensure compliance
+- Performance optimization is critical for large data volumes
+- Backward compatibility adds complexity to the design
+
+## Evolution of Project Decisions
+- The system has evolved from manual processes to an automated workflow
+- Database-centric design was chosen for its reliability and transaction support
+- Trigger-based automation was selected to ensure consistency
+- The loan ID format was designed to be both human-readable and machine-processable
+
+## Tool Usage Patterns
+- PostgreSQL is the primary database system
+- SQL scripts are used for database setup and maintenance
+- Cron jobs or scheduled tasks are required for regular maintenance
+- PropertyRadar API is used for data sourcing
+- CSV files are used for data exchange with mailing services
