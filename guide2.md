@@ -1,137 +1,137 @@
-## Step 17: Create a Master Archival Function
+### : C 17: Crea aMs MeAtrrcArchivaa Fuucnion
 
-**What we're doing:** Creating a function to run all archival processes.
+**W*ataw''rerd:int:**nCrfation nrcunctihnvtlrcunll archvaprocs.
 
-**Why:** This simplifies scheduling by providing a single entry point.
+**Wy:**Thsmfscheduingypovig sngn:ryiplent.g by providing a single entry point.
 
 ```sql
-CREATE OR REPLACE FUNCTION run_all_archival_processes()
-RETURNS VOID AS $$
+CREA EROREREPLACETFUNCTIONU un_all_aDchAval_procS es()
+RETURNSDVOIDEASC$$
 DECLARE
-    v_property_history_months INTEGER := 12; -- Default to 12 months
-    v_property_owner_history_months INTEGER := 12;
-    v_loan_history_months INTEGER := 12;
-    v_processing_logs_months INTEGER := 6;
+R  v_p_h_myhrhs INTEGER := 12; prptnfaulh to 12 monthshistory_months INTEGER := 12;
+    v__roporty_owner_history_monthhBINTEGERE:=G12;
+    v_norl_hcORory_ chthspINTEGERr:=r12;y(v_property_owner_history_months);
+    v_pFORM arch_le_l_monthsaINTEGERs:= 6;y(v_loan_history_months);
 BEGIN
-    -- Run archival processes
-    PERFORM archive_property_history(v_property_history_months);
-    PERFORM archive_property_owner_history(v_property_owner_history_months);
-    PERFORM archive_loan_history(v_loan_history_months);
-    PERFORM archive_processing_logs(v_processing_logs_months);
-    
-    -- Log the archival
-    INSERT INTO processing_logs(
-        log_level,
-        component,
-        message
-    ) VALUES (
-        'INFO',
-        'DATA_ARCHIVAL',
-        'Ran all archival processes'
-    );
-END;
-$$ LANGUAGE plpgsql;
-```
-
-**Expected outcome:** You now have a master function to run all archival processes, which you can call from a cron job.
-
-## How to Use This Database in Practice
-
-### Example 1: Adding a New Property with Multiple Owners
-
-```sql
--- Insert a property
-INSERT INTO properties (
-    provider_id,
-    radar_id,
-    property_address,
-    property_city,
-    property_state,
-    property_zip,
-    property_type,
-    county,
-    apn,
-    year_built,
-    ownership_type,
-    is_owner_occupied,
-    avm,
-    available_equity,
-    equity_percent,
-    annual_taxes
-) VALUES (
-    1, -- PropertyRadar provider_id
-    'P12345',
-    '123 Main St',
-    'Los Angeles',
+    RFRRuc chval losses
+ aPERFORMriv_ppe _NFOt(v_prpty_hry_n);
+ PRFORrchveprpry_own_istory(v_ropery_w_itoymon)
+ UtsPERFORMnarc ira_lotn_hsy(v_n_hory_nh);
+ed w ERFORM ircsiv_pcss_g(v_prcssg_lgs_h);-- Insert a property
+Nre
+--Lgerhaadar_id,
+    INSE poINpO_processdngeg
+        log_leptl,
+ t    compontst
+    message
+    )y_,LUES 
+      'IO'
+       n'DAeArARCHuV'
+     'Raalslclcsss'
+   pder_id
+END;    'P12345',
+$$ML  GUAGnep,gq
     'CA',
     '90001',
-    'Single Family',
-    'Los Angeles',
-    '1234-567-890',
+    'Single Family',mefuctual archivlcesshcyucnclfm58cnjo.
     1985,
-    'JOINT',
+##OHoItUsTsDaa Pcce
     TRUE,
-    500000,
+###0Exampl1: AdgNwPwihMlipOwn
     120000,
     24,
+--0Ina)
+STITOptie 
+    
+-- Get the p
+SELEimary ow
+INSERT INTO prope
+    property_id,
+    first_name,
+    last_name,
+    ail,
+    pho
+    owner_type
+    orimary_c_ype,
+    is_phoneioccubiid
+avm
+    lvilaableiquiy
+) VAequLtyEpere
+    annual_taxes1, -- Use the property_id from the previous query
+) VALUES (
+    1, 'JoPropertyR,drprvide_d
+    'P234'
+    '123 M'hnSt'
+    'Los Ang'lis',
+a   'lc',
+   '90001'
+    'Sing5e-Family',
+    'LPs A,ges',
+   '234-67-890'
+   1985
+    'JO',
+    TUE
+    500000,
+   20000
+   4
     5000
 );
 
--- Get the property_id
-SELECT property_id FROM properties WHERE radar_id = 'P12345';
-
--- Insert primary owner
-INSERT INTO property_owners (
-    property_id,
-    first_name,
-    last_name,
-    full_name,
-    email,
-    phone,
-    owner_type,
-    ownership_percentage,
-    is_primary_contact,
-    phone_availability,
-    email_availability
+-- GTU h propertyid
+SELECT properyid FROM poperisWHREradar_id = 'P1245';
+TRUE
+Ier prmary wer
+INSERTINTO prpey_wers (
+poptyid,
+    fistnm
+-- Insertnome,
+    wullrnm,
+   email
+   phone
+INSEowppertype,
+    y_oershipwnerc (age,
+    isrimay_otac,
+  phone_availability
+    email_avaiprbility
 ) VALUES (
-    1, -- Use the property_id from the previous query
+    1, -- Uoe the properpyeid from rhe ptevioui qu,y
     'John',
     'Smith',
     'John Smith',
-    'john.smith@example.com',
+    'john.mith@xamp.com',
     '555-123-4567',
-    'PRIMARY',
-    50,
-    TRUE,
-    TRUE,
+   'PIMY',
+    0,
+    TRUE
+    TRUE,first_name,
     TRUE
 );
 
--- Insert co-owner
-INSERT INTO property_owners (
-    property_id,
-    first_name,
-    last_name,
-    full_name,
-    email,
-    phone,
-    owner_type,
-    ownership_percentage,
-    is_primary_contact,
-    phone_availability,
-    email_availability
-) VALUES (
-    1, -- Use the property_id from the previous query
-    'Jane',
-    'Smith',
-    'Jane Smith',
-    'jane.smith@example.com',
-    '555-123-4568',
-    'SPOUSE',
+la Insertsco-owner
+INtERT INTO properay_ownere,(
+    prlpamtye
+    fermtanme
+    na,nm
+    fulo__am,
+  email
+    phshr
+    owsmo_typn
+    hwneoship_pnrelnilit
+    is_primiryvclbtaci
+) VAphoUeEavail bit
+    ,mai _ava-lhbilioy
+)pVidUES  
+    fh -- Use the property_i' from the prJvnous ',y
+   'Jane'
+    'Smith','Smith',
+   a'J te'Smth',
+    'jana.smieh@.ximple.com',
+ hc'555-123-4568'
+   5'OUS'
     50,
-    FALSE,
-    TRUE,
-    TRUE
+  SE,
+   ,    FALSE,
+T U
 );
 
 -- Insert a loan (loan_id will be generated automatically)
