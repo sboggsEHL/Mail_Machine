@@ -47,7 +47,7 @@ graph TD
         C2[propradar2024]
         C3[api_property_details]
         C4[api_property_details2024]
-        C5[Elevated-Logins]
+        C5[Elevated_Logins]
         C6[mailready]
     end
 
@@ -130,9 +130,9 @@ erDiagram
         varchar data_propertyinfo_address_state
     }
     
-    Elevated-Logins {
-        varchar "User Name" PK
-        varchar "Password"
+    Elevated_Logins {
+        varchar user_name PK
+        varchar password
     }
     
     mailready {
@@ -185,11 +185,11 @@ erDiagram
 - **Purpose**: Historical/archival data storage from 2024
 - **Structure**: Mirrors the main tables
 
-#### 2.2.4 Elevated-Logins
+#### 2.2.4 Elevated_Logins
 - **Purpose**: User authentication for web application
 - **Key Fields**:
-  - "User Name" (PK): Login username
-  - "Password": Bcrypt hashed password
+  - user_name (PK): Login username
+  - password: Bcrypt hashed password
 
 #### 2.2.5 mailready
 - **Purpose**: Prepared data for mail generation
@@ -449,11 +449,11 @@ flowchart TD
     A --> C[Static Files]
     
     subgraph "Core Routes"
-        D[/ - index]
-        E[/login - login]
-        F[/validate-login - validate_login]
-        G[/validate-id - validate_id]
-        H[/property/:loan_id - details]
+        D[index route]
+        E[login route]
+        F[validate_login route]
+        G[validate_id route]
+        H[property_details route]
     end
     
     subgraph "Helper Functions"
@@ -484,7 +484,7 @@ flowchart TD
    - Displays login form
 
 3. **/validate-login** (validate_login)
-   - Authenticates users against Elevated-Logins
+   - Authenticates users against Elevated_Logins
    - Creates session on success
 
 4. **/validate-id** (validate_id)
@@ -506,7 +506,7 @@ sequenceDiagram
     User->>Flask: Access /
     Flask->>User: Redirect to /login
     User->>Flask: Submit credentials
-    Flask->>Database: Query Elevated-Logins
+    Flask->>Database: Query Elevated_Logins
     Database-->>Flask: Return user record
     
     alt Valid Credentials
@@ -528,13 +528,13 @@ sequenceDiagram
     participant Database
     
     User->>Frontend: Enter loan_id
-    Frontend->>Flask: AJAX call to /validate-id
+    Frontend->>Flask: AJAX call to validate_id
     Flask->>Database: check_id_in_database()
     Database-->>Flask: ID exists?
     Flask-->>Frontend: JSON response
     
     alt Valid ID
-        Frontend->>Flask: Navigate to /property/:loan_id
+        Frontend->>Flask: Navigate to property details
         Flask->>Database: Query api_property_details
         
         alt Record Found
@@ -948,7 +948,7 @@ logging.info("All records processed and committed to the database.")
   - Verify data in propradar table and trigger functionality
 
 - **Authentication Failures**: Users unable to log in
-  - Verify user exists in Elevated-Logins table
+  - Verify user exists in Elevated_Logins table
   - Check bcrypt password hash formatting
 
 #### 9.1.3 Mail Generation Issues

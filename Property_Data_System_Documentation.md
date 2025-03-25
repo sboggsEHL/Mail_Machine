@@ -449,11 +449,11 @@ flowchart TD
     A --> C[Static Files]
     
     subgraph "Core Routes"
-        D[/ - index]
-        E[/login - login]
-        F[/validate-login - validate_login]
-        G[/validate-id - validate_id]
-        H[/property/:loan_id - details]
+        D[index route]
+        E[login route]
+        F[validate_login route]
+        G[validate_id route]
+        H[property_details route]
     end
     
     subgraph "Helper Functions"
@@ -528,13 +528,13 @@ sequenceDiagram
     participant Database
     
     User->>Frontend: Enter loan_id
-    Frontend->>Flask: AJAX call to /validate-id
+    Frontend->>Flask: AJAX call to validate_id
     Flask->>Database: check_id_in_database()
     Database-->>Flask: ID exists?
     Flask-->>Frontend: JSON response
     
     alt Valid ID
-        Frontend->>Flask: Navigate to /property/:loan_id
+        Frontend->>Flask: Navigate to property details
         Flask->>Database: Query api_property_details
         
         alt Record Found
