@@ -12,10 +12,11 @@
 2. [Database Architecture](#2-database-architecture)
 3. [Data Collection Pipeline](#3-data-collection-pipeline)
 4. [Web Application](#4-web-application)
-5. [Integration Points](#5-integration-points)
-6. [Security Features](#6-security-features)
-7. [Error Handling & Logging](#7-error-handling--logging)
-8. [Maintenance & Troubleshooting](#8-maintenance--troubleshooting)
+5. [Mail Generation System](#5-mail-generation-system)
+6. [Integration Points](#6-integration-points)
+7. [Security Features](#7-security-features)
+8. [Error Handling & Logging](#8-error-handling--logging)
+9. [Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
 
 ---
 
@@ -26,6 +27,7 @@ This integrated system fetches, processes, stores, and displays property data fr
 - A data collection pipeline (Python scripts)
 - PostgreSQL database storage
 - Web application interface (Flask)
+- Mail generation system (Python scripts and Adobe InDesign)
 
 ### 1.2 High-Level Architecture
 
@@ -46,11 +48,19 @@ graph TD
         C3[api_property_details]
         C4[api_property_details2024]
         C5[Elevated-Logins]
+        C6[mailready]
     end
 
     subgraph "Web Application"
         D1[app.py]
         D2[Templates]
+    end
+    
+    subgraph "Mail Generation System"
+        E1[mailload.py]
+        E2[batch.py]
+        E3[mergetem.py]
+        E4[Adobe InDesign Scripts]
     end
 
     A1 --> B1
@@ -62,12 +72,19 @@ graph TD
     D1 --> C4
     D1 --> C5
     D1 --> D2
+    
+    C3 --> E1
+    E1 --> C6
+    C6 --> E2
+    E2 --> E3
+    E3 --> E4
 ```
 
 ### 1.3 System Components
 1. **Data Collection Pipeline**: Three Python scripts that fetch, process, and store property data
 2. **Database Layer**: PostgreSQL database with multiple tables for current and historical data
 3. **Web Application**: Flask application providing user authentication and property data views
+4. **Mail Generation System**: Scripts and applications for generating direct mail campaigns
 
 ---
 
@@ -117,6 +134,27 @@ erDiagram
         varchar "User Name" PK
         varchar "Password"
     }
+    
+    mailready {
+        varchar loan_id FK
+        varchar first_name
+        varchar last_name
+        varchar address
+        varchar city_state_zip
+        varchar presort_tray
+        varchar barcode
+        varchar lender
+        varchar loan_type
+        varchar balance
+        varchar close_month
+        varchar skip_month
+        varchar next_pay_month
+        date mail_date
+        varchar phone_number
+        varchar city
+    }
+    
+    api_property_details ||--o{ mailready : "loan_id"
 ```
 
 ### 2.2 Table Definitions
@@ -152,6 +190,19 @@ erDiagram
 - **Key Fields**:
   - "User Name" (PK): Login username
   - "Password": Bcrypt hashed password
+
+#### 2.2.5 mailready
+- **Purpose**: Prepared data for mail generation
+- **Key Fields**:
+  - loan_id (FK): References api_property_details.loan_id
+  - first_name/last_name: Recipient name
+  - address/city_state_zip: Mailing address
+  - presort_tray/barcode: Mail processing information
+  - lender/loan_type/balance: Loan information from api_property_details
+  - close_month/skip_month/next_pay_month: Calculated payment months
+  - mail_date: Scheduled mail date
+  - phone_number: Contact phone
+  - city: City name
 
 ### 2.3 Triggers and Functions
 
@@ -531,9 +582,201 @@ def property_details(loan_id):
 
 ---
 
-## 5. Integration Points
+## 5. Mail Generation System
 
-### 5.1 Data Flow Integration
+### 5.1 System Overview
+The mail generation system is responsible for preparing and producing direct mail campaigns based on property data. It consists of:
+
+1. **Data Preparation**: Loads and processes CSV data into the mailready table
+2. **Batch Processing**: Splits data into manageable batches for mail production
+3. **Document Generation**: Creates personalized PDF documents using Adobe InDesign
+
+### 5.2 Mail Generation Process Flow
+
+```mermaid
+flowchart TD
+    A[CSV Input] --> B[mailload.py]
+    B --> C[Database: mailready table]
+    C --> D[batch.py]
+    D --> E[CSV Batches by Tray]
+    E --> F[mergetem.py]
+    F --> G[InDesign Script Generation]
+    G --> H[merge1.jsx]
+    H --> I[PDF Documents]
+    
+    subgraph "Data Preparation"
+        B
+        C
+    end
+    
+    subgraph "Batch Processing"
+        D
+        E
+    end
+    
+    subgraph "Document Generation"
+        F
+        G
+        H
+        I
+    end
+```
+
+### 5.3 mailload.py - Data Preparation
+
+#### 5.3.1 Purpose
+Processes CSV data, fetches additional information from the database, and loads the combined data into the mailready table.
+
+#### 5.3.2 Key Functions
+
+**Month Calculation**
+```python
+def calculate_months():
+    today = datetime.now()
+    close_month = (today + timedelta(days=21)).strftime("%B")
+    skip_month = (today + timedelta(days=21 + 32)).strftime("%B")
+    next_pay_month = (today + timedelta(days=21 + 32 + 32)).strftime("%B")
+    return close_month, skip_month, next_pay_month
+```
+
+**Mail Date Calculation**
+```python
+def calculate_mail_date():
+    today = datetime.now()
+    days_until_friday = (4 - today.weekday()) % 7
+    mail_date = today + timedelta(days=days_until_friday)
+    return mail_date.strftime("%Y-%m-%d")
+```
+
+#### 5.3.3 Data Processing
+
+1. Reads a CSV file containing loan IDs and recipient information
+2. Fetches additional data from api_property_details (lender, loan type, balance)
+3. Calculates dynamic values (close month, skip month, next pay month, mail date)
+4. Performs batch insert into the mailready table
+
+```python
+# Efficient database query for additional data
+cur.execute("""
+    SELECT loan_id, data_currentmortgages_lendername, data_currentmortgages_loantypecode, data_openmortgagebalance
+    FROM api_property_details
+    WHERE loan_id = ANY(%s)
+""", (loan_ids,))
+additional_data = {row[0]: row[1:] for row in cur.fetchall()}
+```
+
+**Database Connection**
+- Uses environment variables for database credentials
+- Connects to Api-Property-Details database
+
+**Batch Insert**
+```python
+execute_values(cur, insert_query, data_to_insert)
+```
+
+**Logging**
+- Logs activity to mailload.log
+
+### 5.4 batch.py - Batch Processing
+
+#### 5.4.1 Purpose
+Splits a CSV file into multiple smaller files based on the presort_tray column, enabling efficient mail production in batches.
+
+#### 5.4.2 Key Functions
+
+**CSV Splitting**
+```python
+def split_csv_by_column(csv_path, output_folder, column_name):
+    # Load the CSV file
+    df = pd.read_csv(csv_path)
+    
+    # Group by the specified column
+    grouped_df = df.groupby(column_name)
+    
+    # Save each group to a separate CSV file
+    for group_value, group in grouped_df:
+        output_file = os.path.join(output_folder, f"batch_{group_value}.csv")
+        group.to_csv(output_file, index=False)
+```
+
+#### 5.4.3 Process Flow
+
+1. Loads a CSV file (`C:\Users\SeanBoggs\Scripts\batch\3-19.csv`)
+2. Creates a dated output folder (`C:\Users\SeanBoggs\Scripts\batch\batches\MM-DD Batch`)
+3. Groups records by presort_tray value
+4. Saves each group as a separate CSV file (`batch_TXXXXX.csv`)
+
+### 5.5 mergetem.py - InDesign Script Preparation
+
+#### 5.5.1 Purpose
+Dynamically generates an Adobe InDesign script that will process all batch CSV files for mail merging.
+
+#### 5.5.2 Process Flow
+
+1. Scans a directory for CSV batch files
+2. Loads an InDesign script template
+3. Updates the template with the list of CSV files
+4. Saves the updated script for execution
+
+#### 5.5.3 Key Components
+
+**Script Locations**
+- Template: `C:\Users\SeanBoggs\AppData\Roaming\Adobe\InDesign\Version 20.0\en_US\Scripts\Scripts Panel\merge.jsx`
+- Output: `C:\Users\SeanBoggs\AppData\Roaming\Adobe\InDesign\Version 20.0\en_US\Scripts\Scripts Panel\merge1.jsx`
+
+**Template Modification**
+```python
+# Convert the list of CSV files to a JavaScript array representation
+csv_files_js_array = json.dumps(csv_files).replace('"', "'")
+
+# Replace placeholder in the JSX template with the actual CSV files array
+jsx_content_updated = jsx_content.replace('var csvFiles = []; // Placeholder', f'var csvFiles = {csv_files_js_array};')
+```
+
+### 5.6 Adobe InDesign Scripts
+
+#### 5.6.1 merge.jsx (Template)
+InDesign script template with a placeholder for CSV files that will be updated by mergetem.py.
+
+```javascript
+// This array will be dynamically updated by the Python script
+var csvFiles = []; // Placeholder
+
+var inddFilePath = "C:/Users/SeanBoggs/Scripts/batch/8.5 x 11 VA letter not aztest.indd";
+var pdfOutputDir = "C:/Users/SeanBoggs/Scripts/batch/batches/03-19 Batch/";
+var myPDFExportPreset = app.pdfExportPresets.item("[High Quality Print]");
+
+// Script logic to process each CSV file
+// ...
+```
+
+#### 5.6.2 merge1.jsx (Generated Script)
+The dynamically generated InDesign script with the CSV files array populated.
+
+```javascript
+var csvFiles = ['batch_T02110.csv', 'batch_T02111.csv', ...];
+
+// Template and output paths
+var inddFilePath = "C:/Users/SeanBoggs/Scripts/batch/8.5 x 11 VA letter not aztest.indd";
+var pdfOutputDir = "C:/Users/SeanBoggs/Scripts/batch/batches/03-19 Batch/";
+// ...
+```
+
+#### 5.6.3 Process Flow
+
+1. Opens an InDesign template document
+2. For each CSV batch file:
+   - Sets the file as a data source for mail merge
+   - Executes the merge operation
+   - Exports the result as a PDF
+   - Closes the merged document
+3. Displays a completion message
+
+---
+
+## 6. Integration Points
+
+### 6.1 Data Flow Integration
 
 ```mermaid
 flowchart TB
@@ -548,10 +791,18 @@ flowchart TB
         B2 -->|Render| B3[Web Interface]
     end
     
+    subgraph "Mail Generation"
+        C1[mailload.py] -->|Process| C2[Database]
+        C2 -->|Export| C3[batch.py]
+        C3 -->|Split| C4[mergetem.py]
+        C4 -->|Generate| C5[Adobe InDesign]
+    end
+    
     A4 -->|Stored Data| B2
+    A4 -->|Property Data| C1
 ```
 
-### 5.2 Database to Application Mapping
+### 6.2 Database to Application Mapping
 
 | Pipeline Output | Database Table | Application Access |
 |-----------------|----------------|-------------------|
@@ -559,41 +810,45 @@ flowchart TB
 | | api_property_details | Direct query in app.py |
 | Historical Data | propradar2024 | Through manual sync |
 | | api_property_details2024 | Fallback query in app.py |
+| Mail Preparation | mailready | Processed by batch.py |
 
-### 5.3 Key Integration Points
+### 6.3 Key Integration Points
 
-#### 5.3.1 Database Connection Configuration
-Both systems use the same database connection parameters, stored as environment variables.
+#### 6.3.1 Database Connection Configuration
+All components use the same database connection parameters, stored as environment variables.
 
-#### 5.3.2 loan_id Generation
-Generated by the database trigger for api_property_details and used as the primary identifier in the web application.
+#### 6.3.2 loan_id as Universal Identifier
+- Generated by database triggers in api_property_details 
+- Used as the primary identifier in the web application
+- Links property data to mail generation system
 
-#### 5.3.3 Data Format Standardization
-Field names and formats are consistent between database and application:
+#### 6.3.3 Data Format Standardization
+Field names and formats are consistent across all system components:
 - Database: data_propertyinfo_address_label
-- Application: {{data_propertyinfo_address_label}}
+- Web Application: {{data_propertyinfo_address_label}}
+- Mail System: Uses consistent field mapping to CSV columns
 
 ---
 
-## 6. Security Features
+## 7. Security Features
 
-### 6.1 Authentication System
+### 7.1 Authentication System
 
-#### 6.1.1 Password Hashing
+#### 7.1.1 Password Hashing
 ```python
 bcrypt = Bcrypt(app)
 # Password verification
 bcrypt.check_password_hash(hashed_password, password)
 ```
 
-#### 6.1.2 Session Management
+#### 7.1.2 Session Management
 ```python
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 # Session storage
 session['user'] = username
 ```
 
-#### 6.1.3 Route Protection
+#### 7.1.3 Route Protection
 ```python
 @app.route('/')
 def index():
@@ -601,14 +856,14 @@ def index():
         return redirect(url_for('login'))
 ```
 
-### 6.2 Database Security
+### 7.2 Database Security
 
-#### 6.2.1 Parameterized Queries
+#### 7.2.1 Parameterized Queries
 ```python
 cur.execute("SELECT EXISTS(SELECT 1 FROM api_property_details WHERE loan_id = %s)", (loan_id,))
 ```
 
-#### 6.2.2 Environment Variable Configuration
+#### 7.2.2 Environment Variable Configuration
 ```python
 conn = psycopg2.connect(
     host=os.getenv('DB_HOST'),
@@ -620,31 +875,31 @@ conn = psycopg2.connect(
 
 ---
 
-## 7. Error Handling & Logging
+## 8. Error Handling & Logging
 
-### 7.1 Pipeline Logging
+### 8.1 Pipeline Logging
 
-#### 7.1.1 ridv1.py
+#### 8.1.1 ridv1.py
 ```python
 logging.info(f"Found {len(matched_radar_ids)} matching RadarIDs in the database.")
 logging.error(f"Error querying the database: {e}")
 ```
 
-#### 7.1.2 deets2.py
+#### 8.1.2 deets2.py
 ```python
 logging.info(f"API response for RadarID {radar_id}: {json.dumps(property_data, indent=4)}")
 logging.error(f"Error occurred while running sendit.py: {str(e)}")
 ```
 
-#### 7.1.3 sendit.py
+#### 8.1.3 sendit.py
 ```python
 logging.info(f"Total records processed: {inserted_count}")
 logging.info("Processed RadarIDs:")
 ```
 
-### 7.2 Application Logging
+### 8.2 Application Logging
 
-#### 7.2.1 Request Logging
+#### 8.2.1 Request Logging
 ```python
 @app.after_request
 def log_response(response):
@@ -653,7 +908,7 @@ def log_response(response):
     return response
 ```
 
-#### 7.2.2 Error Handling
+#### 8.2.2 Error Handling
 ```python
 try:
     # Database operations
@@ -665,20 +920,29 @@ finally:
     conn.close()
 ```
 
+### 8.3 Mail System Logging
+
+#### 8.3.1 mailload.py
+```python
+logging.basicConfig(filename='mailload.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.info(f"Starting to process {len(rows)} records.")
+logging.info("All records processed and committed to the database.")
+```
+
 ---
 
-## 8. Maintenance & Troubleshooting
+## 9. Maintenance & Troubleshooting
 
-### 8.1 Common Issues and Solutions
+### 9.1 Common Issues and Solutions
 
-#### 8.1.1 Pipeline Issues
+#### 9.1.1 Pipeline Issues
 - **API Rate Limiting**: The deets2.py script may encounter rate limiting if fetching large batches
   - Solution: Adjust batch sizes or implement retry mechanism with backoff
   
 - **Database Connection Failures**: Connection timeouts during long-running operations
   - Solution: Implement connection pooling or retry logic
 
-#### 8.1.2 Application Issues
+#### 9.1.2 Application Issues
 - **Missing Property Data**: Loan ID exists but no data displayed
   - Check both current and 2024 tables manually
   - Verify data in propradar table and trigger functionality
@@ -687,17 +951,28 @@ finally:
   - Verify user exists in Elevated-Logins table
   - Check bcrypt password hash formatting
 
-### 8.2 System Monitoring
+#### 9.1.3 Mail Generation Issues
+- **CSV Processing Errors**: Errors in mailload.py
+  - Verify CSV format matches expected structure
+  - Check database connectivity and permissions
+  
+- **InDesign Script Failures**: Adobe InDesign script execution problems
+  - Ensure file paths in merge.jsx template are correct
+  - Verify InDesign has appropriate permissions for file access
+
+### 9.2 System Monitoring
 
 - **Log Monitoring**:
   - Review daily import logs in C:\Users\SeanBoggs\Scripts\propertyradar\logs
   - Check application logs for errors or unusual patterns
+  - Monitor mailload.log for mail generation issues
 
 - **Database Monitoring**:
   - Monitor loan_id_sequence value (approaching max of 99999)
   - Check for trigger failures or data integrity issues
+  - Monitor mailready table growth
 
-### 8.3 System Updates
+### 9.3 System Updates
 
 - **API Changes**: If PropertyRadar API changes, update corresponding fields in:
   - deets2.py (fields variable)
@@ -708,4 +983,8 @@ finally:
   - Modify triggers and functions as needed
   - Update application queries to match new schema
 
-This comprehensive documentation covers all aspects of the integrated Property Data Management System, from data collection through database storage to web display. Each component is thoroughly explained with relevant code snippets and diagrams for clarity.
+- **Mail Template Updates**:
+  - Update the InDesign template (8.5 x 11 VA letter not aztest.indd)
+  - Ensure CSV field mappings align with any changes
+
+This comprehensive documentation covers all aspects of the integrated Property Data Management System, from data collection through database storage to web display and mail generation. Each component is thoroughly explained with relevant code snippets and diagrams for clarity.
