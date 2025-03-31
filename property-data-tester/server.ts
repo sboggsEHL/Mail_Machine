@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { Pool, PoolClient, QueryResult } from 'pg';
 import axios, { AxiosResponse, AxiosError } from 'axios';
+import { configureRoutes } from './server/routes';
 import session from 'express-session';
 import dotenv from 'dotenv';
 
@@ -1009,6 +1010,8 @@ app.get('/api/check-dnm', async (req: Request, res: Response): Promise<void> => 
     });
   }
 });
+// Configure API routes
+app.use('/api', configureRoutes(pool));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

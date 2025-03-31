@@ -9,6 +9,7 @@ import InsertResults from './components/InsertResults';
 import Login from './components/Login';
 import { PropertyRadarCriteriaDemo } from './components/PropertyRadarCriteriaDemo';
 import { TestPage } from './components/TestPage';
+import { CampaignManager, CampaignCreationModal } from './components/campaigns';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
 import authService from './services/auth.service';
 
@@ -55,6 +56,7 @@ function App() {
   const [fetchStatus, setFetchStatus] = useState<FetchStatus>({ loading: false, error: null });
   const [insertStatus, setInsertStatus] = useState<InsertStatus>({ loading: false, error: null });
   const [insertResults, setInsertResults] = useState<InsertResultsData | null>(null);
+  const [showCampaignModal, setShowCampaignModal] = useState<boolean>(false);
 
   // Check authentication status on app load
   useEffect(() => {
@@ -240,6 +242,13 @@ function App() {
               >
                 Test Page
               </Nav.Link>
+              <Nav.Link
+                href="#campaigns"
+                active={currentPage === 'campaigns'}
+                onClick={() => setCurrentPage('campaigns')}
+              >
+                Campaign Manager
+              </Nav.Link>
             </Nav>
             <Nav>
               {currentUser && (
@@ -295,7 +304,15 @@ function App() {
               <>
                 <Row className="mb-3">
                   <Col>
-                    <h2>Retrieved Properties ({properties.length})</h2>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h2>Retrieved Properties ({properties.length})</h2>
+                      <Button
+                        variant="success"
+                        onClick={() => setShowCampaignModal(true)}
+                      >
+                        Create Campaign
+                      </Button>
+                    </div>
                     <div className="d-grid gap-2">
                       <Button
                         variant="success"
@@ -330,6 +347,18 @@ function App() {
                 </Col>
               </Row>
             )}
+            
+            {/* Campaign Creation Modal */}
+            <CampaignCreationModal
+              show={showCampaignModal}
+              onHide={() => setShowCampaignModal(false)}
+              criteria={apiParams.criteria}
+              onSuccess={(campaignId) => {
+                setShowCampaignModal(false);
+                alert(`Campaign created successfully with ID: ${campaignId}`);
+              }}
+              username={currentUser?.username}
+            />
           </>
         )}
         
@@ -339,6 +368,10 @@ function App() {
         
         {currentPage === 'test-page' && (
           <TestPage />
+        )}
+        
+        {currentPage === 'campaigns' && (
+          <CampaignManager />
         )}
       </Container>
     </>

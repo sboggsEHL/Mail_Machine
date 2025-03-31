@@ -201,4 +201,168 @@ export const getProperty = async (id: number): Promise<ApiResponse<any>> => {
   }
 };
 
+/**
+ * Interface for campaign
+ */
+export interface Campaign {
+  campaign_id?: number;
+  campaign_name: string;
+  description: string;
+  campaign_date: string;
+  status: string;
+  target_loan_types: string[];
+  target_states: string[];
+  date_range_start?: string | null;
+  date_range_end?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  created_by: string;
+}
+
+/**
+ * Interface for campaign stats
+ */
+export interface CampaignStats extends Campaign {
+  total_recipients: number;
+  mailed_count: number;
+  response_count: number;
+  response_rate?: number;
+}
+
+/**
+ * Interface for campaign response
+ */
+interface CampaignResponse extends ApiResponse<Campaign> {
+  campaign: Campaign;
+}
+
+/**
+ * Interface for campaigns response
+ */
+interface CampaignsResponse extends ApiResponse<Campaign[]> {
+  campaigns: Campaign[];
+  count: number;
+}
+
+/**
+ * Interface for campaign stats response
+ */
+interface CampaignStatsResponse extends ApiResponse<CampaignStats> {
+  stats: CampaignStats;
+}
+
+/**
+ * Fetch all campaigns
+ * @returns Promise with campaigns response
+ */
+export const fetchCampaigns = async (): Promise<CampaignsResponse> => {
+  try {
+    const response = await api.get<CampaignsResponse>('/campaigns');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch campaigns',
+      campaigns: [],
+      count: 0
+    };
+  }
+};
+
+/**
+ * Fetch campaign by ID
+ * @param id The campaign ID
+ * @returns Promise with campaign response
+ */
+export const fetchCampaignById = async (id: number): Promise<CampaignResponse> => {
+  try {
+    const response = await api.get<CampaignResponse>(`/campaigns/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching campaign ${id}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : `Failed to fetch campaign ${id}`,
+      campaign: {} as Campaign
+    };
+  }
+};
+
+/**
+ * Create campaign
+ * @param campaign The campaign to create
+ * @returns Promise with campaign response
+ */
+export const createCampaign = async (campaign: Campaign): Promise<CampaignResponse> => {
+  try {
+    const response = await api.post<CampaignResponse>('/campaigns', campaign);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating campaign:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create campaign',
+      campaign: {} as Campaign
+    };
+  }
+};
+
+/**
+ * Update campaign
+ * @param id The campaign ID
+ * @param campaign The campaign data to update
+ * @returns Promise with campaign response
+ */
+export const updateCampaign = async (id: number, campaign: Partial<Campaign>): Promise<CampaignResponse> => {
+  try {
+    const response = await api.put<CampaignResponse>(`/campaigns/${id}`, campaign);
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating campaign ${id}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : `Failed to update campaign ${id}`,
+      campaign: {} as Campaign
+    };
+  }
+};
+
+/**
+ * Delete campaign
+ * @param id The campaign ID
+ * @returns Promise with delete response
+ */
+export const deleteCampaign = async (id: number): Promise<ApiResponse> => {
+  try {
+    const response = await api.delete<ApiResponse>(`/campaigns/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting campaign ${id}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : `Failed to delete campaign ${id}`
+    };
+  }
+};
+
+/**
+ * Fetch campaign stats
+ * @param id The campaign ID
+ * @returns Promise with campaign stats response
+ */
+export const fetchCampaignStats = async (id: number): Promise<CampaignStatsResponse> => {
+  try {
+    const response = await api.get<CampaignStatsResponse>(`/campaigns/${id}/stats`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching campaign stats ${id}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : `Failed to fetch campaign stats ${id}`,
+      stats: {} as CampaignStats
+    };
+  }
+};
+
 export default api;

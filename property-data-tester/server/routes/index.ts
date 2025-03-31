@@ -3,6 +3,7 @@ import { createAuthRoutes } from './auth.routes';
 import { createPropertyRoutes } from './property.routes';
 import { createDnmRoutes } from './dnm.routes';
 import { createCriteriaRoutes } from './criteria.routes';
+import { createCampaignRoutes } from './campaign.routes';
 import { Pool } from 'pg';
 
 /**
@@ -24,6 +25,9 @@ export function configureRoutes(pool: Pool): Router {
   
   // Criteria routes
   router.use('/criteria', createCriteriaRoutes());
+  
+  // Campaign routes
+  router.use('/campaigns', createCampaignRoutes(pool));
   
   // Simple API test route
   router.get('/test', (req, res) => {

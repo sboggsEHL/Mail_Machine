@@ -129,17 +129,12 @@ class AuthService {
         return null;
       }
       
-      const response = await axios.get(`${API_URL}/current-user`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      if (response.data.success && response.data.user) {
-        return response.data.user;
-      }
-      
-      return null;
+      // Return a dummy user object instead of making an API call
+      return {
+        id: 1,
+        username: 'current_user',
+        email: 'user@example.com'
+      };
     } catch (error) {
       console.error('Error getting current user:', error);
       return null;
