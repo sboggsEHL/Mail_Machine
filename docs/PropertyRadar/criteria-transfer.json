@@ -1,0 +1,172 @@
+{
+    "transferCriteria": [
+      {
+        "name": "TransferType",
+        "description": "The type of transfer the deed represents (Market, Non-Market, etc.)",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TransferType",
+          "value": ["Market", "Non-Market"]
+        }
+      },
+      {
+        "name": "TransferDate",
+        "description": "The date the transfer or sale was recorded at the county recorder's office",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "TransferDate",
+          "value": ["Last 30 Days"]
+        }
+      },
+      {
+        "name": "TransferMonth",
+        "description": "The month the transfer took place (anniversary date), useful for annual reminders",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TransferMonth",
+          "value": ["January", "February"]
+        }
+      },
+      {
+        "name": "TransferDocumentType",
+        "description": "The type of document recorded (Deeds, Deeds of Trust, Notices of Default, etc.)",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TransferDocumentType",
+          "value": ["Grant Deed", "Quitclaim Deed"]
+        }
+      },
+      {
+        "name": "TransferDocumentNumber",
+        "description": "The unique document number assigned by the recorder's office",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TransferDocumentNumber",
+          "value": ["2023-001234", "2023-005678"]
+        }
+      },
+      {
+        "name": "TransferAmount",
+        "description": "The amount of the transfer or sale recorded at the county recorder's office",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "TransferAmount",
+          "value": [[200000, 500000]]
+        }
+      },
+      {
+        "name": "WasListed",
+        "description": "Whether the property was listed for sale within 180 days prior to the transfer",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "WasListed",
+          "value": [1]
+        }
+      },
+      {
+        "name": "MostRecentChangeOfOwnership",
+        "description": "Whether the transfer was the most recent change of ownership",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "MostRecentChangeOfOwnership",
+          "value": [1]
+        }
+      },
+      {
+        "name": "MultipleParcels",
+        "description": "Whether the transfer included multiple parcels",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "MultipleParcels",
+          "value": [1]
+        }
+      },
+      {
+        "name": "NumberOfParcels",
+        "description": "The number of parcels included in the transfer document",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "NumberOfParcels",
+          "value": [[2, 5]]
+        }
+      },
+      {
+        "name": "BuyerName",
+        "description": "The party receiving title or interest in real property (Grantee)",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "BuyerName",
+          "value": ["John Smith", "ABC Corporation"]
+        }
+      },
+      {
+        "name": "SellerName",
+        "description": "The person transferring title to or interest in real property (Grantor)",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "SellerName",
+          "value": ["Jane Doe", "XYZ Trust"]
+        }
+      },
+      {
+        "name": "TitleCompany",
+        "description": "The name of the title company that facilitated the transaction",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TitleCompany",
+          "value": ["First American Title", "Chicago Title"]
+        }
+      },
+      {
+        "name": "TransferPublishedDate",
+        "description": "The date the record was published to PropertyRadar",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "TransferPublishedDate",
+          "value": ["Last 7 Days"]
+        }
+      },
+      {
+        "name": "CashBuyer",
+        "description": "Whether the buyer purchased the property without financing",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "CashBuyer",
+          "value": [1]
+        }
+      },
+      {
+        "name": "REOResale",
+        "description": "Whether the property was sold by a bank after foreclosure",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "REOResale",
+          "value": [1]
+        }
+      },
+      {
+        "name": "Flip",
+        "description": "Whether the property was purchased and resold within a short period of time",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "Flip",
+          "value": [1]
+        }
+      },
+      {
+        "name": "PurchaseMonthsSincePrior",
+        "description": "The number of months between the most recent change in ownership and the previous one",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "PurchaseMonthsSincePrior",
+          "value": [[0, 6]]
+        }
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts an array of multiple values for matching",
+      "Multiple Range": "Accepts a series of arrays with min and max values, e.g. [[100, 200], [300, 400]]",
+      "Boolean": "Accepts either integer 1 or 0",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and ranges"
+    }
+  }

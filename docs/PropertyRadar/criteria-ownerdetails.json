@@ -1,0 +1,253 @@
+{
+    "ownerCriteria": [
+      {
+        "name": "OwnershipType",
+        "description": "The type of ownership: individual, couple, multiple owners, corporate or trust",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "OwnershipType",
+          "value": ["Individual", "Trust"]
+        }
+      },
+      {
+        "name": "NumberOfPropertiesOwned",
+        "description": "The estimated number of properties that are currently owned by the owner of the property",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "NumberOfPropertiesOwned",
+          "value": [[1, 5]]
+        }
+      },
+      {
+        "name": "Deceased",
+        "description": "Whether or not the owner has deceased",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "Deceased",
+          "value": [0]
+        }
+      },
+      {
+        "name": "OwnerPhoneNumber",
+        "description": "The phone number for any person identified as a current owner or principal of the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "OwnerPhoneNumber",
+          "value": ["5551234567"]
+        }
+      },
+      {
+        "name": "HasOwnerPhone",
+        "description": "Whether or not we have a phone number for any owner of the property",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "HasOwnerPhone",
+          "value": [1]
+        }
+      },
+      {
+        "name": "HasOwnerMobilePhone",
+        "description": "Whether or not we have a mobile phone number for any owner of the property",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "HasOwnerMobilePhone",
+          "value": [1]
+        }
+      },
+      {
+        "name": "OwnerEmailAddress",
+        "description": "The email address for any person identified as a current owner or principal of the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "OwnerEmailAddress",
+          "value": ["example@example.com"]
+        }
+      },
+      {
+        "name": "HasOwnerEmail",
+        "description": "Whether or not we have an email address for any of the owners of this property",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "HasOwnerEmail",
+          "value": [1]
+        }
+      },
+      {
+        "name": "OwnerAge",
+        "description": "The age of any owner of the property",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "OwnerAge",
+          "value": [[25, 45]]
+        }
+      },
+      {
+        "name": "OwnerGender",
+        "description": "The gender of any owner of the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "OwnerGender",
+          "value": ["Male", "Female"]
+        }
+      },
+      {
+        "name": "MaritalStatus",
+        "description": "The marital status of any owner of the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "MaritalStatus",
+          "value": ["Married", "Single"]
+        }
+      },
+      {
+        "name": "ChildrenAtHome",
+        "description": "Whether or not any owner of the property has children",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "ChildrenAtHome",
+          "value": [1]
+        }
+      },
+      {
+        "name": "InBankruptcy",
+        "description": "Whether or not an owner of the property is currently in bankruptcy",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "InBankruptcy",
+          "value": [0]
+        }
+      },
+      {
+        "name": "BankruptcyStatus",
+        "description": "The current status of the bankruptcy case (Open, Discharged, Dismissed, Closed, Converted)",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "BankruptcyStatus",
+          "value": ["Open", "Discharged"]
+        }
+      },
+      {
+        "name": "BankruptcyRecordingDate",
+        "description": "The date the bankruptcy document was recorded at the county recorder's office",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "BankruptcyRecordingDate",
+          "value": ["Last 6 Months"]
+        }
+      },
+      {
+        "name": "BankruptcyChapter",
+        "description": "The chapter of the bankruptcy code under which the bankruptcy case has been filed",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "BankruptcyChapter",
+          "value": ["7", "13"]
+        }
+      },
+      {
+        "name": "BankruptcyDistrict",
+        "description": "Which of the 94 federal judicial districts the bankruptcy was filed in",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "BankruptcyDistrict",
+          "value": ["California Central", "California Northern"]
+        }
+      },
+      {
+        "name": "HasDivorce",
+        "description": "Whether or not a current owner has been divorced after they purchased or otherwise owned the property",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "HasDivorce",
+          "value": [0]
+        }
+      },
+      {
+        "name": "DivorceRecordingDate",
+        "description": "The date the divorce document was recorded at the county recorder's office",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "DivorceRecordingDate",
+          "value": ["Last 12 Months"]
+        }
+      },
+      {
+        "name": "DivorceDecreeDate",
+        "description": "The date the court signed the divorce decree, finalizing the divorce",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "DivorceDecreeDate",
+          "value": ["Last 12 Months"]
+        }
+      },
+      {
+        "name": "MailVacant",
+        "description": "Whether or not the owner's mailing address has been identified as vacant by the United States Postal Service",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "MailVacant",
+          "value": [0]
+        }
+      },
+      {
+        "name": "MailingAddress",
+        "description": "The owner's mailing address per county tax assessor records",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "MailingAddress",
+          "value": ["123 Example St"]
+        }
+      },
+      {
+        "name": "MailingCity",
+        "description": "The owner's mailing city per county tax assessor records",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "MailingCity",
+          "value": ["Los Angeles", "San Diego"]
+        }
+      },
+      {
+        "name": "MailingZipCode",
+        "description": "The owner's zip code per county tax assessor records",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "MailingZipCode",
+          "value": ["90210", "92101"]
+        }
+      },
+      {
+        "name": "MailingState",
+        "description": "The owner's state per county tax assessor records",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "MailingState",
+          "value": ["CA", "NV", "AZ"]
+        }
+      },
+      {
+        "name": "MailingAddressComplete",
+        "description": "Whether or not the owner's mailing address is complete and not Unknown",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "MailingAddressComplete",
+          "value": [1]
+        }
+      },
+      {
+        "name": "MailCongressionalDistrict",
+        "description": "The number of the owner's congressional district within the state, based on their mailing address",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "MailCongressionalDistrict",
+          "value": ["02", "05"]
+        }
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts an array of multiple values for matching",
+      "Multiple Range": "Accepts a series of arrays with min and max values, e.g. [[100, 200], [300, 400]]",
+      "Boolean": "Accepts either integer 1 or 0",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and ranges using from:/to: syntax"
+    }
+  }

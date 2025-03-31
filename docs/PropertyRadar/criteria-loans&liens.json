@@ -1,0 +1,191 @@
+{
+    "loansAndLiensCriteria": [
+      {
+        "name": "EstimatedOpenLoansBalance",
+        "description": "The estimated combined amount of all open loans based on computer model",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "EstimatedOpenLoansBalance",
+          "value": [[100000, 300000]]
+        }
+      },
+      {
+        "name": "EstimatedNumberOfOpenLoans",
+        "description": "The estimated number of loans currently open and outstanding on the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "EstimatedNumberOfOpenLoans",
+          "value": [1, 2]
+        }
+      },
+      {
+        "name": "FreeAndClear",
+        "description": "Whether the property has no loans or liens (100% equity)",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "FreeAndClear",
+          "value": [1]
+        }
+      },
+      {
+        "name": "LoanPurpose",
+        "description": "The purpose of the mortgage - purchase, rate and term refinance, cash-out refinance, construction, HELOC, or reverse mortgage",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "LoanPurpose",
+          "value": ["Purchase", "CashOut"]
+        }
+      },
+      {
+        "name": "LoanType",
+        "description": "The type of loan - conforming, non-conforming, private, seller carryback, FHA, VA, SBA, conventional or jumbo",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "LoanType",
+          "value": ["Conventional", "FHA"]
+        }
+      },
+      {
+        "name": "LoanDate",
+        "description": "The date the mortgage was recorded at the county",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "LoanDate",
+          "value": ["Last 6 Months"]
+        }
+      },
+      {
+        "name": "LoanConcurrent",
+        "description": "Whether or not this loan was made concurrently (at the same time) as another",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "LoanConcurrent",
+          "value": [1]
+        }
+      },
+      {
+        "name": "LoanAmount",
+        "description": "The loan amount of the mortgage",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "LoanAmount",
+          "value": [[200000, 500000]]
+        }
+      },
+      {
+        "name": "LoanCashOut",
+        "description": "The estimated cash available to the borrower after refinancing or taking additional financing",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "LoanCashOut",
+          "value": [[50000, null]]
+        }
+      },
+      {
+        "name": "LoanToValue",
+        "description": "The loan amount as a percentage of the estimated value at the time the loan was made",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "LoanToValue",
+          "value": [[60, 80]]
+        }
+      },
+      {
+        "name": "LoanTerm",
+        "description": "The amortization period of the mortgage",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "LoanTerm",
+          "value": [[15, 30]]
+        }
+      },
+      {
+        "name": "LoanOriginalLender",
+        "description": "The lender name for the mortgage as originally recorded",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "LoanOriginalLender",
+          "value": ["Bank of America", "Wells Fargo"]
+        }
+      },
+      {
+        "name": "LoanARMNegativeAmortization",
+        "description": "Whether or not an adjustable rate mortgage has a negative amortization indicator",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "LoanARMNegativeAmortization",
+          "value": [0]
+        }
+      },
+      {
+        "name": "LienRecordingDate",
+        "description": "The date the lien was recorded at the county recorder's office",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "LienRecordingDate",
+          "value": ["Last 12 Months"]
+        }
+      },
+      {
+        "name": "LienType",
+        "description": "The type of lien, for example association (HOA) or mechanics liens",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "LienType",
+          "value": ["HOA", "Mechanics"]
+        }
+      },
+      {
+        "name": "LienPosition",
+        "description": "The current estimated position of the lien, with lower positions having higher priority",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "LienPosition",
+          "value": ["First", "Second"]
+        }
+      },
+      {
+        "name": "LienStatus",
+        "description": "The current estimated status of the lien - active or reconveyed (paid off)",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "LienStatus",
+          "value": ["Active", "Reconveyed"]
+        }
+      },
+      {
+        "name": "LienAmount",
+        "description": "The original amount of the lien (not the current balance)",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "LienAmount",
+          "value": [[5000, 50000]]
+        }
+      },
+      {
+        "name": "LienInterestRate",
+        "description": "The interest rate of the lien, if any",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "LienInterestRate",
+          "value": [[3, 6]]
+        }
+      },
+      {
+        "name": "HasInvoluntaryLien",
+        "description": "Whether the property has any involuntary liens such as mechanics liens or HOA liens",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "HasInvoluntaryLien",
+          "value": [1]
+        }
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts an array of multiple values for matching",
+      "Multiple Range": "Accepts a series of arrays with min and max values, e.g. [[100, 200], [300, 400]]",
+      "Multiple Range Including Unknowns": "Same as Multiple Range but includes properties with unknown values",
+      "Boolean": "Accepts either integer 1 or 0",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and ranges"
+    }
+  }

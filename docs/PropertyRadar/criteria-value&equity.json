@@ -1,0 +1,99 @@
+{
+    "valueAndEquityCriteria": [
+      {
+        "name": "EstimatedValue",
+        "description": "The estimate of the property's value based on public records data (automated valuation model or AVM)",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "EstimatedValue",
+          "value": [[250000, 500000]]
+        }
+      },
+      {
+        "name": "EstValuePerSqFt",
+        "description": "The estimated value per square foot (estimated value divided by sq ft)",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "EstValuePerSqFt",
+          "value": [[200, 400]]
+        }
+      },
+      {
+        "name": "EstimatedEquityDollars",
+        "description": "The estimated dollar value of equity (estimated property value minus sum of all loans modeled to be open)",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "EstimatedEquityDollars",
+          "value": [[100000, null]]
+        }
+      },
+      {
+        "name": "EstimatedEquityPercent",
+        "description": "Estimated equity as a percent of the estimated property value taking into account all loans",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "EstimatedEquityPercent",
+          "value": [[20, 100]]
+        }
+      },
+      {
+        "name": "AvailableEquity",
+        "description": "Shorthand for EstimatedEquityDollars - the dollar value of equity in the property",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "AvailableEquity",
+          "value": [[100000, null]]
+        }
+      },
+      {
+        "name": "CombinedLoanToValue",
+        "description": "The combined loan amounts as a percentage of the estimated property value (CLTV)",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "CombinedLoanToValue",
+          "value": [[60, 80]]
+        }
+      },
+      {
+        "name": "EstimatedOpenLoansBalance",
+        "description": "The estimated combined amount of all open loans based on computer model",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "EstimatedOpenLoansBalance",
+          "value": [[100000, 300000]]
+        }
+      },
+      {
+        "name": "EstimatedNumberOfOpenLoans",
+        "description": "The estimated number of loans currently open and outstanding on the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "EstimatedNumberOfOpenLoans",
+          "value": [1, 2]
+        }
+      },
+      {
+        "name": "FreeAndClear",
+        "description": "Whether the property has no loans or liens (100% equity)",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "FreeAndClear",
+          "value": [1]
+        }
+      },
+      {
+        "name": "Underwater",
+        "description": "Whether the property has negative equity (loans greater than value)",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "Underwater",
+          "value": [0]
+        }
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts an array of multiple values for matching",
+      "Multiple Range Including Unknowns": "Accepts a series of arrays with min and max values and includes properties with unknown values",
+      "Boolean": "Accepts either integer 1 or 0"
+    }
+  }
