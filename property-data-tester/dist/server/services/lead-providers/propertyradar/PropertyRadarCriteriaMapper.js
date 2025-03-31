@@ -11,14 +11,15 @@ class PropertyRadarCriteriaMapper {
      * @returns Properly formatted criteria for PropertyRadar API
      */
     static transformCriteria(criteriaObj) {
-        const result = [];
-        // Add purchase parameter (required by the API)
-        if (criteriaObj.purchase !== undefined) {
-            result.push({
-                name: "Purchase",
-                value: [criteriaObj.purchase]
-            });
+        // Check if the criteria is already in the API format
+        if (criteriaObj.Criteria) {
+            // Return just the Criteria array to match the expected format
+            return {
+                Criteria: criteriaObj.Criteria
+            };
         }
+        const result = [];
+        // Note: purchase, limit, and start parameters should be in the URL only, not in the criteria array
         // Add state if present
         if (criteriaObj.state) {
             result.push({
@@ -100,7 +101,7 @@ class PropertyRadarCriteriaMapper {
             if ([
                 'state', 'propertyTypes', 'loanTypes', 'isSameMailingOrExempt',
                 'isMailVacant', 'inForeclosure', 'isListedForSale', 'equityPercent',
-                'totalLoanBalance', 'firstRate'
+                'totalLoanBalance', 'firstRate', 'purchase', 'limit', 'start'
             ].includes(key)) {
                 continue;
             }

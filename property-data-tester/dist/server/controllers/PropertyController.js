@@ -28,10 +28,20 @@ class PropertyController {
                     });
                     return;
                 }
-                // Add pagination to criteria
-                const criteriaWithPagination = Object.assign(Object.assign({}, criteria), { limit: limit || 10, start: start || 0 });
+                // Format criteria as an array of objects with name and value properties
+                const formattedCriteria = Object.entries(criteria).map(([name, value]) => ({
+                    name,
+                    value: Array.isArray(value) ? value : [value]
+                }));
+                // Create criteria input with just the formatted criteria
+                const criteriaInput = {
+                    Criteria: formattedCriteria,
+                    limit: limit || 10,
+                    start: start || 0,
+                    purchase: req.body.purchase || 0
+                };
                 const properties = yield this.propertyService.fetchPropertiesFromProvider('PR', // PropertyRadar provider code
-                criteriaWithPagination, fields);
+                criteriaInput, fields);
                 res.json({
                     success: true,
                     count: properties.length,

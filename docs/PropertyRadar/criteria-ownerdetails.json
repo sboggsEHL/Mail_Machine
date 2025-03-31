@@ -245,9 +245,14 @@
       }
     ],
     "criteriaTypes": {
-      "Multiple Values": "Accepts an array of multiple values for matching",
-      "Multiple Range": "Accepts a series of arrays with min and max values, e.g. [[100, 200], [300, 400]]",
-      "Boolean": "Accepts either integer 1 or 0",
-      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and ranges using from:/to: syntax"
+      "Multiple Values": "Accepts one or more values, which are OR'd together. Example: [\"97202\", \"97212\"]",
+      "Multiple Values Beginning With": "Similar to Multiple Value, except an exact match is not required; properties will be found if they merely begin with the given value. Example: [\"123\", \"910-021-669-000\"]",
+      "Boolean": "Accepts either integer 1 or 0. Example: [1] means the property must have this attribute, [0] means it must not have it.",
+      "Multiple Range": "Accepts a series of arrays with min and max values. Example: [[100000, null]] returns properties having values from $100,000 to infinity. [[null, 100000]] returns properties with up to $100,000.",
+      "Multiple Range Including Unknowns": "Same as Multiple Range, but when null is used as the left (minimum) end of the range, unknown values are included in the results.",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and date ranges using a from: to: syntax. Example: [\"Last 7 Days\", \"from: 1/1/2023 to: 1/31/2023\", \"1/1/2028\"]",
+      "Relative Date Including Unknowns": "Same as Relative Date but when the from: section is left empty, includes properties for which we don't know the value for that field.",
+      "Single Value": "Like Multiple Value but accepts only one value.",
+      "PropertyType": "A special format combining both our list of simple property types known as PType along with our AdvancedPropertyTypes."
     }
   }

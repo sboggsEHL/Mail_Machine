@@ -53,7 +53,7 @@ class PropertyRadarProvider {
             }
             try {
                 // Build the API URL with query parameters
-                const apiUrl = `${this.baseUrl}/properties?Fields=${fields.join(',')}&Limit=${criteria.limit || 10}&Start=${criteria.start || 1}`;
+                const apiUrl = `${this.baseUrl}/properties?Fields=${fields.join(',')}&Limit=${criteria.limit || 10}&Start=${criteria.start || 1}&Purchase=${criteria.purchase || 0}`;
                 // Transform criteria to PropertyRadar format
                 const requestBody = PropertyRadarCriteriaMapper_1.PropertyRadarCriteriaMapper.transformCriteria(criteria);
                 console.log('Making request to PropertyRadar API:', apiUrl);

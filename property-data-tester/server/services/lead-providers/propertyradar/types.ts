@@ -85,5 +85,9 @@ export interface PropertyRadarCriteriaInput {
   equityPercent?: string;
   totalLoanBalance?: string;
   firstRate?: string;
+  limit?: number;
+  start?: number;
+  purchase?: number;
+  Criteria?: PropertyRadarCriterion[]; // For when criteria is already in API format
   [key: string]: any;
 }
