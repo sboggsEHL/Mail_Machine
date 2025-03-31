@@ -6,6 +6,8 @@
 - Loan ID generation follows the format `[LoanType][State][YY][Week]-[Sequence]` and is critical for tracking
 - The `complete_property_view` is the primary interface for loan officers to access all property and loan data
 - DNM (Do Not Mail) enforcement must be automatic through database triggers
+- Authentication uses JWT tokens stored in localStorage rather than server-side sessions
+- The authentication flow requires proper route protection with the auth middleware
 
 ## User Preferences and Workflow
 - Documentation should be clear and accessible, with step-by-step instructions
@@ -13,6 +15,8 @@
 - Database design prioritizes quick lookups by loan officers when recipients call
 - Backward compatibility with existing systems is important, particularly the `mailready` table
 - Normalized database structure is preferred over denormalized for flexibility and maintainability
+- Authentication should be seamless with automatic token refresh when tokens near expiration
+- User interfaces should provide clear feedback on authentication status and errors
 
 ## Project-Specific Patterns
 - PropertyRadar is the primary source of truth for property data, but the system should support multiple lead providers
@@ -22,6 +26,9 @@
 - System configuration is stored in the database rather than hardcoded
 - Materialized views are used for reporting and must be refreshed regularly
 - Field mapping from PropertyRadar to database fields is documented for reference
+- JWT tokens are used for authentication with a refresh token pattern for extending sessions
+- Authentication state is maintained in localStorage for stateless server operation
+- API requests automatically include authorization headers through axios interceptors
 
 ## Known Challenges
 - History tables will grow over time and require archival strategies
@@ -30,6 +37,8 @@
 - Performance optimization is critical for large data volumes
 - Backward compatibility adds complexity to the design
 - Supporting multiple lead providers requires consistent field naming conventions
+- Bcrypt password verification with existing users may require adjustment
+- JWT token security requires proper handling of refresh tokens and expiration times
 
 ## Evolution of Project Decisions
 - The system has evolved from manual processes to an automated workflow
@@ -38,6 +47,8 @@
 - The loan ID format was designed to be both human-readable and machine-processable
 - The database structure was normalized to support multiple lead providers and multiple owners per property
 - The database implementation guide was split into two files for better organization
+- Authentication shifted from session-based to JWT-based for better scalability
+- Token storage moved to localStorage for easier client-side management
 
 ## Tool Usage Patterns
 - PostgreSQL is the primary database system
@@ -45,3 +56,6 @@
 - Cron jobs or scheduled tasks are required for regular maintenance
 - PropertyRadar API is used for data sourcing
 - CSV files are used for data exchange with mailing services
+- JWT tokens are used for authentication and API protection
+- React is used for frontend components with TypeScript for type safety
+- Axios is used for API requests with interceptors for token management
