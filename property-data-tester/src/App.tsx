@@ -189,6 +189,14 @@ function App() {
     );
   }
 
+  // Force logout function for debugging
+  const forceLogout = () => {
+    authService.clearTokens();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    window.location.reload();
+  };
+
   // Login page for unauthenticated users
   if (!isAuthenticated) {
     return (
@@ -213,7 +221,8 @@ function App() {
                   Signed in as: <b>{currentUser.username}</b>
                 </Navbar.Text>
               )}
-              <Button variant="outline-light" onClick={handleLogout}>Logout</Button>
+              <Button variant="outline-light" onClick={handleLogout} className="me-2">Logout</Button>
+              <Button variant="outline-danger" onClick={forceLogout}>Force Login Screen</Button>
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -224,10 +233,9 @@ function App() {
         
         <Row className="mb-4">
           <Col lg={6}>
-            <FieldSelector 
-              selectedFields={selectedFields} 
+            <FieldSelector
+              selectedFields={selectedFields}
               onFieldSelectionChange={setSelectedFields}
-              availableFields={[]} 
             />
           </Col>
           <Col lg={6}>

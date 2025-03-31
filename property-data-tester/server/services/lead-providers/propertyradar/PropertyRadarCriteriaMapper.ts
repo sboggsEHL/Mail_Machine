@@ -12,6 +12,14 @@ export class PropertyRadarCriteriaMapper {
   static transformCriteria(criteriaObj: PropertyRadarCriteriaInput): PropertyRadarRequest {
     const result: PropertyRadarCriterion[] = [];
     
+    // Add purchase parameter (required by the API)
+    if (criteriaObj.purchase !== undefined) {
+      result.push({
+        name: "Purchase",
+        value: [criteriaObj.purchase]
+      });
+    }
+    
     // Add state if present
     if (criteriaObj.state) {
       result.push({
@@ -97,7 +105,7 @@ export class PropertyRadarCriteriaMapper {
       });
     }
 
-    // Add any other specific criteria that might be provided
+    // Process any dynamically added criteria from the JSON files
     for (const [key, value] of Object.entries(criteriaObj)) {
       // Skip the keys we've already processed
       if ([
@@ -110,10 +118,34 @@ export class PropertyRadarCriteriaMapper {
       
       // If it's a specific criterion not covered by our standard mappings
       if (value !== undefined && value !== null) {
-        result.push({
-          name: key,
-          value: Array.isArray(value) ? value : [value]
-        });
+        // Handle different types of criteria
+        if (typeof value === 'boolean') {
+          // Boolean values should be converted to 1/0
+          result.push({
+            name: key,
+            value: [value ? 1 : 0]
+          });
+        } else if (Array.isArray(value) && value.length === 2 && 
+                  (typeof value[0] === 'number' || value[0] === null) && 
+                  (typeof value[1] === 'number' || value[1] === null)) {
+          // This is a range criterion (min/max values)
+          result.push({
+            name: key,
+            value: [value]
+          });
+        } else if (Array.isArray(value)) {
+          // Regular array of values (e.g., multiple selection)
+          result.push({
+            name: key,
+            value: value
+          });
+        } else {
+          // Single values
+          result.push({
+            name: key,
+            value: [value]
+          });
+        }
       }
     }
     

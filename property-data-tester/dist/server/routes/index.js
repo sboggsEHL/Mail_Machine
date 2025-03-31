@@ -5,6 +5,7 @@ const express_1 = require("express");
 const auth_routes_1 = require("./auth.routes");
 const property_routes_1 = require("./property.routes");
 const dnm_routes_1 = require("./dnm.routes");
+const criteria_routes_1 = require("./criteria.routes");
 /**
  * Configure all API routes
  * @param pool Database pool
@@ -18,6 +19,8 @@ function configureRoutes(pool) {
     router.use('/', (0, property_routes_1.createPropertyRoutes)());
     // DNM routes
     router.use('/', (0, dnm_routes_1.createDnmRoutes)());
+    // Criteria routes
+    router.use('/criteria', (0, criteria_routes_1.createCriteriaRoutes)());
     // Simple API test route
     router.get('/test', (req, res) => {
         res.json({

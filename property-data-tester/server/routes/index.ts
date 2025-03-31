@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createAuthRoutes } from './auth.routes';
 import { createPropertyRoutes } from './property.routes';
 import { createDnmRoutes } from './dnm.routes';
+import { createCriteriaRoutes } from './criteria.routes';
 import { Pool } from 'pg';
 
 /**
@@ -20,6 +21,9 @@ export function configureRoutes(pool: Pool): Router {
   
   // DNM routes
   router.use('/', createDnmRoutes());
+  
+  // Criteria routes
+  router.use('/criteria', createCriteriaRoutes());
   
   // Simple API test route
   router.get('/test', (req, res) => {

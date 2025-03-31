@@ -412,6 +412,12 @@ app.post('/api/fetch-properties', async (req: Request<{}, {}, FetchPropertiesReq
     // Transform criteria to PropertyRadar format
     const criteriaArray = transformCriteria(criteria);
     
+    // Add Purchase parameter to criteria array (required by the API)
+    criteriaArray.push({
+      name: "Purchase",
+      value: [purchase]
+    });
+    
     // Prepare the request body with properly formatted criteria
     const requestBody: PropertyRadarRequest = {
       Criteria: criteriaArray

@@ -10,7 +10,6 @@ export interface ApiParamsFormProps {
 }
 
 export interface FieldSelectorProps {
-  availableFields: string[];
   selectedFields: string[];
   onFieldSelectionChange: (fields: string[]) => void;
 }

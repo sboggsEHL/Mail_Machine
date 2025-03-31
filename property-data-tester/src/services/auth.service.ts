@@ -165,10 +165,18 @@ class AuthService {
     }
   }
 
+  // Flag to prevent duplicate interceptor registration
+  private interceptorsSetup = false;
+  
   /**
    * Setup axios interceptors for auth
    */
   setupInterceptors(): void {
+    // Prevent multiple interceptor registrations which can cause repeated requests
+    if (this.interceptorsSetup) {
+      return;
+    }
+    
     // Request interceptor to add token to headers
     axios.interceptors.request.use(
       async (config) => {
@@ -177,8 +185,9 @@ class AuthService {
           return config;
         }
         
-        // Check if token needs to be refreshed
-        if (this.needsRefresh()) {
+        // Check if token needs to be refreshed, but only if this isn't a current-user request
+        // to avoid infinite loops of token checks
+        if (this.needsRefresh() && !config.url?.includes('/current-user')) {
           await this.refreshToken();
         }
         
@@ -217,6 +226,8 @@ class AuthService {
         return Promise.reject(error);
       }
     );
+    
+    this.interceptorsSetup = true;
   }
 }
 

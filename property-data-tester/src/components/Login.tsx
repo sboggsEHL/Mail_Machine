@@ -27,7 +27,7 @@ function Login({ onLoginSuccess }: LoginProps) {
     
     try {
       const response = await axios.post<LoginResponse>(
-        'http://localhost:3001/api/auth/login',
+        '/api/auth/login',
         { username, password }
       );
       
