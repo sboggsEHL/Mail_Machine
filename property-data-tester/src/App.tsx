@@ -7,6 +7,8 @@ import ApiParamsForm from './components/ApiParamsForm';
 import PropertyList from './components/PropertyList';
 import InsertResults from './components/InsertResults';
 import Login from './components/Login';
+import { PropertyRadarCriteriaDemo } from './components/PropertyRadarCriteriaDemo';
+import { TestPage } from './components/TestPage';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
 import authService from './services/auth.service';
 
@@ -38,6 +40,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState<string>('main');
 
   // Data state
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -214,7 +217,30 @@ function App() {
         <Container>
           <Navbar.Brand href="#home">Property Data Tester</Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
-          <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="me-auto">
+              <Nav.Link
+                href="#main"
+                active={currentPage === 'main'}
+                onClick={() => setCurrentPage('main')}
+              >
+                Main App
+              </Nav.Link>
+              <Nav.Link
+                href="#criteria-demo"
+                active={currentPage === 'criteria-demo'}
+                onClick={() => setCurrentPage('criteria-demo')}
+              >
+                Criteria Demo
+              </Nav.Link>
+              <Nav.Link
+                href="#test-page"
+                active={currentPage === 'test-page'}
+                onClick={() => setCurrentPage('test-page')}
+              >
+                Test Page
+              </Nav.Link>
+            </Nav>
             <Nav>
               {currentUser && (
                 <Navbar.Text className="me-3">
@@ -229,78 +255,90 @@ function App() {
       </Navbar>
       
       <Container>
-        <h1 className="mb-4">PropertyRadar API Tester</h1>
-        
-        <Row className="mb-4">
-          <Col lg={6}>
-            <FieldSelector
-              selectedFields={selectedFields}
-              onFieldSelectionChange={setSelectedFields}
-            />
-          </Col>
-          <Col lg={6}>
-            <ApiParamsForm 
-              apiParams={apiParams} 
-              setApiParams={setApiParams} 
-            />
-            
-            <div className="d-grid gap-2 mt-3">
-              <Button 
-                variant="primary" 
-                size="lg" 
-                onClick={handleFetchProperties}
-                disabled={fetchStatus.loading}
-              >
-                {fetchStatus.loading ? 'Fetching...' : 'Fetch Properties'}
-              </Button>
-            </div>
-            
-            {fetchStatus.error && (
-              <Alert variant="danger" className="mt-3">
-                {fetchStatus.error}
-              </Alert>
-            )}
-          </Col>
-        </Row>
-        
-        {properties.length > 0 && (
+        {currentPage === 'main' && (
           <>
-            <Row className="mb-3">
-              <Col>
-                <h2>Retrieved Properties ({properties.length})</h2>
-                <div className="d-grid gap-2">
-                  <Button 
-                    variant="success" 
-                    size="lg" 
-                    onClick={handleInsertProperties}
-                    disabled={insertStatus.loading}
+            <h1 className="mb-4">PropertyRadar API Tester</h1>
+            
+            <Row className="mb-4">
+              <Col lg={6}>
+                <FieldSelector
+                  selectedFields={selectedFields}
+                  onFieldSelectionChange={setSelectedFields}
+                />
+              </Col>
+              <Col lg={6}>
+                <ApiParamsForm
+                  apiParams={apiParams}
+                  setApiParams={setApiParams}
+                />
+                
+                <div className="d-grid gap-2 mt-3">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={handleFetchProperties}
+                    disabled={fetchStatus.loading}
                   >
-                    {insertStatus.loading ? 'Inserting...' : 'Insert Into Database'}
+                    {fetchStatus.loading ? 'Fetching...' : 'Fetch Properties'}
                   </Button>
                 </div>
                 
-                {insertStatus.error && (
+                {fetchStatus.error && (
                   <Alert variant="danger" className="mt-3">
-                    {insertStatus.error}
+                    {fetchStatus.error}
                   </Alert>
                 )}
               </Col>
             </Row>
             
-            <Row>
-              <Col>
-                <PropertyList properties={properties} selectedFields={selectedFields} />
-              </Col>
-            </Row>
+            {properties.length > 0 && (
+              <>
+                <Row className="mb-3">
+                  <Col>
+                    <h2>Retrieved Properties ({properties.length})</h2>
+                    <div className="d-grid gap-2">
+                      <Button
+                        variant="success"
+                        size="lg"
+                        onClick={handleInsertProperties}
+                        disabled={insertStatus.loading}
+                      >
+                        {insertStatus.loading ? 'Inserting...' : 'Insert Into Database'}
+                      </Button>
+                    </div>
+                    
+                    {insertStatus.error && (
+                      <Alert variant="danger" className="mt-3">
+                        {insertStatus.error}
+                      </Alert>
+                    )}
+                  </Col>
+                </Row>
+                
+                <Row>
+                  <Col>
+                    <PropertyList properties={properties} selectedFields={selectedFields} />
+                  </Col>
+                </Row>
+              </>
+            )}
+            
+            {insertResults && (
+              <Row className="mt-4">
+                <Col>
+                  <InsertResults results={insertResults} />
+                </Col>
+              </Row>
+            )}
           </>
         )}
         
-        {insertResults && (
-          <Row className="mt-4">
-            <Col>
-              <InsertResults results={insertResults} />
-            </Col>
-          </Row>
+        {currentPage === 'criteria-demo' && (
+          <PropertyRadarCriteriaDemo />
+        )}
+        
+        {currentPage === 'test-page' && (
+          <TestPage />
         )}
       </Container>
     </>

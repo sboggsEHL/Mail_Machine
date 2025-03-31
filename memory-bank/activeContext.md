@@ -1,6 +1,8 @@
 # Active Context
 
 ## Current Work Focus
+- Building and optimizing the PropertyRadar criteria selection interface
+- Implementing various criteria types with appropriate UI components
 - Implementing JWT-based authentication for the PropertyRadar API tester application
 - Implementing the normalized database structure to support multiple lead providers
 - Setting up the core tables, relationships, and automated workflows
@@ -8,6 +10,19 @@
 - Creating views for loan officer interfaces
 
 ## Recent Changes
+- Implemented a robust criteria builder interface for PropertyRadar searches
+- Added specialized UI components for different criteria types:
+  - BooleanCriteriaComponent - for Yes/No criteria
+  - MultipleValuesComponent - for comma-separated text inputs
+  - MultipleRangeComponent - for min/max ranges
+  - MultipleValuesBeginningWithComponent - for partial matching
+  - SingleValueComponent - for single-value inputs
+  - PropertyTypeComponent - for property type selection
+  - DateCriteriaComponent - for date-related criteria
+- Fixed state management issues in the criteria selection UI
+- Added JSON preview to show criteria before submission
+- Implemented visual feedback for selected criteria (colored badges)
+- Added server-side criteria handling through CriteriaController and routes
 - Converted from session-based authentication to JWT (JSON Web Token) based auth
 - Created a dedicated auth service for token management and automatic refresh
 - Fixed route mapping for authentication endpoints (/api/auth/login)
@@ -24,6 +39,9 @@
 - Documented practical examples of how to use the database
 
 ## Next Steps
+- Integrate the specialized criteria components with the main criteria builder
+- Add support for more complex criteria combinations (AND/OR logic)
+- Implement saving/loading of common criteria groups
 - Fix credential verification in UserRepository to ensure working login functionality
 - Debug bcrypt password comparison for the existing users in the database
 - Complete the authentication implementation with route protection
@@ -35,6 +53,10 @@
 - Implement security measures and access controls
 
 ## Active Decisions
+- Implementing specialized UI components for different criteria types vs. a generic approach
+- Using React state management with careful handling to prevent re-rendering issues
+- Providing immediate visual feedback for criteria selection (badges)
+- Adding JSON preview to help users understand the structure of their criteria
 - Choosing JWT over session-based authentication for better scalability and stateless operation
 - Storing tokens in localStorage rather than cookies for easier client-side management
 - Determining the optimal archival strategy for historical data

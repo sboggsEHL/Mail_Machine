@@ -29,10 +29,41 @@ class PropertyController {
                     return;
                 }
                 // Format criteria as an array of objects with name and value properties
-                const formattedCriteria = Object.entries(criteria).map(([name, value]) => ({
-                    name,
-                    value: Array.isArray(value) ? value : [value]
-                }));
+                const formattedCriteria = Object.entries(criteria).map(([name, value]) => {
+                    // Check if this is a date range criteria (name ends with 'Date' and value is an array of two dates)
+                    if (name.endsWith('Date') &&
+                        Array.isArray(value) &&
+                        value.length === 2 &&
+                        typeof value[0] === 'string' &&
+                        typeof value[1] === 'string') {
+                        // Format as a date range using the "from: to:" syntax
+                        const fromDate = value[0] || '';
+                        const toDate = value[1] || '';
+                        if (fromDate && toDate) {
+                            return {
+                                name,
+                                value: [`from: ${fromDate} to: ${toDate}`]
+                            };
+                        }
+                        else if (fromDate) {
+                            return {
+                                name,
+                                value: [fromDate]
+                            };
+                        }
+                        else if (toDate) {
+                            return {
+                                name,
+                                value: [`from: to: ${toDate}`]
+                            };
+                        }
+                    }
+                    // Default handling for non-date criteria
+                    return {
+                        name,
+                        value: Array.isArray(value) ? value : [value]
+                    };
+                });
                 // Create criteria input with just the formatted criteria
                 const criteriaInput = {
                     Criteria: formattedCriteria,

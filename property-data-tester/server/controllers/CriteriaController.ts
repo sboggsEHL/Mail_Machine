@@ -1,67 +1,86 @@
 import { Request, Response } from 'express';
-import path from 'path';
-import fs from 'fs';
+import { CriteriaService } from '../services/CriteriaService';
 
 /**
- * Controller for serving criteria definition files
+ * Controller for criteria-related endpoints
  */
 export class CriteriaController {
+  private criteriaService: CriteriaService;
+
+  constructor(criteriaService: CriteriaService) {
+    this.criteriaService = criteriaService;
+  }
+
   /**
-   * Get criteria definitions by category
+   * Get all criteria with their types
    */
-  public static getCriteriaByCategory = async (req: Request, res: Response): Promise<void> => {
+  getAllCriteria = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { category } = req.params;
+      const criteria = this.criteriaService.getAllCriteria();
       
-      console.log(`Received request for criteria category: ${category}`);
-      
-      // Validate category name (only alphanumeric and &)
-      if (!/^[a-zA-Z0-9&]+$/.test(category)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid category name'
-        });
-        return;
-      }
-      
-      // Path to criteria file
-      const filePath = path.resolve(process.cwd(), 'docs/PropertyRadar', `criteria-${category}.json`);
-      console.log(`Looking for file at: ${filePath}`);
-      
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
-        console.error(`File not found: ${filePath}`);
-        res.status(404).json({
-          success: false,
-          error: `Criteria for category '${category}' not found`
-        });
-        return;
-      }
-      
-      try {
-        // Read file content
-        const fileContent = fs.readFileSync(filePath, 'utf8');
-        console.log(`File content length: ${fileContent.length} bytes`);
-        
-        // Parse the JSON to verify it's valid
-        const jsonData = JSON.parse(fileContent);
-        console.log(`Successfully parsed JSON for ${category}`);
-        
-        // Return the parsed data
-        res.status(200).json(jsonData);
-      } catch (error) {
-        console.error(`Error parsing JSON for ${category}:`, error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        res.status(500).json({
-          success: false,
-          error: `Failed to parse criteria JSON: ${errorMessage}`
-        });
-      }
+      res.json({
+        success: true,
+        count: criteria.length,
+        criteria
+      });
     } catch (error) {
       console.error('Error getting criteria:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to get criteria definitions'
+        error: error instanceof Error ? error.message : 'Failed to get criteria'
+      });
+    }
+  };
+
+  /**
+   * Get criteria by category
+   */
+  getCriteriaByCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { category } = req.params;
+      
+      if (!category) {
+        res.status(400).json({
+          success: false,
+          error: 'Category parameter is required'
+        });
+        return;
+      }
+      
+      const criteria = this.criteriaService.getCriteriaByCategory(category);
+      
+      res.json({
+        success: true,
+        count: criteria.length,
+        category,
+        criteria
+      });
+    } catch (error) {
+      console.error('Error getting criteria by category:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get criteria by category'
+      });
+    }
+  };
+
+  /**
+   * Get criteria type map
+   */
+  getCriteriaTypeMap = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const criteriaTypeMap = this.criteriaService.getCriteriaTypeMap();
+      
+      res.json({
+        success: true,
+        count: Object.keys(criteriaTypeMap).length,
+        criteriaTypeMap
+      });
+    } catch (error) {
+      console.error('Error getting criteria type map:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get criteria type map'
       });
     }
   };

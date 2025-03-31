@@ -1,0 +1,124 @@
+/* Criteria Components Styles */
+
+.criteria-component {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  background-color: #f8f9fa;
+}
+
+.criteria-component h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.criteria-component .description {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+/* Date Criteria Styles */
+.date-criteria .date-type-selector {
+  margin-bottom: 1rem;
+}
+
+.date-criteria .date-inputs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.date-criteria .include-unknowns {
+  margin-top: 0.5rem;
+}
+
+/* Boolean Criteria Styles */
+.boolean-criteria .radio-options {
+  display: flex;
+  gap: 1.5rem;
+}
+
+/* Multiple Range Criteria Styles */
+.multiple-range-criteria .range-inputs {
+  margin-bottom: 0.75rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+/* Multiple Values Criteria Styles */
+.multiple-values-criteria .values-list,
+.multiple-values-beginning-with-criteria .values-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.value-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background-color: #007bff;
+  color: white;
+}
+
+.value-tag button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Property Type Criteria Styles */
+.property-type-criteria .property-types-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+/* Criteria Selector Styles */
+.criteria-selector .nav-tabs {
+  margin-bottom: 1.5rem;
+}
+
+.criteria-selector .criteria-list {
+  margin-bottom: 2rem;
+}
+
+.criteria-selector .selected-criteria {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dee2e6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .date-criteria .date-inputs {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .multiple-range-criteria .range-inputs {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .property-type-criteria .property-types-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .boolean-criteria .radio-options {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

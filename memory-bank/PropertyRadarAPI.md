@@ -21,6 +21,36 @@ Authorization: Bearer YOUR_API_TOKEN
 
 The token is stored in the environment variable `PROPERTY_RADAR_TOKEN`.
 
+## Criteria Building UI
+
+Our application provides a comprehensive UI for building PropertyRadar search criteria. The interface consists of:
+
+1. **Category-based organization**: Criteria are organized into 9 logical categories (Location, Property, Owner Details, etc.)
+2. **Type-specific input components**: Different UI components based on criteria type:
+   - Boolean criteria: Yes/No dropdown selection
+   - Multiple Values: Comma-separated text input or checkbox selection
+   - Multiple Range: Min/Max numeric inputs
+   - Single Value: Text input field
+   - PropertyType: Checkbox selection for different property types
+   - Date criteria: Date picker components
+3. **Visual feedback**: Selected criteria appear as color-coded badges with an option to remove them
+4. **JSON preview**: Shows the complete request payload before submission
+5. **State persistence**: Maintains selected criteria during user interaction
+
+### Component Structure
+
+The criteria UI is built with these key components:
+
+- **ApiParamsForm**: The main form component that handles basic parameters (limit, start, purchase)
+- **CriteriaSelector**: Manages selection of criteria categories and items
+- **BaseCriteriaComponent**: Base class for all criteria type components
+- **BooleanCriteriaComponent**: For Yes/No criteria
+- **MultipleValuesComponent**: For criteria that accept multiple values
+- **MultipleRangeComponent**: For numeric range criteria
+- **SingleValueComponent**: For single-value inputs
+- **PropertyTypeComponent**: Specialized for property type selection
+- **DateCriteriaComponent**: For date-related criteria
+
 ## Fetching Properties
 
 ### Endpoint
@@ -87,6 +117,15 @@ The request body must contain ONLY a `Criteria` array with objects that have `na
 
 ## Implementation Details
 
+### Criteria Building Flow
+
+1. **User selects criteria category**: User chooses from the categorized tabs (Location, Property, etc.)
+2. **User selects specific criterion**: From the list of available criteria in that category
+3. **User provides input**: Using the appropriate UI component for that criteria type
+4. **System adds to active criteria**: Selected criteria appear as badges with their values
+5. **JSON preview updates**: The request payload preview updates to show the formatted criteria
+6. **User submits query**: When all desired criteria are added, the user submits the query
+
 ### In Our Application
 
 1. **PropertyController.ts** formats the criteria from the frontend:
@@ -123,6 +162,18 @@ The request body must contain ONLY a `Criteria` array with objects that have `na
 3. **PropertyRadarProvider.ts** builds the URL with the correct parameters:
    ```typescript
    const apiUrl = `${this.baseUrl}/properties?Fields=${fields.join(',')}&Limit=${criteria.limit || 10}&Start=${criteria.start || 1}&Purchase=${criteria.purchase || 0}`;
+   ```
+
+4. **CriteriaService.ts** handles server-side criteria operations:
+   ```typescript
+   async validateCriteria(criteria: any): Promise<ValidationResult> {
+     // Check for valid criteria types and values
+     // Return validation errors or success status
+   }
+   
+   async saveCommonCriteria(name: string, criteria: any): Promise<SavedCriteria> {
+     // Save commonly used criteria sets for reuse
+   }
    ```
 
 ## Example of a Successful API Call
@@ -214,3 +265,11 @@ If you encounter errors when making API calls to PropertyRadar, check the follow
 3. **"Missing required param"**: You're missing a required parameter in the URL or request body. Check that `Fields`, `Limit`, `Start`, and `Purchase` are all included in the URL.
 
 4. **Authentication errors**: Verify that your API token is valid and properly included in the Authorization header.
+
+### UI-Related Issues
+
+1. **Criteria selections disappearing**: This can happen if there are state management issues or if React is re-rendering components unexpectedly. Ensure that the selectedCriterion state is properly maintained.
+
+2. **Incorrect criteria format**: Verify the transformation from UI format to API format is correct. The UI typically uses a flat object structure that needs to be transformed to the API's array format.
+
+3. **Input validation issues**: Check that the UI is validating inputs properly before attempting to transform and submit them.
