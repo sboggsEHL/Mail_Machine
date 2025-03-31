@@ -7,12 +7,16 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^13.5.0",
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
     "axios": "^1.8.4",
+    "bcrypt": "^5.1.1",
     "bootstrap": "^5.3.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "express-session": "^1.18.0",
+    "express-session": "^1.18.1",
+    "jsonwebtoken": "^9.0.2",
     "pg": "^8.14.1",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
@@ -26,9 +30,11 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "build-server": "tsc -p tsconfig.server.json",
-    "server": "npm run build-server && node dist/server.js",
+    "server": "npm run build-server && node dist/server/server.js",
     "client": "npm start",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build-all": "npm run build && npm run build-server",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" \"server/**/*.ts\""
   },
   "eslintConfig": {
     "extends": [

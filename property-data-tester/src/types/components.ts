@@ -1,12 +1,12 @@
-import { PropertyRadarProperty } from './api';
+import { PropertyRadarProperty, PropertyRadarApiParams } from './api';
 
 export interface LoginProps {
   onLoginSuccess: () => void;
 }
 
 export interface ApiParamsFormProps {
-  onFetchProperties: (properties: PropertyRadarProperty[]) => void;
-  onLoading: (isLoading: boolean) => void;
+  apiParams: PropertyRadarApiParams;
+  setApiParams: React.Dispatch<React.SetStateAction<PropertyRadarApiParams>>;
 }
 
 export interface FieldSelectorProps {
