@@ -43,28 +43,23 @@ export class PropertyBatchService extends PropertyService {
    */
   async getEstimatedCount(criteria: Record<string, any>): Promise<PropertyCountResult> {
     try {
-      // First try to get count from provider API
-      // Since the LeadProvider interface doesn't have getEstimatedCount,
-      // we'll use fetchProperties with a limit of 1 to check if there are any results
-      const provider = leadProviderFactory.getProvider(this.providerCode);
+      // Get list of RadarIDs from criteria
+      let radarIds: string[] = [];
       
-      if (provider.isConfigured()) {
-        try {
-          // Fetch a single property to check if there are results
-          const properties = await provider.fetchProperties({
-            ...criteria,
-            limit: 1
-          }, ['RadarID']);
-          
-          // If we got a result, we can estimate there are more
-          if (properties.length > 0) {
-            // This is a rough estimate - in a real implementation,
-            // you would want to get a more accurate count from the API
-            return { count: 10000 }; // Assume a large number for batch processing
-          }
-        } catch (error) {
-          console.warn('Error estimating count from provider:', error);
+      if (criteria.RadarID) {
+        // If RadarID is directly provided in criteria
+        radarIds = Array.isArray(criteria.RadarID) ? criteria.RadarID : [criteria.RadarID];
+      } else if (criteria.Criteria) {
+        // Extract RadarIDs from Criteria array
+        const radarIdCriterion = criteria.Criteria.find((c: any) => c.name === 'RadarID');
+        if (radarIdCriterion && Array.isArray(radarIdCriterion.value)) {
+          radarIds = radarIdCriterion.value;
         }
+      }
+      
+      if (radarIds.length > 0) {
+        // If we have RadarIDs, return their count
+        return { count: radarIds.length };
       }
       
       // Fallback to database count
@@ -90,29 +85,73 @@ export class PropertyBatchService extends PropertyService {
     offset: number = 0
   ): Promise<PropertyBatchResult> {
     try {
-      // Get properties from provider
-      const properties = await this.fetchPropertiesFromProvider(
-        this.providerCode,
-        {
-          ...criteria,
-          limit,
-          offset
-        },
-        [
-          'RadarID',
-          'Address',
-          'City',
-          'State',
-          'ZipFive',
-          'Owner',
-          'Owner2',
-          'FirstLoanType',
-          'FirstLoanAmount',
-          'FirstLoanDate',
-          'EstimatedValue',
-          'AvailableEquity'
-        ]
-      );
+      // Get list of RadarIDs from criteria
+      let radarIds: string[] = [];
+      
+      if (criteria.RadarID) {
+        // If RadarID is directly provided in criteria
+        radarIds = Array.isArray(criteria.RadarID) ? criteria.RadarID : [criteria.RadarID];
+      } else if (criteria.Criteria) {
+        // Extract RadarIDs from Criteria array
+        const radarIdCriterion = criteria.Criteria.find((c: any) => c.name === 'RadarID');
+        if (radarIdCriterion && Array.isArray(radarIdCriterion.value)) {
+          radarIds = radarIdCriterion.value;
+        }
+      }
+      
+      if (radarIds.length === 0) {
+        throw new Error('No RadarIDs found in criteria');
+      }
+      
+      // Define fields to fetch
+      const fields = [
+        // Basic Info
+        'RadarID', 'PType', 'Address', 'City', 'State', 'ZipFive', 'County', 'APN',
+        
+        // Owner Info
+        'Owner', 'OwnerFirstName', 'OwnerLastName', 'OwnerSpouseFirstName', 'OwnershipType',
+        'isSameMailingOrExempt', 'isMailVacant', 'PhoneAvailability', 'EmailAvailability',
+        
+        // Value and Equity
+        'AVM', 'AvailableEquity', 'EquityPercent', 'CLTV', 'TotalLoanBalance', 'NumberLoans',
+        
+        // Loan Info
+        'FirstDate', 'FirstAmount', 'FirstRate', 'FirstRateType', 'FirstTermInYears',
+        'FirstLoanType', 'FirstPurpose', 'SecondDate', 'SecondAmount', 'SecondLoanType',
+        
+        // Tax Info
+        'AnnualTaxes', 'EstimatedTaxRate',
+        
+        // Transaction History
+        'LastTransferRecDate', 'LastTransferValue', 'LastTransferDownPaymentPercent', 'LastTransferSeller',
+        
+        // Property Status
+        'isListedForSale', 'ListingPrice', 'DaysOnMarket', 'inForeclosure', 'ForeclosureStage',
+        'DefaultAmount', 'inTaxDelinquency', 'DelinquentAmount', 'DelinquentYear'
+      ];
+      
+      // Fetch properties one by one using the fetchPropertyByRadarId method
+      const properties: any[] = [];
+      for (const radarId of radarIds) {
+        try {
+          let property = await this.fetchPropertyByRadarId(
+            this.providerCode,
+            radarId,
+            fields,
+            campaignId
+          );
+          
+          // Ensure the property has a RadarID
+          if (property && property.RadarID) {
+            properties.push(property);
+          } else {
+            console.error(`Property ${radarId} missing RadarID in response`);
+          }
+        } catch (error) {
+          console.error(`Error fetching property ${radarId}:`, error);
+          // Continue with next property
+        }
+      }
       
       // Get batch number for this campaign
       const batchNumber = this.getNextBatchNumber(campaignId);

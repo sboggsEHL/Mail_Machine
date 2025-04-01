@@ -27,6 +27,13 @@ export interface LeadProvider {
   fetchProperties(criteria: any, fields: string[]): Promise<any[]>;
   
   /**
+   * Fetch a single property by its ID
+   * @param propertyId The property ID in the provider's system
+   * @param fields Fields to retrieve
+   */
+  fetchPropertyById?(propertyId: string, fields: string[]): Promise<any>;
+  
+  /**
    * Transform raw property data from provider format to our system format
    * @param rawProperty Raw property data from provider API
    */

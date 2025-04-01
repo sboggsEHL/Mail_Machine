@@ -85,6 +85,51 @@ export class PropertyRadarProvider implements LeadProvider {
   }
 
   /**
+   * Fetch a single property by RadarID
+   * @param radarId The PropertyRadar ID
+   * @param fields Fields to retrieve
+   */
+  async fetchPropertyById(radarId: string, fields: string[]): Promise<PropertyRadarProperty> {
+    if (!this.isConfigured()) {
+      throw new Error('PropertyRadar API is not configured. Please provide a valid API token.');
+    }
+
+    try {
+      // Build the API URL with query parameters
+      const apiUrl = `${this.baseUrl}/properties/${radarId}?Fields=${fields.join(',')}&Purchase=1`;
+      
+      console.log('Making request to PropertyRadar API:', apiUrl);
+      
+      // Make the API request
+      const response = await axios.get<any>(
+        apiUrl,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      if (!response.data) {
+        throw new Error('Unexpected API response structure');
+      }
+      
+      // Check if the response has a results array (which is what we're seeing in the payload)
+      if (response.data.results && Array.isArray(response.data.results) && response.data.results.length > 0) {
+        return response.data.results[0];
+      }
+      
+      // If not, return the data directly
+      return response.data;
+    } catch (error) {
+      this.handleApiError(error);
+      throw error;
+    }
+  }
+
+  /**
    * Transform raw property data from PropertyRadar format to our system format
    * @param rawProperty Raw property data from PropertyRadar API
    */

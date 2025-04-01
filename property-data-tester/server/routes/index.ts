@@ -6,6 +6,7 @@ import { createCriteriaRoutes } from './criteria.routes';
 import { createCampaignRoutes } from './campaign.routes';
 import { createBatchJobRoutes } from './batch-job.routes';
 import { createPropertyFileRoutes } from './property-file.routes';
+import { createListRoutes } from './listRoutes';
 import { Pool } from 'pg';
 
 /**
@@ -35,6 +36,9 @@ export function configureRoutes(pool: Pool): Router {
   
   // Property file routes
   router.use('/property-files', createPropertyFileRoutes(pool));
+  
+  // PropertyRadar list routes
+  router.use('/', createListRoutes(pool));
   
   // Simple API test route
   router.get('/test', (req, res) => {

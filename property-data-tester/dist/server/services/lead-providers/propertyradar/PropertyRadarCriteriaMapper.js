@@ -104,11 +104,12 @@ class PropertyRadarCriteriaMapper {
         }
         // Process any dynamically added criteria from the JSON files
         for (const [key, value] of Object.entries(criteriaObj)) {
-            // Skip the keys we've already processed
+            // Skip the keys we've already processed and internal keys that shouldn't be sent to PropertyRadar
             if ([
                 'state', 'propertyTypes', 'loanTypes', 'isSameMailingOrExempt',
                 'isMailVacant', 'inForeclosure', 'isListedForSale', 'equityPercent',
-                'totalLoanBalance', 'firstRate', 'lastTransferDownPaymentPercent', 'purchase', 'limit', 'start'
+                'totalLoanBalance', 'firstRate', 'lastTransferDownPaymentPercent', 'purchase', 'limit', 'start',
+                'sourceListId', 'offset' // Internal keys that shouldn't be sent to PropertyRadar
             ].includes(key)) {
                 continue;
             }

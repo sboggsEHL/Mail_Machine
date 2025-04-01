@@ -87,6 +87,55 @@ export class PropertyService {
     
     return properties;
   }
+
+  /**
+   * Fetch a single property by its RadarID
+   * @param providerCode Provider code (e.g., 'PR')
+   * @param radarId The PropertyRadar ID
+   * @param fields Fields to retrieve
+   * @returns Property data
+   */
+  async fetchPropertyByRadarId(
+    providerCode: string,
+    radarId: string,
+    fields: string[],
+    campaignId: string = 'individual-request'
+  ): Promise<any> {
+    const provider = leadProviderFactory.getProvider(providerCode);
+    
+    if (!provider.isConfigured()) {
+      throw new Error(`Provider ${providerCode} is not properly configured.`);
+    }
+    
+    if (!provider.fetchPropertyById) {
+      throw new Error(`Provider ${providerCode} does not support fetching by ID.`);
+    }
+    
+    // Fetch property from provider
+    const property = await provider.fetchPropertyById(radarId, fields);
+    
+    // Save raw payload to file
+    if (property) {
+      try {
+        // Get batch number for this campaign
+        const batchNumber = this.getNextBatchNumber(campaignId);
+        
+        // Save property to file
+        await this.propertyPayloadService.savePropertyPayload(
+          [property], // Wrap in array since savePropertyPayload expects an array
+          campaignId,
+          batchNumber
+        );
+        
+        console.log(`Saved raw payload for property ${radarId} from individual request`);
+      } catch (error) {
+        console.error('Error saving raw payload:', error);
+        // Continue even if saving the payload fails
+      }
+    }
+    
+    return property;
+  }
   
   /**
    * Get next batch number for a campaign

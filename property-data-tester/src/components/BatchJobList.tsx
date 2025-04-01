@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Badge, Button, Spinner, Alert } from 'react-bootstrap';
+import React, { useState, useEffect, ChangeEvent } from 'react';
+import { Table, Badge, Button, Spinner, Alert, Form, InputGroup } from 'react-bootstrap';
 import { getBatchJobs, BatchJob } from '../services/batchJob.service';
 
 interface BatchJobListProps {
@@ -14,11 +14,34 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [radarIdSearch, setRadarIdSearch] = useState<string>('');
+  const [filteredJobs, setFilteredJobs] = useState<BatchJob[]>([]);
 
   // Load jobs on component mount and when status filter changes
   useEffect(() => {
     loadJobs();
   }, [statusFilter]);
+
+  // Filter jobs when radarIdSearch or jobs change
+  useEffect(() => {
+    if (!radarIdSearch) {
+      setFilteredJobs(jobs);
+      return;
+    }
+
+    const filtered = jobs.filter(job => {
+      // Check if job has RadarID criteria
+      if (job.criteria && job.criteria.RadarID && Array.isArray(job.criteria.RadarID)) {
+        // Check if any RadarID includes the search term
+        return job.criteria.RadarID.some(id =>
+          id.toLowerCase().includes(radarIdSearch.toLowerCase())
+        );
+      }
+      return false;
+    });
+
+    setFilteredJobs(filtered);
+  }, [jobs, radarIdSearch]);
 
   /**
    * Load jobs from the API
@@ -87,9 +110,9 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Batch Jobs</h2>
         <div>
-          <Button 
-            variant="outline-primary" 
-            className="me-2" 
+          <Button
+            variant="outline-primary"
+            className="me-2"
             onClick={loadJobs}
             disabled={loading}
           >
@@ -110,7 +133,7 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
             )}
           </Button>
           
-          <select 
+          <select
             className="form-select d-inline-block w-auto"
             value={statusFilter || ''}
             onChange={(e) => setStatusFilter(e.target.value || undefined)}
@@ -122,6 +145,35 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
             <option value="FAILED">Failed</option>
           </select>
         </div>
+      </div>
+
+      <div className="mb-3">
+        <InputGroup>
+          <InputGroup.Text>Search RadarID</InputGroup.Text>
+          <Form.Control
+            type="text"
+            placeholder="Enter RadarID to find associated batch job..."
+            value={radarIdSearch}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setRadarIdSearch(e.target.value)}
+          />
+          {radarIdSearch && (
+            <Button
+              variant="outline-secondary"
+              onClick={() => setRadarIdSearch('')}
+            >
+              Clear
+            </Button>
+          )}
+        </InputGroup>
+        {radarIdSearch && (
+          <div className="mt-2">
+            <small className="text-muted">
+              {filteredJobs.length === 0
+                ? 'No batch jobs found with this RadarID'
+                : `Found ${filteredJobs.length} batch job(s) containing this RadarID`}
+            </small>
+          </div>
+        )}
       </div>
       
       {error && (
@@ -137,26 +189,27 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
         </div>
       )}
       
-      {!loading && !error && jobs.length === 0 && (
+      {!loading && !error && !radarIdSearch && jobs.length === 0 && (
         <Alert variant="info">
           No batch jobs found. Create a new batch job by searching for properties with the "Process in Background" option.
         </Alert>
       )}
       
-      {!loading && !error && jobs.length > 0 && (
+      {!loading && !error && (radarIdSearch ? filteredJobs.length > 0 : jobs.length > 0) && (
         <Table striped bordered hover responsive>
           <thead>
             <tr>
               <th>ID</th>
               <th>Status</th>
               <th>Progress</th>
+              <th>Source List</th>
               <th>Created</th>
               <th>Updated</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {jobs.map((job) => (
+            {(radarIdSearch ? filteredJobs : jobs).map((job) => (
               <tr key={job.job_id}>
                 <td>{job.job_id}</td>
                 <td>
@@ -180,6 +233,13 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
                   <small className="text-muted">
                     {job.processed_records || 0} / {job.total_records || 0} records
                   </small>
+                </td>
+                <td>
+                  {job.criteria && job.criteria.sourceListId ? (
+                    <Badge bg="info">List #{job.criteria.sourceListId}</Badge>
+                  ) : (
+                    <span className="text-muted">N/A</span>
+                  )}
                 </td>
                 <td>{formatDate(job.created_at)}</td>
                 <td>{formatDate(job.updated_at)}</td>

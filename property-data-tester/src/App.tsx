@@ -12,6 +12,8 @@ import { TestPage } from './components/archive/TestPage';
 import { CampaignManager, CampaignCreationModal } from './components/campaigns';
 import BatchJobManager from './components/BatchJobManager';
 import PropertyFileProcessor from './components/PropertyFileProcessor';
+import ListsPage from './pages/ListsPage';
+import ListProcessPage from './pages/ListProcessPage';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
 import { createBatchJob } from './services/batchJob.service';
 import authService from './services/auth.service';
@@ -61,6 +63,27 @@ function App() {
   const [insertResults, setInsertResults] = useState<InsertResultsData | null>(null);
   const [batchProcessing, setBatchProcessing] = useState<boolean>(false);
   const [showCampaignModal, setShowCampaignModal] = useState<boolean>(false);
+
+  // Listen for URL hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.substring(1); // Remove the # character
+      if (hash) {
+        setCurrentPage(hash);
+      }
+    };
+
+    // Set initial page based on hash
+    handleHashChange();
+
+    // Add event listener for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+
+    // Clean up event listener
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
 
   // Check authentication status on app load
   useEffect(() => {
@@ -313,6 +336,13 @@ function App() {
                 Batch Jobs
               </Nav.Link>
               <Nav.Link
+                href="#lists"
+                active={currentPage === 'lists'}
+                onClick={() => setCurrentPage('lists')}
+              >
+                PropertyRadar Lists
+              </Nav.Link>
+              <Nav.Link
                 href="#property-files"
                 active={currentPage === 'property-files'}
                 onClick={() => setCurrentPage('property-files')}
@@ -462,6 +492,14 @@ function App() {
         
         {currentPage === 'property-files' && (
           <PropertyFileProcessor />
+        )}
+        
+        {currentPage === 'lists' && (
+          <ListsPage />
+        )}
+        
+        {currentPage.startsWith('lists/') && currentPage.includes('/process') && (
+          <ListProcessPage listId={currentPage.split('/')[1]} />
         )}
       </Container>
     </>
