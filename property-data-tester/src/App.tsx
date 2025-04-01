@@ -7,10 +7,11 @@ import ApiParamsForm from './components/ApiParamsForm';
 import PropertyList from './components/PropertyList';
 import InsertResults from './components/InsertResults';
 import Login from './components/Login';
-import { PropertyRadarCriteriaDemo } from './components/PropertyRadarCriteriaDemo';
-import { TestPage } from './components/TestPage';
+import { PropertyRadarCriteriaDemo } from './components/archive/PropertyRadarCriteriaDemo';
+import { TestPage } from './components/archive/TestPage';
 import { CampaignManager, CampaignCreationModal } from './components/campaigns';
 import BatchJobManager from './components/BatchJobManager';
+import PropertyFileProcessor from './components/PropertyFileProcessor';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
 import { createBatchJob } from './services/batchJob.service';
 import authService from './services/auth.service';
@@ -296,20 +297,7 @@ function App() {
               >
                 Main App
               </Nav.Link>
-              <Nav.Link
-                href="#criteria-demo"
-                active={currentPage === 'criteria-demo'}
-                onClick={() => setCurrentPage('criteria-demo')}
-              >
-                Criteria Demo
-              </Nav.Link>
-              <Nav.Link
-                href="#test-page"
-                active={currentPage === 'test-page'}
-                onClick={() => setCurrentPage('test-page')}
-              >
-                Test Page
-              </Nav.Link>
+              {/* Criteria Demo and Test Page removed from navigation */}
               <Nav.Link
                 href="#campaigns"
                 active={currentPage === 'campaigns'}
@@ -323,6 +311,13 @@ function App() {
                 onClick={() => setCurrentPage('batch-jobs')}
               >
                 Batch Jobs
+              </Nav.Link>
+              <Nav.Link
+                href="#property-files"
+                active={currentPage === 'property-files'}
+                onClick={() => setCurrentPage('property-files')}
+              >
+                Process Property Files
               </Nav.Link>
             </Nav>
             <Nav>
@@ -448,6 +443,7 @@ function App() {
           </>
         )}
         
+        {/* Archived components - still available but hidden from navigation */}
         {currentPage === 'criteria-demo' && (
           <PropertyRadarCriteriaDemo />
         )}
@@ -462,6 +458,10 @@ function App() {
         
         {currentPage === 'batch-jobs' && (
           <BatchJobManager />
+        )}
+        
+        {currentPage === 'property-files' && (
+          <PropertyFileProcessor />
         )}
       </Container>
     </>

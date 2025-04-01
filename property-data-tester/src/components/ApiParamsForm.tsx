@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Form, Row, Col, Accordion, Tabs, Tab, ListGroup, Badge, Button } from 'react-bootstrap';
-import { PropertyRadarApiParams, PropertyRadarCriteria } from '../types/api';
-import { ApiParamsFormProps } from '../types/components';
+import React, { useState, useEffect } from 'react';
+import { Card, Form, Row, Col, Tabs, Tab, ListGroup, Badge, Button } from 'react-bootstrap';
+import { PropertyRadarApiParams } from '../types/api';
 import { 
   CriterionDefinition, 
   AllCriteriaDefinitions
@@ -102,7 +101,7 @@ function ApiParamsForm({ apiParams, setApiParams }: LocalApiParamsFormProps) {
         setSelectedCriterion(criteriaDefs[activeTab][0]);
       }
     }
-  }, [activeTab, criteriaDefs, apiParams.criteria]);
+  }, [activeTab, criteriaDefs, apiParams.criteria, selectedCriterion]);
   
   const handleParamChange = (field: string, value: string | number): void => {
     // Parse numeric values
@@ -300,120 +299,120 @@ function ApiParamsForm({ apiParams, setApiParams }: LocalApiParamsFormProps) {
             </Form.Text>
           </Form.Group>
         );
-        case 'Multiple Range':
-        case 'Multiple Range Including Unknowns':
-          // Special case for date fields
-          if (definition.name.includes('Date')) {
-            // For date fields, we'll use date inputs instead of number inputs
-            return (
-              <Form.Group className="mb-3">
+      case 'Multiple Range':
+      case 'Multiple Range Including Unknowns':
+        // Special case for date fields
+        if (definition.name.includes('Date')) {
+          // For date fields, we'll use date inputs instead of number inputs
+          return (
+            <Form.Group className="mb-3">
+              <div className="mb-3">
+                <Form.Label>Date Selection Type:</Form.Label>
+                <Form.Select
+                  value={dateSelectionType || 'range'}
+                  onChange={(e) => setDateSelectionType(e.target.value as 'preset' | 'range')}
+                >
+                  <option value="preset">Preset Date Range</option>
+                  <option value="range">Custom Date Range</option>
+                </Form.Select>
+              </div>
+              
+              {(dateSelectionType || 'range') === 'preset' ? (
                 <div className="mb-3">
-                  <Form.Label>Date Selection Type:</Form.Label>
+                  <Form.Label>Select a preset:</Form.Label>
                   <Form.Select
-                    value={dateSelectionType || 'range'}
-                    onChange={(e) => setDateSelectionType(e.target.value as 'preset' | 'range')}
+                    value={Array.isArray(value) && typeof value[0] === 'string' ? value[0] : ''}
+                    onChange={(e) => {
+                      const preset = e.target.value;
+                      handleCriteriaChange(definition.name, preset ? [preset] : undefined);
+                    }}
                   >
-                    <option value="preset">Preset Date Range</option>
-                    <option value="range">Custom Date Range</option>
+                    <option value="">Select a preset</option>
+                    <option value="Last 7 Days">Last 7 Days</option>
+                    <option value="Last 30 Days">Last 30 Days</option>
+                    <option value="Last 90 Days">Last 90 Days</option>
+                    <option value="Last 6 Months">Last 6 Months</option>
+                    <option value="Last 12 Months">Last 12 Months</option>
+                    <option value="This Month">This Month</option>
+                    <option value="This Quarter">This Quarter</option>
+                    <option value="This Year">This Year</option>
+                    <option value="Next 7 Days">Next 7 Days</option>
+                    <option value="Next 30 Days">Next 30 Days</option>
+                    <option value="Next Quarter">Next Quarter</option>
                   </Form.Select>
                 </div>
-                
-                {(dateSelectionType || 'range') === 'preset' ? (
-                  <div className="mb-3">
-                    <Form.Label>Select a preset:</Form.Label>
-                    <Form.Select
-                      value={Array.isArray(value) && typeof value[0] === 'string' ? value[0] : ''}
-                      onChange={(e) => {
-                        const preset = e.target.value;
-                        handleCriteriaChange(definition.name, preset ? [preset] : undefined);
-                      }}
-                    >
-                      <option value="">Select a preset</option>
-                      <option value="Last 7 Days">Last 7 Days</option>
-                      <option value="Last 30 Days">Last 30 Days</option>
-                      <option value="Last 90 Days">Last 90 Days</option>
-                      <option value="Last 6 Months">Last 6 Months</option>
-                      <option value="Last 12 Months">Last 12 Months</option>
-                      <option value="This Month">This Month</option>
-                      <option value="This Quarter">This Quarter</option>
-                      <option value="This Year">This Year</option>
-                      <option value="Next 7 Days">Next 7 Days</option>
-                      <option value="Next 30 Days">Next 30 Days</option>
-                      <option value="Next Quarter">Next Quarter</option>
-                    </Form.Select>
-                  </div>
-                ) : (
-                  <Row className="align-items-center">
-                    <Col>
-                      <Form.Label>From:</Form.Label>
-                      <Form.Control
-                        type="date"
-                        placeholder="From Date"
-                        value={Array.isArray(value) && value[0] !== null ? String(value[0]) : ''}
-                        onChange={(e) => {
-                          const fromDate = e.target.value;
-                          const currentValue = Array.isArray(value) ? [...value] : [null, null];
-                          currentValue[0] = fromDate || null;
-                          handleCriteriaChange(definition.name, currentValue[0] !== null || currentValue[1] !== null ? currentValue : undefined);
-                        }}
-                      />
-                    </Col>
-                    <Col xs="auto" className="mt-4">to</Col>
-                    <Col>
-                      <Form.Label>To:</Form.Label>
-                      <Form.Control
-                        type="date"
-                        placeholder="To Date"
-                        value={Array.isArray(value) && value[1] !== null ? String(value[1]) : ''}
-                        onChange={(e) => {
-                          const toDate = e.target.value;
-                          const currentValue = Array.isArray(value) ? [...value] : [null, null];
-                          currentValue[1] = toDate || null;
-                          handleCriteriaChange(definition.name, currentValue[0] !== null || currentValue[1] !== null ? currentValue : undefined);
-                        }}
-                      />
-                    </Col>
-                  </Row>
-                )}
-              </Form.Group>
-            );
-          } else {
-            // For non-date fields, use the original number inputs
-            return (
-              <Form.Group className="mb-3">
+              ) : (
                 <Row className="align-items-center">
                   <Col>
+                    <Form.Label>From:</Form.Label>
                     <Form.Control
-                      type="number"
-                      placeholder="Min"
-                      value={Array.isArray(value) && value[0] !== null ? value[0] : ''}
+                      type="date"
+                      placeholder="From Date"
+                      value={Array.isArray(value) && value[0] !== null ? String(value[0]) : ''}
                       onChange={(e) => {
-                        const min = e.target.value === '' ? null : Number(e.target.value);
+                        const fromDate = e.target.value;
                         const currentValue = Array.isArray(value) ? [...value] : [null, null];
-                        currentValue[0] = min;
+                        currentValue[0] = fromDate || null;
                         handleCriteriaChange(definition.name, currentValue[0] !== null || currentValue[1] !== null ? currentValue : undefined);
                       }}
                     />
                   </Col>
-                  <Col xs="auto">to</Col>
+                  <Col xs="auto" className="mt-4">to</Col>
                   <Col>
+                    <Form.Label>To:</Form.Label>
                     <Form.Control
-                      type="number"
-                      placeholder="Max"
-                      value={Array.isArray(value) && value[1] !== null ? value[1] : ''}
+                      type="date"
+                      placeholder="To Date"
+                      value={Array.isArray(value) && value[1] !== null ? String(value[1]) : ''}
                       onChange={(e) => {
-                        const max = e.target.value === '' ? null : Number(e.target.value);
+                        const toDate = e.target.value;
                         const currentValue = Array.isArray(value) ? [...value] : [null, null];
-                        currentValue[1] = max;
+                        currentValue[1] = toDate || null;
                         handleCriteriaChange(definition.name, currentValue[0] !== null || currentValue[1] !== null ? currentValue : undefined);
                       }}
                     />
                   </Col>
                 </Row>
-              </Form.Group>
-            );
-          }
-          
+              )}
+            </Form.Group>
+          );
+        } else {
+          // For non-date fields, use the original number inputs
+          return (
+            <Form.Group className="mb-3">
+              <Row className="align-items-center">
+                <Col>
+                  <Form.Control
+                    type="number"
+                    placeholder="Min"
+                    value={Array.isArray(value) && value[0] !== null ? value[0] : ''}
+                    onChange={(e) => {
+                      const min = e.target.value === '' ? null : Number(e.target.value);
+                      const currentValue = Array.isArray(value) ? [...value] : [null, null];
+                      currentValue[0] = min;
+                      handleCriteriaChange(definition.name, currentValue[0] !== null || currentValue[1] !== null ? currentValue : undefined);
+                    }}
+                  />
+                </Col>
+                <Col xs="auto">to</Col>
+                <Col>
+                  <Form.Control
+                    type="number"
+                    placeholder="Max"
+                    value={Array.isArray(value) && value[1] !== null ? value[1] : ''}
+                    onChange={(e) => {
+                      const max = e.target.value === '' ? null : Number(e.target.value);
+                      const currentValue = Array.isArray(value) ? [...value] : [null, null];
+                      currentValue[1] = max;
+                      handleCriteriaChange(definition.name, currentValue[0] !== null || currentValue[1] !== null ? currentValue : undefined);
+                    }}
+                  />
+                </Col>
+              </Row>
+            </Form.Group>
+          );
+        }
+        
       case 'Single Value':
         return (
           <Form.Group className="mb-3">
@@ -426,50 +425,51 @@ function ApiParamsForm({ apiParams, setApiParams }: LocalApiParamsFormProps) {
           </Form.Group>
         );
           
-          case 'PropertyType':
-            return (
-              <Form.Group className="mb-3">
-                <Form.Label>Property Types</Form.Label>
-                <div className="d-flex flex-wrap mt-2">
-                  {PROPERTY_TYPES.map(type => (
-                    <Form.Check
-                      key={type.value}
-                      type="checkbox"
-                      id={`property-type-${definition.name}-${type.value}-${Date.now()}`}
-                      label={type.label}
-                      className="me-3 mb-2"
-                      checked={Array.isArray(value) && value.includes(type.value)}
-                      onChange={(e) => {
-                        // Handle PropertyType selection similar to propertyTypes
-                        const currentTypes = Array.isArray(value) ? [...value] : [];
-                        
-                        if (e.target.checked) {
-                          if (!currentTypes.includes(type.value)) {
-                            currentTypes.push(type.value);
-                          }
-                        } else {
-                          const index = currentTypes.indexOf(type.value);
-                          if (index !== -1) {
-                            currentTypes.splice(index, 1);
-                          }
-                        }
-                        
-                        handleCriteriaChange(definition.name, currentTypes.length > 0 ? currentTypes : undefined);
-                      }}
-                    />
-                  ))}
-                </div>
-              </Form.Group>
-            );
-            
-          default:
-            return (
-              <div className="text-muted">
-                This criteria type ({definition.criteriaType}) is not yet supported in the UI.
-              </div>
-            );
+      case 'PropertyType':
+        return (
+          <Form.Group className="mb-3">
+            <Form.Label>Property Types</Form.Label>
+            <div className="d-flex flex-wrap mt-2">
+              {PROPERTY_TYPES.map(type => (
+                <Form.Check
+                  key={type.value}
+                  type="checkbox"
+                  id={`property-type-${definition.name}-${type.value}-${Date.now()}`}
+                  label={type.label}
+                  className="me-3 mb-2"
+                  checked={Array.isArray(value) && value.includes(type.value)}
+                  onChange={(e) => {
+                    // Handle PropertyType selection similar to propertyTypes
+                    const currentTypes = Array.isArray(value) ? [...value] : [];
+                    
+                    if (e.target.checked) {
+                      if (!currentTypes.includes(type.value)) {
+                        currentTypes.push(type.value);
+                      }
+                    } else {
+                      const index = currentTypes.indexOf(type.value);
+                      if (index !== -1) {
+                        currentTypes.splice(index, 1);
+                      }
+                    }
+                    
+                    handleCriteriaChange(definition.name, currentTypes.length > 0 ? currentTypes : undefined);
+                  }}
+                />
+              ))}
+            </div>
+          </Form.Group>
+        );
+          
+      default:
+        return (
+          <div className="text-muted">
+            This criteria type ({definition.criteriaType}) is not yet supported in the UI.
+          </div>
+        );
     }
   };
+
 // Helper function to provide a human-readable explanation of what a criterion does
 const getCriterionExplanation = (name: string, value: any): string => {
   if (value === undefined || value === null) {

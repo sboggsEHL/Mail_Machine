@@ -18,7 +18,7 @@ export class PropertyController {
    */
   fetchProperties = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { fields, limit, start, criteria } = req.body;
+      const { fields, limit, start, criteria, campaignId } = req.body;
       
       if (!Array.isArray(fields) || fields.length === 0) {
         res.status(400).json({
@@ -110,7 +110,8 @@ export class PropertyController {
       const properties = await this.propertyService.fetchPropertiesFromProvider(
         'PR', // PropertyRadar provider code
         criteriaInput,
-        fields
+        fields,
+        campaignId || 'individual-request' // Use provided campaignId or default
       );
       
       res.json({

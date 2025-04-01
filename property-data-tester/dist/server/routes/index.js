@@ -8,6 +8,7 @@ const dnm_routes_1 = require("./dnm.routes");
 const criteria_routes_1 = require("./criteria.routes");
 const campaign_routes_1 = require("./campaign.routes");
 const batch_job_routes_1 = require("./batch-job.routes");
+const property_file_routes_1 = require("./property-file.routes");
 /**
  * Configure all API routes
  * @param pool Database pool
@@ -27,6 +28,8 @@ function configureRoutes(pool) {
     router.use('/campaigns', (0, campaign_routes_1.createCampaignRoutes)(pool));
     // Batch job routes
     router.use('/batch-jobs', (0, batch_job_routes_1.createBatchJobRoutes)(pool));
+    // Property file routes
+    router.use('/property-files', (0, property_file_routes_1.createPropertyFileRoutes)(pool));
     // Simple API test route
     router.get('/test', (req, res) => {
         res.json({

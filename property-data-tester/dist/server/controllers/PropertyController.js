@@ -20,7 +20,7 @@ class PropertyController {
          */
         this.fetchProperties = (req, res) => __awaiter(this, void 0, void 0, function* () {
             try {
-                const { fields, limit, start, criteria } = req.body;
+                const { fields, limit, start, criteria, campaignId } = req.body;
                 if (!Array.isArray(fields) || fields.length === 0) {
                     res.status(400).json({
                         success: false,
@@ -102,7 +102,8 @@ class PropertyController {
                     purchase: req.body.purchase || 0
                 };
                 const properties = yield this.propertyService.fetchPropertiesFromProvider('PR', // PropertyRadar provider code
-                criteriaInput, fields);
+                criteriaInput, fields, campaignId || 'individual-request' // Use provided campaignId or default
+                );
                 res.json({
                     success: true,
                     count: properties.length,

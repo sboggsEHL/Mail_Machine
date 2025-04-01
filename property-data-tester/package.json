@@ -32,7 +32,7 @@
     "build-server": "tsc -p tsconfig.server.json",
     "server": "npm run build-server && node dist/server/server.js",
     "client": "npm start",
-    "worker": "ts-node worker.ts",
+    "worker": "node worker-wrapper.js",
     "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run worker\"",
     "build-all": "npm run build && npm run build-server",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"server/**/*.ts\""

@@ -4,6 +4,7 @@ exports.createPropertyRoutes = createPropertyRoutes;
 const express_1 = require("express");
 const PropertyController_1 = require("../controllers/PropertyController");
 const PropertyService_1 = require("../services/PropertyService");
+const PropertyPayloadService_1 = require("../services/PropertyPayloadService");
 const database_1 = require("../config/database");
 /**
  * Create property routes
@@ -11,7 +12,8 @@ const database_1 = require("../config/database");
  */
 function createPropertyRoutes() {
     const router = (0, express_1.Router)();
-    const propertyService = new PropertyService_1.PropertyService(database_1.dbPool);
+    const propertyPayloadService = new PropertyPayloadService_1.PropertyPayloadService(database_1.dbPool);
+    const propertyService = new PropertyService_1.PropertyService(database_1.dbPool, undefined, undefined, undefined, propertyPayloadService);
     const propertyController = new PropertyController_1.PropertyController(propertyService);
     /**
      * @route POST /api/fetch-properties

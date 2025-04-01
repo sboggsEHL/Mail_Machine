@@ -14,15 +14,18 @@ const PropertyRepository_1 = require("../repositories/PropertyRepository");
 const PropertyOwnerRepository_1 = require("../repositories/PropertyOwnerRepository");
 const LoanRepository_1 = require("../repositories/LoanRepository");
 const LeadProviderFactory_1 = require("../services/lead-providers/LeadProviderFactory");
+const PropertyPayloadService_1 = require("./PropertyPayloadService");
 /**
  * Service for managing properties
  */
 class PropertyService {
-    constructor(pool, propertyRepo, ownerRepo, loanRepo) {
+    constructor(pool, propertyRepo, ownerRepo, loanRepo, propertyPayloadService) {
+        this.batchCounter = new Map();
         this.pool = pool;
         this.propertyRepo = propertyRepo || new PropertyRepository_1.PropertyRepository(pool);
         this.ownerRepo = ownerRepo || new PropertyOwnerRepository_1.PropertyOwnerRepository(pool);
         this.loanRepo = loanRepo || new LoanRepository_1.LoanRepository(pool);
+        this.propertyPayloadService = propertyPayloadService || new PropertyPayloadService_1.PropertyPayloadService(pool);
     }
     /**
      * Fetch properties from a provider
@@ -31,14 +34,41 @@ class PropertyService {
      * @param fields Fields to retrieve
      * @returns Array of properties
      */
-    fetchPropertiesFromProvider(providerCode, criteria, fields) {
-        return __awaiter(this, void 0, void 0, function* () {
+    fetchPropertiesFromProvider(providerCode_1, criteria_1, fields_1) {
+        return __awaiter(this, arguments, void 0, function* (providerCode, criteria, fields, campaignId = 'individual-request') {
             const provider = LeadProviderFactory_1.leadProviderFactory.getProvider(providerCode);
             if (!provider.isConfigured()) {
                 throw new Error(`Provider ${providerCode} is not properly configured.`);
             }
-            return provider.fetchProperties(criteria, fields);
+            // Fetch properties from provider
+            const properties = yield provider.fetchProperties(criteria, fields);
+            // Save raw payload to file
+            if (properties.length > 0) {
+                try {
+                    // Get batch number for this campaign
+                    const batchNumber = this.getNextBatchNumber(campaignId);
+                    // Save properties to file
+                    yield this.propertyPayloadService.savePropertyPayload(properties, campaignId, batchNumber);
+                    console.log(`Saved raw payload for ${properties.length} properties from individual request`);
+                }
+                catch (error) {
+                    console.error('Error saving raw payload:', error);
+                    // Continue even if saving the payload fails
+                }
+            }
+            return properties;
         });
+    }
+    /**
+     * Get next batch number for a campaign
+     * @param campaignId Campaign ID
+     * @returns Next batch number
+     */
+    getNextBatchNumber(campaignId) {
+        const currentBatchNumber = this.batchCounter.get(campaignId) || 0;
+        const nextBatchNumber = currentBatchNumber + 1;
+        this.batchCounter.set(campaignId, nextBatchNumber);
+        return nextBatchNumber;
     }
     /**
      * Save a property with its related data

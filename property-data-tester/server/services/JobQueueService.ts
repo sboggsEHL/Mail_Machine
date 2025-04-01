@@ -272,6 +272,7 @@ export class JobQueueService {
         
         const batchResult = await this.propertyService.getProperties(
           criteria,
+          job.job_id?.toString() || 'batch-job',  // Use job_id as campaign ID
           batchSize,
           startIndex
         );

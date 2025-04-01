@@ -8,6 +8,9 @@
 - DNM (Do Not Mail) enforcement must be automatic through database triggers
 - Authentication uses JWT tokens stored in localStorage rather than server-side sessions
 - The authentication flow requires proper route protection with the auth middleware
+- Batch jobs must handle large PropertyRadar datasets efficiently
+- Worker processes execute jobs asynchronously to maintain system responsiveness
+- Property payloads are stored with a YYYY-MM folder structure for organization
 
 ## User Preferences and Workflow
 - Documentation should be clear and accessible, with step-by-step instructions
@@ -17,6 +20,8 @@
 - Normalized database structure is preferred over denormalized for flexibility and maintainability
 - Authentication should be seamless with automatic token refresh when tokens near expiration
 - User interfaces should provide clear feedback on authentication status and errors
+- Batch jobs should be easily monitorable with clear progress indicators
+- Long-running operations should not block the UI or API responsiveness
 
 ## Project-Specific Patterns
 - PropertyRadar is the primary source of truth for property data, but the system should support multiple lead providers
@@ -29,6 +34,10 @@
 - JWT tokens are used for authentication with a refresh token pattern for extending sessions
 - Authentication state is maintained in localStorage for stateless server operation
 - API requests automatically include authorization headers through axios interceptors
+- Batch jobs follow a status progression: PENDING → PROCESSING → COMPLETED/FAILED
+- Worker processes handle jobs based on priority and creation date
+- Boolean values in PropertyRadar API must be sent as strings ("1"/"0") not numbers
+- Date fields must use MM/DD/YYYY format for PropertyRadar API
 
 ## Known Challenges
 - History tables will grow over time and require archival strategies
@@ -39,6 +48,9 @@
 - Supporting multiple lead providers requires consistent field naming conventions
 - Bcrypt password verification with existing users may require adjustment
 - JWT token security requires proper handling of refresh tokens and expiration times
+- Large batch jobs need efficient progress tracking to monitor processing
+- PropertyRadar API has specific format requirements that must be carefully followed
+- Property files can be large and require careful memory management during processing
 
 ## Evolution of Project Decisions
 - The system has evolved from manual processes to an automated workflow
@@ -49,6 +61,9 @@
 - The database implementation guide was split into two files for better organization
 - Authentication shifted from session-based to JWT-based for better scalability
 - Token storage moved to localStorage for easier client-side management
+- Batch job processing was implemented to handle large datasets efficiently
+- Worker processes were implemented to handle background processing
+- PropertyRadar API integration was refined to handle specific formatting requirements
 
 ## Tool Usage Patterns
 - PostgreSQL is the primary database system
@@ -59,3 +74,5 @@
 - JWT tokens are used for authentication and API protection
 - React is used for frontend components with TypeScript for type safety
 - Axios is used for API requests with interceptors for token management
+- Node.js worker processes are used for background job execution
+- TypeScript is used throughout the codebase for type safety

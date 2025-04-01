@@ -5,6 +5,7 @@ import { createDnmRoutes } from './dnm.routes';
 import { createCriteriaRoutes } from './criteria.routes';
 import { createCampaignRoutes } from './campaign.routes';
 import { createBatchJobRoutes } from './batch-job.routes';
+import { createPropertyFileRoutes } from './property-file.routes';
 import { Pool } from 'pg';
 
 /**
@@ -32,6 +33,8 @@ export function configureRoutes(pool: Pool): Router {
   // Batch job routes
   router.use('/batch-jobs', createBatchJobRoutes(pool));
   
+  // Property file routes
+  router.use('/property-files', createPropertyFileRoutes(pool));
   
   // Simple API test route
   router.get('/test', (req, res) => {

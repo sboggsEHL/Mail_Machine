@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PropertyController } from '../controllers/PropertyController';
 import { PropertyService } from '../services/PropertyService';
+import { PropertyPayloadService } from '../services/PropertyPayloadService';
 import { dbPool } from '../config/database';
 
 /**
@@ -9,7 +10,8 @@ import { dbPool } from '../config/database';
  */
 export function createPropertyRoutes(): Router {
   const router = Router();
-  const propertyService = new PropertyService(dbPool);
+  const propertyPayloadService = new PropertyPayloadService(dbPool);
+  const propertyService = new PropertyService(dbPool, undefined, undefined, undefined, propertyPayloadService);
   const propertyController = new PropertyController(propertyService);
   
   /**

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { CriteriaSelector } from './CriteriaSelector';
-import { fetchProperties } from '../services';
-import { LastTransferRecDateTest } from './LastTransferRecDateTest';
+import { CriteriaSelector } from '../CriteriaSelector';
+import { fetchProperties } from '../../services';
+import { LastTransferRecDateTest } from '../LastTransferRecDateTest';
 
 /**
  * Demo component for PropertyRadar criteria

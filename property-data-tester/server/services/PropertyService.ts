@@ -5,6 +5,7 @@ import { PropertyOwnerRepository } from '../repositories/PropertyOwnerRepository
 import { LoanRepository } from '../repositories/LoanRepository';
 import { LeadProvider, PropertyTransformResult } from '../services/lead-providers/interfaces';
 import { leadProviderFactory } from '../services/lead-providers/LeadProviderFactory';
+import { PropertyPayloadService } from './PropertyPayloadService';
 
 /**
  * Result of property insertion
@@ -25,17 +26,21 @@ export class PropertyService {
   private ownerRepo: PropertyOwnerRepository;
   private loanRepo: LoanRepository;
   private pool: Pool;
+  protected propertyPayloadService: PropertyPayloadService;
+  protected batchCounter: Map<string, number> = new Map();
 
   constructor(
     pool: Pool,
     propertyRepo?: PropertyRepository,
     ownerRepo?: PropertyOwnerRepository,
-    loanRepo?: LoanRepository
+    loanRepo?: LoanRepository,
+    propertyPayloadService?: PropertyPayloadService
   ) {
     this.pool = pool;
     this.propertyRepo = propertyRepo || new PropertyRepository(pool);
     this.ownerRepo = ownerRepo || new PropertyOwnerRepository(pool);
     this.loanRepo = loanRepo || new LoanRepository(pool);
+    this.propertyPayloadService = propertyPayloadService || new PropertyPayloadService(pool);
   }
 
   /**
@@ -48,7 +53,8 @@ export class PropertyService {
   async fetchPropertiesFromProvider(
     providerCode: string,
     criteria: any,
-    fields: string[]
+    fields: string[],
+    campaignId: string = 'individual-request'
   ): Promise<any[]> {
     const provider = leadProviderFactory.getProvider(providerCode);
     
@@ -56,7 +62,42 @@ export class PropertyService {
       throw new Error(`Provider ${providerCode} is not properly configured.`);
     }
     
-    return provider.fetchProperties(criteria, fields);
+    // Fetch properties from provider
+    const properties = await provider.fetchProperties(criteria, fields);
+    
+    // Save raw payload to file
+    if (properties.length > 0) {
+      try {
+        // Get batch number for this campaign
+        const batchNumber = this.getNextBatchNumber(campaignId);
+        
+        // Save properties to file
+        await this.propertyPayloadService.savePropertyPayload(
+          properties,
+          campaignId,
+          batchNumber
+        );
+        
+        console.log(`Saved raw payload for ${properties.length} properties from individual request`);
+      } catch (error) {
+        console.error('Error saving raw payload:', error);
+        // Continue even if saving the payload fails
+      }
+    }
+    
+    return properties;
+  }
+  
+  /**
+   * Get next batch number for a campaign
+   * @param campaignId Campaign ID
+   * @returns Next batch number
+   */
+  protected getNextBatchNumber(campaignId: string): number {
+    const currentBatchNumber = this.batchCounter.get(campaignId) || 0;
+    const nextBatchNumber = currentBatchNumber + 1;
+    this.batchCounter.set(campaignId, nextBatchNumber);
+    return nextBatchNumber;
   }
 
   /**

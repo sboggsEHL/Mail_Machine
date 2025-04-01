@@ -18,3 +18,4 @@ __exportStar(require("./Campaign"), exports);
 __exportStar(require("./CampaignStats"), exports);
 __exportStar(require("./Recipient"), exports);
 __exportStar(require("./BatchJob"), exports);
+__exportStar(require("./BatchFileStatus"), exports);

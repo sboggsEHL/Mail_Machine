@@ -40,11 +40,11 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
     
     // Clean up interval on unmount
     return () => {
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
+      if (interval) {
+        clearInterval(interval);
       }
     };
-  }, [jobId, job?.status]);
+  }, [jobId, job]);
 
   /**
    * Load job details from the API

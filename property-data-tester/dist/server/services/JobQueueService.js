@@ -229,6 +229,7 @@ class JobQueueService {
      */
     processJob(job) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             try {
                 const { criteria, job_id: jobId } = job;
                 const batchSize = 400; // Default batch size
@@ -250,7 +251,8 @@ class JobQueueService {
                 while (hasMoreRecords) {
                     // Fetch batch from PropertyRadar
                     yield this.batchJobService.logJobProgress(jobId, `Fetching batch starting at index ${startIndex}`);
-                    const batchResult = yield this.propertyService.getProperties(criteria, batchSize, startIndex);
+                    const batchResult = yield this.propertyService.getProperties(criteria, ((_a = job.job_id) === null || _a === void 0 ? void 0 : _a.toString()) || 'batch-job', // Use job_id as campaign ID
+                    batchSize, startIndex);
                     // Process and store the batch
                     const batchRecords = batchResult.properties || [];
                     yield this.batchJobService.logJobProgress(jobId, `Processing batch with ${batchRecords.length} records`);

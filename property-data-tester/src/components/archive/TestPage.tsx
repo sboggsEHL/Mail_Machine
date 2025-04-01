@@ -1,5 +1,5 @@
 import React from 'react';
-import { LastTransferRecDateTest } from './LastTransferRecDateTest';
+import { LastTransferRecDateTest } from '../LastTransferRecDateTest';
 
 /**
  * Test page component

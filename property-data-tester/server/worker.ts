@@ -1,9 +1,9 @@
 import * as dotenv from 'dotenv';
-import { dbPool, testDatabaseConnection, logDatabaseConfig } from './server/config/database';
-import { BatchJobRepository } from './server/repositories/BatchJobRepository';
-import { BatchJobService } from './server/services/BatchJobService';
-import { PropertyBatchService } from './server/services/PropertyBatchService';
-import { JobQueueService } from './server/services/JobQueueService';
+import { dbPool, testDatabaseConnection, logDatabaseConfig } from './config/database';
+import { BatchJobRepository } from './repositories/BatchJobRepository';
+import { BatchJobService } from './services/BatchJobService';
+import { PropertyBatchService } from './services/PropertyBatchService';
+import { JobQueueService } from './services/JobQueueService';
 
 // Load environment variables
 dotenv.config();
