@@ -87,7 +87,7 @@ export const criteriaDefinitions: AllCriteriaDefinitions = {
   'ownerdetails': [
     {
       name: "isSameMailingOrExempt",
-      description: "Owner's mailing address is the same as property address",
+      description: "Whether the property is owner-occupied (Owner Occupied)",
       criteriaType: "Boolean",
       example: {
         value: true
@@ -218,8 +218,8 @@ export const criteriaDefinitions: AllCriteriaDefinitions = {
   
   'loans&liens': [
     {
-      name: "totalLoanBalance",
-      description: "Total balance of all loans",
+      name: "TotalLoanBalance",
+      description: "Total balance of all loans (Estimated Open Loans Balance)",
       criteriaType: "Multiple Range",
       example: {
         value: [100000, 500000]
@@ -227,7 +227,7 @@ export const criteriaDefinitions: AllCriteriaDefinitions = {
     },
     {
       name: "NumberLoans",
-      description: "Number of loans on the property",
+      description: "Number of loans on the property (Estimated Number of Open Loans)",
       criteriaType: "Multiple Range",
       example: {
         value: [1, 3]
@@ -288,11 +288,19 @@ export const criteriaDefinitions: AllCriteriaDefinitions = {
   
   'transfer': [
     {
-      name: "LastTransferRecDate",
-      description: "Date of last transfer/sale of the property",
+      name: "FirstDate",
+      description: "Date of first loan recording (used for filtering by date range)",
       criteriaType: "Multiple Range",
       example: {
-        value: ["2020-01-01", "2023-01-01"]
+        value: ["08/01/2024", "08/31/2024"]
+      }
+    },
+    {
+      name: "LastTransferRecDate",
+      description: "Date of last transfer/sale of the property (Note: Maps to FirstDate in API)",
+      criteriaType: "Multiple Range",
+      example: {
+        value: ["08/01/2024", "08/31/2024"]
       }
     },
     {

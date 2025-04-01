@@ -17,3 +17,4 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./Campaign"), exports);
 __exportStar(require("./CampaignStats"), exports);
 __exportStar(require("./Recipient"), exports);
+__exportStar(require("./BatchJob"), exports);

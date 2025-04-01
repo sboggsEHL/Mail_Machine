@@ -10,7 +10,9 @@ import Login from './components/Login';
 import { PropertyRadarCriteriaDemo } from './components/PropertyRadarCriteriaDemo';
 import { TestPage } from './components/TestPage';
 import { CampaignManager, CampaignCreationModal } from './components/campaigns';
+import BatchJobManager from './components/BatchJobManager';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
+import { createBatchJob } from './services/batchJob.service';
 import authService from './services/auth.service';
 
 interface FetchStatus {
@@ -56,6 +58,7 @@ function App() {
   const [fetchStatus, setFetchStatus] = useState<FetchStatus>({ loading: false, error: null });
   const [insertStatus, setInsertStatus] = useState<InsertStatus>({ loading: false, error: null });
   const [insertResults, setInsertResults] = useState<InsertResultsData | null>(null);
+  const [batchProcessing, setBatchProcessing] = useState<boolean>(false);
   const [showCampaignModal, setShowCampaignModal] = useState<boolean>(false);
 
   // Check authentication status on app load
@@ -118,6 +121,36 @@ function App() {
     setFetchStatus({ loading: true, error: null });
     setProperties([]);
 
+    // Check if this is a large request that should be processed in batches
+    if (apiParams.limit > 1000) {
+      try {
+        // Create a batch job instead of fetching directly
+        const job = await createBatchJob({
+          fields: selectedFields,
+          limit: apiParams.limit,
+          start: apiParams.start,
+          purchase: apiParams.purchase,
+          criteria: apiParams.criteria
+        });
+        
+        if (job) {
+          // Show success message and navigate to batch jobs page
+          setFetchStatus({ loading: false, error: null });
+          alert(`Your request for ${apiParams.limit} properties is being processed in the background. Navigating to Batch Jobs tab to view progress.`);
+          setCurrentPage('batch-jobs');
+        } else {
+          throw new Error('Failed to create batch job');
+        }
+      } catch (error) {
+        setFetchStatus({
+          loading: false,
+          error: error instanceof Error ? error.message : 'An unknown error occurred creating batch job'
+        });
+      }
+      return;
+    }
+
+    // For smaller requests, fetch directly as before
     try {
       const response = await fetch('http://localhost:3001/api/fetch-properties', {
         method: 'POST',
@@ -142,9 +175,9 @@ function App() {
       setProperties(data.properties);
       setFetchStatus({ loading: false, error: null });
     } catch (error) {
-      setFetchStatus({ 
-        loading: false, 
-        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+      setFetchStatus({
+        loading: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred'
       });
     }
   };
@@ -182,6 +215,41 @@ function App() {
         loading: false, 
         error: error instanceof Error ? error.message : 'An unknown error occurred' 
       });
+    }
+  };
+
+  const handleCreateBatchJob = async (): Promise<void> => {
+    if (selectedFields.length === 0) {
+      setFetchStatus({ loading: false, error: 'Please select at least one field' });
+      return;
+    }
+
+    try {
+      setBatchProcessing(true);
+      
+      // Create a batch job with the current criteria
+      const job = await createBatchJob({
+        fields: selectedFields,
+        limit: apiParams.limit,
+        start: apiParams.start,
+        purchase: apiParams.purchase,
+        criteria: apiParams.criteria
+      });
+      
+      if (job) {
+        // Show success message and navigate to batch jobs page
+        alert(`Batch job created successfully! Navigating to Batch Jobs tab to view progress.`);
+        setCurrentPage('batch-jobs');
+      } else {
+        throw new Error('Failed to create batch job');
+      }
+    } catch (error) {
+      setFetchStatus({
+        loading: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred creating batch job'
+      });
+    } finally {
+      setBatchProcessing(false);
     }
   };
 
@@ -249,6 +317,13 @@ function App() {
               >
                 Campaign Manager
               </Nav.Link>
+              <Nav.Link
+                href="#batch-jobs"
+                active={currentPage === 'batch-jobs'}
+                onClick={() => setCurrentPage('batch-jobs')}
+              >
+                Batch Jobs
+              </Nav.Link>
             </Nav>
             <Nav>
               {currentUser && (
@@ -281,14 +356,25 @@ function App() {
                   setApiParams={setApiParams}
                 />
                 
-                <div className="d-grid gap-2 mt-3">
+                <div className="d-flex gap-2 mt-3">
                   <Button
                     variant="primary"
                     size="lg"
+                    className="flex-grow-1"
                     onClick={handleFetchProperties}
                     disabled={fetchStatus.loading}
                   >
                     {fetchStatus.loading ? 'Fetching...' : 'Fetch Properties'}
+                  </Button>
+                  
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    onClick={handleCreateBatchJob}
+                    disabled={fetchStatus.loading || batchProcessing}
+                    title="Process this request in the background even if it's small"
+                  >
+                    {batchProcessing ? 'Processing...' : 'Force Background Processing'}
                   </Button>
                 </div>
                 
@@ -372,6 +458,10 @@ function App() {
         
         {currentPage === 'campaigns' && (
           <CampaignManager />
+        )}
+        
+        {currentPage === 'batch-jobs' && (
+          <BatchJobManager />
         )}
       </Container>
     </>

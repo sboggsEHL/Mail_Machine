@@ -32,7 +32,8 @@
     "build-server": "tsc -p tsconfig.server.json",
     "server": "npm run build-server && node dist/server/server.js",
     "client": "npm start",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "worker": "ts-node worker.ts",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run worker\"",
     "build-all": "npm run build && npm run build-server",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"server/**/*.ts\""
   },
@@ -65,6 +66,7 @@
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "concurrently": "^9.1.2",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }
 }

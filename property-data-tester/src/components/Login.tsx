@@ -36,9 +36,10 @@ function Login({ onLoginSuccess }: LoginProps) {
       if (data.success && data.accessToken && data.refreshToken) {
         // Save tokens using auth service
         authService.saveTokens(
-          data.accessToken, 
-          data.refreshToken, 
-          data.expiresIn || 900
+          data.accessToken,
+          data.refreshToken,
+          data.expiresIn || 900,
+          username // Pass the username to store in localStorage
         );
         
         // Set up interceptors for auto-refresh

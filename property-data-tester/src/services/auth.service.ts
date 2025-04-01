@@ -41,9 +41,10 @@ class AuthService {
   /**
    * Save auth tokens to localStorage
    */
-  saveTokens(accessToken: string, refreshToken: string, expiresIn: number): void {
+  saveTokens(accessToken: string, refreshToken: string, expiresIn: number, username: string = 'current_user'): void {
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('username', username);
     
     // Calculate and store expiration time
     const expiryTime = new Date(Date.now() + expiresIn * 1000).toISOString();
@@ -59,6 +60,7 @@ class AuthService {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpiry');
     localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('username');
   }
 
   /**
@@ -129,10 +131,13 @@ class AuthService {
         return null;
       }
       
-      // Return a dummy user object instead of making an API call
+      // Get username from localStorage or use default
+      const username = localStorage.getItem('username') || 'current_user';
+      
+      // Return a user object with the username from localStorage
       return {
         id: 1,
-        username: 'current_user',
+        username: username,
         email: 'user@example.com'
       };
     } catch (error) {

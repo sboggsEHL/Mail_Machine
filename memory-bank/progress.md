@@ -26,3 +26,29 @@
 2. Implement campaign editing functionality
 3. Implement campaign deletion functionality
 4. Add recipient management functionality
+
+## PropertyRadar API Integration
+
+### Issues Fixed:
+
+1. **Fixed PropertyRadar API request format**
+   - Updated PropertyRadarCriteriaMapper.ts to:
+     - Convert boolean values to strings ("1" and "0") instead of numbers
+     - Format date fields correctly (MM/DD/YYYY format)
+     - Map LastTransferRecDate to FirstDate
+   - Updated PropertyController.ts to handle boolean values correctly
+   - Added FirstDate field to criteriaDefinitions.ts
+
+2. **Fixed database issues**
+   - Updated LoanRepository.ts to use the correct sequence name "loan_id_sequence_sequence_id_seq"
+   - Created SQL for the missing batch_job_logs table
+
+3. **Updated documentation**
+   - Added detailed information about PropertyRadar API requirements to PropertyRadarAPI.md
+   - Documented common pitfalls and their solutions
+
+### Next Steps:
+
+1. Implement batch processing for large property datasets
+2. Add more comprehensive error handling for API responses
+3. Create a UI for viewing and managing batch jobs

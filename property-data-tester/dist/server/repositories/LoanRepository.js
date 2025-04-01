@@ -122,7 +122,7 @@ class LoanRepository extends BaseRepository_1.BaseRepository {
                     else {
                         // Generate a new loan_id if one wasn't provided
                         // This might need to be adjusted based on how loan_ids are generated in your system
-                        const loanIdResult = yield queryExecutor.query(`SELECT nextval('loan_id_sequence') as nextval`);
+                        const loanIdResult = yield queryExecutor.query(`SELECT nextval('loan_id_sequence_sequence_id_seq') as nextval`);
                         const newLoanId = `LN${loanIdResult.rows[0].nextval.padStart(8, '0')}`;
                         const loanWithId = Object.assign(Object.assign({}, loan), { loan_id: newLoanId });
                         const created = yield this.create(loanWithId, queryExecutor);

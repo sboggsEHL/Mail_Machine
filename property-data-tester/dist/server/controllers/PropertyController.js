@@ -30,6 +30,29 @@ class PropertyController {
                 }
                 // Format criteria as an array of objects with name and value properties
                 const formattedCriteria = Object.entries(criteria).map(([name, value]) => {
+                    // Special handling for PropertyType
+                    if (name === 'PropertyType' && Array.isArray(value)) {
+                        return {
+                            name,
+                            value: [
+                                {
+                                    name: 'PType',
+                                    value: value
+                                }
+                            ]
+                        };
+                    }
+                    // Check if this is a range criteria (value is an array of two numbers)
+                    if (Array.isArray(value) &&
+                        value.length === 2 &&
+                        (typeof value[0] === 'number' || value[0] === null) &&
+                        (typeof value[1] === 'number' || value[1] === null)) {
+                        // Format as a range using nested arrays
+                        return {
+                            name,
+                            value: [value]
+                        };
+                    }
                     // Check if this is a date range criteria (name ends with 'Date' and value is an array of two dates)
                     if (name.endsWith('Date') &&
                         Array.isArray(value) &&
@@ -58,7 +81,14 @@ class PropertyController {
                             };
                         }
                     }
-                    // Default handling for non-date criteria
+                    // Special handling for boolean values
+                    if (typeof value === 'boolean') {
+                        return {
+                            name,
+                            value: [value ? "1" : "0"]
+                        };
+                    }
+                    // Default handling for non-date, non-boolean criteria
                     return {
                         name,
                         value: Array.isArray(value) ? value : [value]

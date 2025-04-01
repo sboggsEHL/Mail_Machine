@@ -248,7 +248,7 @@ function ApiParamsForm({ apiParams, setApiParams }: LocalApiParamsFormProps) {
                   <Form.Check
                     key={state}
                     type="checkbox"
-                    id={`state-${state}`}
+                    id={`state-${definition.name}-${state}`}
                     label={state}
                     className="me-3 mb-2"
                     style={{ minWidth: '60px' }}
@@ -435,7 +435,7 @@ function ApiParamsForm({ apiParams, setApiParams }: LocalApiParamsFormProps) {
                     <Form.Check
                       key={type.value}
                       type="checkbox"
-                      id={`property-type-${definition.name}-${type.value}`}
+                      id={`property-type-${definition.name}-${type.value}-${Date.now()}`}
                       label={type.label}
                       className="me-3 mb-2"
                       checked={Array.isArray(value) && value.includes(type.value)}
@@ -583,12 +583,12 @@ const getCriterionExplanation = (name: string, value: any): string => {
                 <Form.Control
                   type="number"
                   min="1"
-                  max="1000"
+                  max="50000"
                   value={apiParams.limit}
                   onChange={(e) => handleParamChange('limit', e.target.value)}
                 />
                 <Form.Text className="text-muted">
-                  Max: 1000 properties per request
+                  You can request up to 50,000 properties. Large requests (over 1000) will be processed in the background.
                 </Form.Text>
               </Form.Group>
             </Col>

@@ -55,7 +55,7 @@ export class PropertyRadarCriteriaMapper {
     if (criteriaObj.isSameMailingOrExempt !== undefined) {
       result.push({
         name: "isSameMailingOrExempt",
-        value: [criteriaObj.isSameMailingOrExempt ? 1 : 0]
+        value: [criteriaObj.isSameMailingOrExempt ? "1" : "0"]
       });
     }
     
@@ -63,7 +63,7 @@ export class PropertyRadarCriteriaMapper {
     if (criteriaObj.isMailVacant !== undefined) {
       result.push({
         name: "isMailVacant",
-        value: [criteriaObj.isMailVacant ? 1 : 0]
+        value: [criteriaObj.isMailVacant ? "1" : "0"]
       });
     }
     
@@ -71,7 +71,7 @@ export class PropertyRadarCriteriaMapper {
     if (criteriaObj.inForeclosure !== undefined) {
       result.push({
         name: "inForeclosure",
-        value: [criteriaObj.inForeclosure ? 1 : 0]
+        value: [criteriaObj.inForeclosure ? "1" : "0"]
       });
     }
     
@@ -79,7 +79,7 @@ export class PropertyRadarCriteriaMapper {
     if (criteriaObj.isListedForSale !== undefined) {
       result.push({
         name: "isListedForSale",
-        value: [criteriaObj.isListedForSale ? 1 : 0]
+        value: [criteriaObj.isListedForSale ? "1" : "0"]
       });
     }
     
@@ -106,6 +106,14 @@ export class PropertyRadarCriteriaMapper {
         value: [criteriaObj.firstRate]
       });
     }
+    
+    // Add last transfer down payment percent range if present
+    if (criteriaObj.lastTransferDownPaymentPercent) {
+      result.push({
+        name: "LastTransferDownPaymentPercent",
+        value: [criteriaObj.lastTransferDownPaymentPercent]
+      });
+    }
 
     // Process any dynamically added criteria from the JSON files
     for (const [key, value] of Object.entries(criteriaObj)) {
@@ -113,7 +121,7 @@ export class PropertyRadarCriteriaMapper {
       if ([
         'state', 'propertyTypes', 'loanTypes', 'isSameMailingOrExempt',
         'isMailVacant', 'inForeclosure', 'isListedForSale', 'equityPercent',
-        'totalLoanBalance', 'firstRate', 'purchase', 'limit', 'start'
+        'totalLoanBalance', 'firstRate', 'lastTransferDownPaymentPercent', 'purchase', 'limit', 'start'
       ].includes(key)) {
         continue;
       }
@@ -366,7 +374,7 @@ export class PropertyRadarCriteriaMapper {
         // Boolean values should be converted to 1/0
         result.push({
           name: key,
-          value: [typeof value === 'boolean' ? (value ? 1 : 0) : value]
+          value: [typeof value === 'boolean' ? (value ? "1" : "0") : value]
         });
         break;
         
@@ -414,15 +422,31 @@ export class PropertyRadarCriteriaMapper {
           // Check if it's an array of two dates, which should be formatted as a range
           if (value.length === 2 &&
               typeof value[0] === 'string' &&
-              typeof value[1] === 'string' &&
-              (value[0].match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) || value[0] === '') &&
-              (value[1].match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) || value[1] === '')) {
+              typeof value[1] === 'string') {
+            
+            // Convert dates to MM/DD/YYYY format if they're in YYYY-MM-DD format
+            let fromDate = value[0] || '';
+            let toDate = value[1] || '';
+            
+            // Convert YYYY-MM-DD to MM/DD/YYYY
+            if (fromDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const parts = fromDate.split('-');
+              fromDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
+            }
+            
+            if (toDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const parts = toDate.split('-');
+              toDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
+            }
+            
             // Format as a date range
-            const fromDate = value[0] || '';
-            const toDate = value[1] || '';
             const formattedValue = `from: ${fromDate} to: ${toDate}`.trim();
+            
+            // Special case for LastTransferRecDate - use FirstDate instead
+            const finalName = key === "LastTransferRecDate" ? "FirstDate" : key;
+            
             result.push({
-              name: key,
+              name: finalName,
               value: [formattedValue]
             });
           } else {
@@ -431,15 +455,28 @@ export class PropertyRadarCriteriaMapper {
               value: value
             });
           }
-        } else if (typeof value === 'string' && value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-          // Single date in MM/DD/YYYY format
+        } else if (typeof value === 'string') {
+          // Convert single date to MM/DD/YYYY format if needed
+          let formattedDate = value;
+          
+          if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const parts = value.split('-');
+            formattedDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
+          }
+          
+          // Special case for LastTransferRecDate - use FirstDate instead
+          const finalName = key === "LastTransferRecDate" ? "FirstDate" : key;
+          
           result.push({
-            name: key,
-            value: [value]
+            name: finalName,
+            value: [formattedDate]
           });
         } else {
+          // Special case for LastTransferRecDate - use FirstDate instead
+          const finalName = key === "LastTransferRecDate" ? "FirstDate" : key;
+          
           result.push({
-            name: key,
+            name: finalName,
             value: [value]
           });
         }

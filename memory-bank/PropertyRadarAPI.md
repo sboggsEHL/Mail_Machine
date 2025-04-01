@@ -266,6 +266,47 @@ If you encounter errors when making API calls to PropertyRadar, check the follow
 
 4. **Authentication errors**: Verify that your API token is valid and properly included in the Authorization header.
 
+5. **"Invalid yesno value"**: Boolean values must be strings ("1" or "0") not numbers. For example, use `"value": ["1"]` instead of `"value": [1]`.
+
+6. **Date format issues**: Dates must be in MM/DD/YYYY format, not YYYY-MM-DD. For example, use `"08/01/2024"` instead of `"2024-08-01"`.
+
+7. **Field name mapping**: Some field names in our application don't match the API field names. For example, `LastTransferRecDate` in our app maps to `FirstDate` in the API.
+
+### Critical Format Requirements
+
+1. **Boolean values**: Must be strings ("1" or "0"), not numbers or booleans:
+   ```json
+   {
+     "name": "isListedForSale",
+     "value": ["0"]  // Correct
+   }
+   ```
+   NOT:
+   ```json
+   {
+     "name": "isListedForSale",
+     "value": [0]  // Incorrect
+   }
+   ```
+
+2. **Date fields**: Must be in MM/DD/YYYY format:
+   ```json
+   {
+     "name": "FirstDate",
+     "value": ["from: 08/01/2024 to: 08/31/2024"]  // Correct
+   }
+   ```
+   NOT:
+   ```json
+   {
+     "name": "FirstDate",
+     "value": ["from: 2024-08-01 to: 2024-08-31"]  // Incorrect
+   }
+   ```
+
+3. **Field name mapping**:
+   - `LastTransferRecDate` in our app → `FirstDate` in the API
+
 ### UI-Related Issues
 
 1. **Criteria selections disappearing**: This can happen if there are state management issues or if React is re-rendering components unexpectedly. Ensure that the selectedCriterion state is properly maintained.
@@ -273,3 +314,23 @@ If you encounter errors when making API calls to PropertyRadar, check the follow
 2. **Incorrect criteria format**: Verify the transformation from UI format to API format is correct. The UI typically uses a flat object structure that needs to be transformed to the API's array format.
 
 3. **Input validation issues**: Check that the UI is validating inputs properly before attempting to transform and submit them.
+
+### Database Issues
+
+If you encounter database-related errors when saving properties:
+
+1. **"loan_id_sequence is not a sequence"**: The correct sequence name is `loan_id_sequence_sequence_id_seq`.
+
+2. **"relation batch_job_logs does not exist"**: You need to create the batch_job_logs table:
+   ```sql
+   CREATE TABLE IF NOT EXISTS batch_job_logs (
+       log_id SERIAL PRIMARY KEY,
+       job_id INTEGER NOT NULL,
+       message TEXT NOT NULL,
+       level VARCHAR(20) DEFAULT 'INFO',
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       FOREIGN KEY (job_id) REFERENCES batch_jobs(job_id)
+   );
+   
+   CREATE INDEX IF NOT EXISTS idx_batch_job_logs_job_id ON batch_job_logs(job_id);
+   ```

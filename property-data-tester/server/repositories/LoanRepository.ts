@@ -143,7 +143,7 @@ export class LoanRepository extends BaseRepository<Loan> {
           // Generate a new loan_id if one wasn't provided
           // This might need to be adjusted based on how loan_ids are generated in your system
           const loanIdResult = await queryExecutor.query<{ nextval: string }>(
-            `SELECT nextval('loan_id_sequence') as nextval`
+            `SELECT nextval('loan_id_sequence_sequence_id_seq') as nextval`
           );
           
           const newLoanId = `LN${loanIdResult.rows[0].nextval.padStart(8, '0')}`;
