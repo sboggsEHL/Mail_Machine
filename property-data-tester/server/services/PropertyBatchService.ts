@@ -119,7 +119,7 @@ export class PropertyBatchService extends PropertyService {
         
         // Loan Info
         'FirstDate', 'FirstAmount', 'FirstRate', 'FirstRateType', 'FirstTermInYears',
-        'FirstLoanType', 'FirstPurpose', 'SecondDate', 'SecondAmount', 'SecondLoanType',
+        'FirstLoanType', 'FirstPurpose', 'FirstLenderOriginal', 'SecondDate', 'SecondAmount', 'SecondLoanType',
         
         // Tax Info
         'AnnualTaxes', 'EstimatedTaxRate',
