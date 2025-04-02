@@ -9,4 +9,4 @@ require('ts-node').register({
 });
 
 // Load the worker
-require('./dist/server/server/worker');
+require('./dist/worker');

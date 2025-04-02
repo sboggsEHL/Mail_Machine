@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Button, Spinner, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Table, Button, Spinner, Alert, Form } from 'react-bootstrap';
 import { listService } from '../services/list.service';
+import ProcessMultipleListsModal from '../components/ProcessMultipleListsModal';
 
 const ListsPage: React.FC = () => {
   const [lists, setLists] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLists, setSelectedLists] = useState<number[]>([]);
+  const [showProcessModal, setShowProcessModal] = useState<boolean>(false);
   
   useEffect(() => {
     fetchLists();
@@ -32,8 +35,25 @@ const ListsPage: React.FC = () => {
     }
   };
   
+  const toggleListSelection = (listId: number) => {
+    if (selectedLists.includes(listId)) {
+      setSelectedLists(selectedLists.filter(id => id !== listId));
+    } else {
+      setSelectedLists([...selectedLists, listId]);
+    }
+  };
+  
   return (
     <Container fluid className="mt-4">
+      {/* Process Multiple Lists Modal */}
+      {showProcessModal && (
+        <ProcessMultipleListsModal
+          show={showProcessModal}
+          onHide={() => setShowProcessModal(false)}
+          selectedLists={selectedLists}
+          listData={lists}
+        />
+      )}
       <Row>
         <Col>
           <h1>PropertyRadar Lists</h1>
@@ -54,6 +74,15 @@ const ListsPage: React.FC = () => {
                     <h5 className="mb-0">Your Lists</h5>
                   </Col>
                   <Col xs="auto">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="me-2"
+                      disabled={selectedLists.length === 0}
+                      onClick={() => setShowProcessModal(true)}
+                    >
+                      Check Duplicates ({selectedLists.length})
+                    </Button>
                     <Button variant="outline-primary" size="sm" onClick={fetchLists}>
                       Refresh
                     </Button>
@@ -64,6 +93,7 @@ const ListsPage: React.FC = () => {
                 <Table responsive hover>
                   <thead>
                     <tr>
+                      <th>Select</th>
                       <th>List Name</th>
                       <th>Type</th>
                       <th>Items</th>
@@ -80,6 +110,14 @@ const ListsPage: React.FC = () => {
                     ) : (
                       lists.map(list => (
                         <tr key={list.ListID}>
+                          <td>
+                            <Form.Check
+                              type="checkbox"
+                              checked={selectedLists.includes(list.ListID)}
+                              onChange={() => toggleListSelection(list.ListID)}
+                              aria-label={`Select list ${list.ListName}`}
+                            />
+                          </td>
                           <td>{list.ListName}</td>
                           <td>{list.ListType}</td>
                           <td>{list.TotalCount || list.Count || list.ItemCount || 0}</td>

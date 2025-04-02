@@ -20,6 +20,33 @@ class ListService {
   }
   
   /**
+   * Get all items from a list (handles pagination)
+   */
+  async getAllListItems(listId: number) {
+    let allItems: any[] = [];
+    let hasMore = true;
+    let start = 0;
+    const limit = 1000;
+    
+    while (hasMore) {
+      const response = await this.getListItems(listId, start, limit);
+      if (response.success && response.items) {
+        allItems = [...allItems, ...response.items];
+        
+        // Check if there are more items
+        hasMore = response.hasMore === true;
+        if (hasMore) {
+          start += limit;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    return { success: true, items: allItems };
+  }
+  
+  /**
    * Check for duplicates in a list
    */
   async checkDuplicates(listId: number, page: number = 1, pageSize: number = 1000) {
@@ -35,6 +62,25 @@ class ListService {
   async processList(listId: number, excludeRadarIds: string[] = []) {
     const response = await api.post(`/lists/${listId}/process`, {
       excludeRadarIds,
+      userId: localStorage.getItem('userId') || 'system'
+    });
+    return response.data;
+  }
+  
+  /**
+   * Process multiple lists (excluding specified duplicates)
+   */
+  async processMultipleLists(
+    listIds: number[],
+    excludeRadarIds: string[] = [],
+    campaignId?: number,
+    newCampaign?: any
+  ) {
+    const response = await api.post(`/lists/process-multiple`, {
+      listIds,
+      excludeRadarIds,
+      campaignId,
+      newCampaign,
       userId: localStorage.getItem('userId') || 'system'
     });
     return response.data;

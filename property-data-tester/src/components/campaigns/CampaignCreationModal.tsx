@@ -22,6 +22,9 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
 }) => {
   const [campaignName, setCampaignName] = useState<string>('');
   const [campaignDate, setCampaignDate] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [targetStates, setTargetStates] = useState<string>('');
+  const [targetLoanTypes, setTargetLoanTypes] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -98,13 +101,24 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
       setLoading(true);
       setError(null);
       
+      // Parse target states and loan types from comma-separated strings
+      const parsedTargetStates = targetStates
+        .split(',')
+        .map(state => state.trim())
+        .filter(state => state.length > 0);
+      
+      const parsedTargetLoanTypes = targetLoanTypes
+        .split(',')
+        .map(type => type.trim())
+        .filter(type => type.length > 0);
+      
       const campaignData: Campaign = {
         campaign_name: campaignName,
-        description: generateDescription(),
+        description: description,
         campaign_date: campaignDate,
         status: 'DRAFT',
-        target_loan_types: extractTargetLoanTypes(),
-        target_states: extractTargetStates(),
+        target_loan_types: parsedTargetLoanTypes,
+        target_states: parsedTargetStates,
         created_by: username
       };
       
@@ -123,12 +137,22 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
     }
   };
   
-  // Set default campaign date to today
+  // Set default values when the modal opens
   useEffect(() => {
+    // Set default campaign date to today
     const today = new Date();
     const formattedDate = today.toISOString().split('T')[0];
     setCampaignDate(formattedDate);
-  }, []);
+    
+    // Set default description
+    setDescription(generateDescription());
+    
+    // Set default target states
+    setTargetStates(extractTargetStates().join(', '));
+    
+    // Set default target loan types
+    setTargetLoanTypes(extractTargetLoanTypes().join(', '));
+  }, [criteria, show]);
   
   return (
     <Modal show={show} onHide={onHide} centered>
@@ -167,8 +191,8 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
             <Form.Control
               as="textarea"
               rows={3}
-              value={generateDescription()}
-              readOnly
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </Form.Group>
           
@@ -176,8 +200,9 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
             <Form.Label>Target States</Form.Label>
             <Form.Control
               type="text"
-              value={extractTargetStates().join(', ')}
-              readOnly
+              value={targetStates}
+              onChange={(e) => setTargetStates(e.target.value)}
+              placeholder="Enter comma-separated state codes (e.g., WA, VA, FL)"
             />
           </Form.Group>
           
@@ -185,8 +210,9 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
             <Form.Label>Target Loan Types</Form.Label>
             <Form.Control
               type="text"
-              value={extractTargetLoanTypes().join(', ')}
-              readOnly
+              value={targetLoanTypes}
+              onChange={(e) => setTargetLoanTypes(e.target.value)}
+              placeholder="Enter comma-separated loan types (e.g., VA, FHA, CONV)"
             />
           </Form.Group>
         </Form>

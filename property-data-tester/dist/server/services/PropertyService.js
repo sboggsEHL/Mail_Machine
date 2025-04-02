@@ -66,6 +66,13 @@ class PropertyService {
      * @param fields Fields to retrieve
      * @returns Property data
      */
+    /**
+     * Fetch a single property by its RadarID
+     * @param providerCode Provider code (e.g., 'PR')
+     * @param radarId The PropertyRadar ID
+     * @param fields Fields to retrieve
+     * @returns Property data
+     */
     fetchPropertyByRadarId(providerCode_1, radarId_1, fields_1) {
         return __awaiter(this, arguments, void 0, function* (providerCode, radarId, fields, campaignId = 'individual-request') {
             const provider = LeadProviderFactory_1.leadProviderFactory.getProvider(providerCode);
@@ -77,21 +84,8 @@ class PropertyService {
             }
             // Fetch property from provider
             const property = yield provider.fetchPropertyById(radarId, fields);
-            // Save raw payload to file
-            if (property) {
-                try {
-                    // Get batch number for this campaign
-                    const batchNumber = this.getNextBatchNumber(campaignId);
-                    // Save property to file
-                    yield this.propertyPayloadService.savePropertyPayload([property], // Wrap in array since savePropertyPayload expects an array
-                    campaignId, batchNumber);
-                    console.log(`Saved raw payload for property ${radarId} from individual request`);
-                }
-                catch (error) {
-                    console.error('Error saving raw payload:', error);
-                    // Continue even if saving the payload fails
-                }
-            }
+            // Note: We no longer save individual properties to file here
+            // They will be saved in batches by the PropertyBatchService
             return property;
         });
     }

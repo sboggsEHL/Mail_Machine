@@ -120,6 +120,17 @@ class PropertyRadarProvider {
      * @param rawProperty Raw property data from PropertyRadar API
      */
     transformProperty(rawProperty) {
+        // Helper function to safely convert values to numbers
+        const safeNumber = (value) => {
+            // Return undefined for null, undefined, or string values like "Other" or "Unknown"
+            if (value === null || value === undefined || value === "Other" || value === "Unknown") {
+                return undefined;
+            }
+            // Try to convert to number
+            const num = Number(value);
+            // Return the number if valid, otherwise undefined
+            return !isNaN(num) ? num : undefined;
+        };
         // Create property object
         const property = {
             radar_id: rawProperty.RadarID,
@@ -133,27 +144,27 @@ class PropertyRadarProvider {
             ownership_type: rawProperty.OwnershipType,
             is_same_mailing_or_exempt: rawProperty.isSameMailingOrExempt,
             is_mail_vacant: rawProperty.isMailVacant,
-            avm: rawProperty.AVM,
-            available_equity: rawProperty.AvailableEquity,
-            equity_percent: rawProperty.EquityPercent,
-            cltv: rawProperty.CLTV,
-            total_loan_balance: rawProperty.TotalLoanBalance,
-            number_loans: rawProperty.NumberLoans,
-            annual_taxes: rawProperty.AnnualTaxes,
-            estimated_tax_rate: rawProperty.EstimatedTaxRate,
+            avm: safeNumber(rawProperty.AVM),
+            available_equity: safeNumber(rawProperty.AvailableEquity),
+            equity_percent: safeNumber(rawProperty.EquityPercent),
+            cltv: safeNumber(rawProperty.CLTV),
+            total_loan_balance: safeNumber(rawProperty.TotalLoanBalance),
+            number_loans: safeNumber(rawProperty.NumberLoans),
+            annual_taxes: safeNumber(rawProperty.AnnualTaxes),
+            estimated_tax_rate: safeNumber(rawProperty.EstimatedTaxRate),
             last_transfer_rec_date: rawProperty.LastTransferRecDate ? new Date(rawProperty.LastTransferRecDate) : undefined,
-            last_transfer_value: rawProperty.LastTransferValue,
-            last_transfer_down_payment_percent: rawProperty.LastTransferDownPaymentPercent,
+            last_transfer_value: safeNumber(rawProperty.LastTransferValue),
+            last_transfer_down_payment_percent: safeNumber(rawProperty.LastTransferDownPaymentPercent),
             last_transfer_seller: rawProperty.LastTransferSeller,
             is_listed_for_sale: rawProperty.isListedForSale,
-            listing_price: rawProperty.ListingPrice,
-            days_on_market: rawProperty.DaysOnMarket,
+            listing_price: safeNumber(rawProperty.ListingPrice),
+            days_on_market: safeNumber(rawProperty.DaysOnMarket),
             in_foreclosure: rawProperty.inForeclosure,
             foreclosure_stage: rawProperty.ForeclosureStage,
-            default_amount: rawProperty.DefaultAmount,
+            default_amount: safeNumber(rawProperty.DefaultAmount),
             in_tax_delinquency: rawProperty.inTaxDelinquency,
-            delinquent_amount: rawProperty.DelinquentAmount,
-            delinquent_year: rawProperty.DelinquentYear,
+            delinquent_amount: safeNumber(rawProperty.DelinquentAmount),
+            delinquent_year: safeNumber(rawProperty.DelinquentYear),
             is_active: true
         };
         // Create owners array if owner data exists
@@ -190,18 +201,18 @@ class PropertyRadarProvider {
         if (rawProperty.FirstDate || rawProperty.FirstAmount || rawProperty.FirstLoanType) {
             loans.push({
                 loan_type: rawProperty.FirstLoanType,
-                loan_amount: rawProperty.FirstAmount,
-                interest_rate: rawProperty.FirstRate,
+                loan_amount: safeNumber(rawProperty.FirstAmount),
+                interest_rate: safeNumber(rawProperty.FirstRate),
                 rate_type: rawProperty.FirstRateType,
-                term_years: rawProperty.FirstTermInYears,
+                term_years: safeNumber(rawProperty.FirstTermInYears),
                 loan_purpose: rawProperty.FirstPurpose,
                 loan_position: 1,
                 origination_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,
                 first_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,
-                first_amount: rawProperty.FirstAmount,
-                first_rate: rawProperty.FirstRate,
+                first_amount: safeNumber(rawProperty.FirstAmount),
+                first_rate: safeNumber(rawProperty.FirstRate),
                 first_rate_type: rawProperty.FirstRateType,
-                first_term_in_years: rawProperty.FirstTermInYears,
+                first_term_in_years: safeNumber(rawProperty.FirstTermInYears),
                 first_loan_type: rawProperty.FirstLoanType,
                 first_purpose: rawProperty.FirstPurpose,
                 is_active: true
@@ -211,11 +222,11 @@ class PropertyRadarProvider {
         if (rawProperty.SecondDate || rawProperty.SecondAmount || rawProperty.SecondLoanType) {
             loans.push({
                 loan_type: rawProperty.SecondLoanType,
-                loan_amount: rawProperty.SecondAmount,
+                loan_amount: safeNumber(rawProperty.SecondAmount),
                 loan_position: 2,
                 origination_date: rawProperty.SecondDate ? new Date(rawProperty.SecondDate) : undefined,
                 second_date: rawProperty.SecondDate ? new Date(rawProperty.SecondDate) : undefined,
-                second_amount: rawProperty.SecondAmount,
+                second_amount: safeNumber(rawProperty.SecondAmount),
                 second_loan_type: rawProperty.SecondLoanType,
                 is_active: true
             });

@@ -1,6 +1,6 @@
-import { PropertyService } from './PropertyService';
+import { PropertyService, InsertedProperty } from './PropertyService';
 import { PropertyPayloadService } from './PropertyPayloadService';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 /**
  * Result of property batch operation
@@ -25,6 +25,7 @@ export class PropertyBatchService extends PropertyService {
   private providerCode: string;
   protected propertyPayloadService: PropertyPayloadService;
   protected batchCounter: Map<string, number> = new Map();
+  protected dbPool: Pool; // Store a reference to the pool
 
   constructor(
     pool: Pool,
@@ -34,6 +35,7 @@ export class PropertyBatchService extends PropertyService {
     super(pool);
     this.providerCode = providerCode;
     this.propertyPayloadService = propertyPayloadService || new PropertyPayloadService(pool);
+    this.dbPool = pool; // Store the pool for our own use
   }
 
   /**
@@ -130,43 +132,68 @@ export class PropertyBatchService extends PropertyService {
         'DefaultAmount', 'inTaxDelinquency', 'DelinquentAmount', 'DelinquentYear'
       ];
       
-      // Fetch properties one by one using the fetchPropertyByRadarId method
-      const properties: any[] = [];
-      for (const radarId of radarIds) {
-        try {
-          let property = await this.fetchPropertyByRadarId(
-            this.providerCode,
-            radarId,
-            fields,
-            campaignId
-          );
-          
-          // Ensure the property has a RadarID
-          if (property && property.RadarID) {
-            properties.push(property);
-          } else {
-            console.error(`Property ${radarId} missing RadarID in response`);
+      // Process properties in batches of 400
+      const batchSize = 400;
+      const allProperties: any[] = [];
+      const batches: any[][] = [];
+      
+      // Split radarIds into batches of batchSize
+      for (let i = 0; i < radarIds.length; i += batchSize) {
+        batches.push(radarIds.slice(i, i + batchSize));
+      }
+      
+      console.log(`Processing ${radarIds.length} properties in ${batches.length} batches of up to ${batchSize} properties each`);
+      
+      // Process each batch
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batchRadarIds = batches[batchIndex];
+        const batchProperties: any[] = [];
+        
+        console.log(`Processing batch ${batchIndex + 1}/${batches.length} with ${batchRadarIds.length} properties`);
+        
+        // Fetch properties for this batch
+        for (const radarId of batchRadarIds) {
+          try {
+            let property = await this.fetchPropertyByRadarId(
+              this.providerCode,
+              radarId,
+              fields,
+              campaignId
+            );
+            
+            // Ensure the property has a RadarID
+            if (property && property.RadarID) {
+              batchProperties.push(property);
+              allProperties.push(property);
+            } else {
+              console.error(`Property ${radarId} missing RadarID in response`);
+            }
+          } catch (error) {
+            console.error(`Error fetching property ${radarId}:`, error);
+            // Continue with next property
           }
-        } catch (error) {
-          console.error(`Error fetching property ${radarId}:`, error);
-          // Continue with next property
+        }
+        
+        // Only save batch if it has properties
+        if (batchProperties.length > 0) {
+          // Get batch number for this campaign
+          const batchNumber = this.getNextBatchNumber(campaignId);
+          
+          // Save batch properties to file
+          console.log(`Saving batch ${batchIndex + 1} with ${batchProperties.length} properties`);
+          await this.propertyPayloadService.savePropertyPayload(
+            batchProperties,
+            campaignId,
+            batchNumber
+          );
         }
       }
       
-      // Get batch number for this campaign
-      const batchNumber = this.getNextBatchNumber(campaignId);
-      
-      // Save properties to file first
-      const startTime = Date.now();
-      await this.propertyPayloadService.savePropertyPayload(
-        properties,
-        campaignId,
-        batchNumber
-      );
-      
       try {
         // Save properties to database
-        await this.saveProperties(this.providerCode, properties);
+        console.log(`Saving ${allProperties.length} properties to database`);
+        const savedProperties = await this.saveProperties(this.providerCode, allProperties);
+        console.log(`Successfully saved ${savedProperties.length} properties to database`);
       } catch (error) {
         console.error('Error saving properties to database:', error);
         // The properties are still saved to file, so they can be processed later
@@ -175,10 +202,10 @@ export class PropertyBatchService extends PropertyService {
       
       // Determine if there are more records
       const totalCount = await this.getEstimatedCount(criteria);
-      const hasMore = offset + properties.length < totalCount.count;
+      const hasMore = offset + allProperties.length < totalCount.count;
       
       return {
-        properties,
+        properties: allProperties,
         hasMore,
         totalCount: totalCount.count
       };
@@ -256,6 +283,85 @@ export class PropertyBatchService extends PropertyService {
     }
     
     return processedCount;
+  }
+  
+  /**
+   * Override saveProperties to handle campaign assignment
+   * @param providerCode Provider code
+   * @param rawPropertiesData Array of raw property data
+   * @returns Array of inserted properties
+   */
+  async saveProperties(
+    providerCode: string,
+    rawPropertiesData: any[]
+  ): Promise<InsertedProperty[]> {
+    const results: InsertedProperty[] = [];
+    
+    // Extract campaign ID from criteria if available
+    let campaignId: number | undefined = undefined;
+    if (rawPropertiesData.length > 0 &&
+        rawPropertiesData[0].criteria &&
+        rawPropertiesData[0].criteria.campaignId) {
+      campaignId = rawPropertiesData[0].criteria.campaignId;
+      console.log(`Found campaign ID ${campaignId} in criteria, will assign properties to this campaign`);
+    }
+    
+    // Call the parent class's saveProperties method
+    const savedProperties = await super.saveProperties(providerCode, rawPropertiesData);
+    
+    // If campaign ID is available, assign properties to campaign
+    if (campaignId) {
+      for (const property of savedProperties) {
+        if (property.propertyId) {
+          try {
+            await this.assignPropertyToCampaign(property.propertyId, campaignId);
+          } catch (error) {
+            console.error(`Error assigning property ${property.propertyId} to campaign ${campaignId}:`, error);
+            // Continue with next property
+          }
+        }
+      }
+    }
+    
+    return savedProperties;
+  }
+  
+  /**
+   * Assign a property to a campaign
+   * @param propertyId Property ID
+   * @param campaignId Campaign ID
+   */
+  async assignPropertyToCampaign(propertyId: number, campaignId: number): Promise<void> {
+    try {
+      // Check if the property is already assigned to this campaign
+      const checkResult = await this.dbPool.query(
+        `SELECT recipient_id FROM mail_recipients
+         WHERE property_id = $1 AND campaign_id = $2`,
+        [propertyId, campaignId]
+      );
+      
+      if (checkResult.rowCount && checkResult.rowCount > 0) {
+        console.log(`Property ${propertyId} is already assigned to campaign ${campaignId}`);
+        return;
+      }
+      
+      // Insert into mail_recipients table
+      await this.dbPool.query(
+        `INSERT INTO mail_recipients (
+           campaign_id,
+           property_id,
+           status,
+           created_at,
+           updated_at
+         ) VALUES ($1, $2, 'PENDING', NOW(), NOW())`,
+        [campaignId, propertyId]
+      );
+      
+      console.log(`Assigned property ${propertyId} to campaign ${campaignId}`);
+    } catch (error) {
+      console.error(`Error assigning property ${propertyId} to campaign ${campaignId}:`, error);
+      throw error;
+    }
   }
 }
 

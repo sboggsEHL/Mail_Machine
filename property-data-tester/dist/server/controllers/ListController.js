@@ -13,11 +13,15 @@ exports.ListController = void 0;
 const PropertyRadarListService_1 = require("../services/PropertyRadarListService");
 const BatchJobService_1 = require("../services/BatchJobService");
 const BatchJobRepository_1 = require("../repositories/BatchJobRepository");
+const CampaignService_1 = require("../services/CampaignService");
+const CampaignRepository_1 = require("../repositories/CampaignRepository");
 class ListController {
     constructor(pool) {
         this.listService = new PropertyRadarListService_1.PropertyRadarListService(pool);
         const batchJobRepository = new BatchJobRepository_1.BatchJobRepository(pool);
         this.batchJobService = new BatchJobService_1.BatchJobService(batchJobRepository);
+        const campaignRepository = new CampaignRepository_1.CampaignRepository(pool);
+        this.campaignService = new CampaignService_1.CampaignService(campaignRepository);
     }
     /**
      * Get all PropertyRadar lists
@@ -165,6 +169,121 @@ class ListController {
                 res.status(500).json({
                     success: false,
                     error: 'Failed to process list',
+                    details: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+    }
+    /**
+     * Check for duplicates in a batch of radar IDs
+     */
+    checkDuplicatesBatch(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log('ListController.checkDuplicatesBatch called with listId:', req.params.listId);
+            try {
+                const listId = parseInt(req.params.listId);
+                const { radarIds } = req.body;
+                if (!radarIds || !Array.isArray(radarIds)) {
+                    res.status(400).json({
+                        success: false,
+                        error: 'Invalid radarIds array'
+                    });
+                    return;
+                }
+                console.log(`Checking ${radarIds.length} radar IDs for duplicates`);
+                // Check for duplicates
+                const duplicates = yield this.listService.checkDuplicates(radarIds);
+                console.log(`Found ${duplicates.length} duplicates out of ${radarIds.length} items`);
+                res.json({
+                    success: true,
+                    totalItems: radarIds.length,
+                    duplicateCount: duplicates.length,
+                    duplicates
+                });
+            }
+            catch (error) {
+                console.error('Error in checkDuplicatesBatch:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Failed to check duplicates',
+                    details: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        });
+    }
+    /**
+     * Process multiple lists (excluding specified duplicates)
+     */
+    processMultipleLists(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log('ListController.processMultipleLists called');
+            try {
+                const { listIds, excludeRadarIds = [], campaignId, newCampaign } = req.body;
+                if (!listIds || !Array.isArray(listIds) || listIds.length === 0) {
+                    res.status(400).json({
+                        success: false,
+                        error: 'Invalid or empty listIds array'
+                    });
+                    return;
+                }
+                console.log(`Processing ${listIds.length} lists with ${excludeRadarIds.length} excluded RadarIDs`);
+                // Get all items from all lists
+                let allItems = [];
+                for (const listId of listIds) {
+                    const items = yield this.listService.getAllListItems(listId);
+                    allItems = [...allItems, ...items];
+                }
+                console.log(`Retrieved ${allItems.length} total items from all lists`);
+                // Filter out excluded RadarIDs
+                const filteredRadarIds = allItems
+                    .map(item => item.RadarID)
+                    .filter(id => !excludeRadarIds.includes(id));
+                console.log(`After filtering, ${filteredRadarIds.length} items remain to be processed`);
+                if (filteredRadarIds.length === 0) {
+                    res.status(400).json({
+                        success: false,
+                        error: 'No properties to process after exclusions'
+                    });
+                    return;
+                }
+                // Handle campaign creation or selection
+                let finalCampaignId = campaignId;
+                if (newCampaign && !campaignId) {
+                    // Create a new campaign
+                    const campaign = yield this.campaignService.createCampaign(newCampaign);
+                    if (campaign && campaign.campaign_id) {
+                        finalCampaignId = campaign.campaign_id;
+                        console.log(`Created new campaign with ID ${finalCampaignId}`);
+                    }
+                    else {
+                        console.error('Failed to create campaign');
+                    }
+                }
+                // Create a batch job with the filtered RadarIDs and campaign ID
+                const job = yield this.batchJobService.createJob({
+                    status: 'PENDING',
+                    criteria: {
+                        RadarID: filteredRadarIds,
+                        sourceListIds: listIds,
+                        campaignId: finalCampaignId
+                    },
+                    created_by: req.body.userId || 'system',
+                    priority: 1
+                });
+                console.log(`Created batch job ${job.job_id} with ${filteredRadarIds.length} properties`);
+                res.json({
+                    success: true,
+                    jobId: job.job_id,
+                    campaignId: finalCampaignId,
+                    processedCount: filteredRadarIds.length,
+                    excludedCount: excludeRadarIds.length
+                });
+            }
+            catch (error) {
+                console.error('Error in processMultipleLists:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Failed to process lists',
                     details: error instanceof Error ? error.message : 'Unknown error'
                 });
             }

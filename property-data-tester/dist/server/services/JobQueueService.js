@@ -256,10 +256,24 @@ class JobQueueService {
                     // Process and store the batch
                     const batchRecords = batchResult.properties || [];
                     yield this.batchJobService.logJobProgress(jobId, `Processing batch with ${batchRecords.length} records`);
-                    // Here you would process and store the records
-                    // For now, we'll just simulate success
-                    const batchSuccessCount = batchRecords.length;
-                    const batchErrorCount = 0;
+                    // Process and store the records in the database
+                    let batchSuccessCount = 0;
+                    let batchErrorCount = 0;
+                    try {
+                        // Save properties to database
+                        yield this.batchJobService.logJobProgress(jobId, `Saving ${batchRecords.length} properties to database`);
+                        // Use the saveProperties method to save to database
+                        const savedProperties = yield this.propertyService.saveProperties(this.propertyService.getProviderCode(), batchRecords);
+                        batchSuccessCount = savedProperties.length;
+                        batchErrorCount = batchRecords.length - savedProperties.length;
+                        yield this.batchJobService.logJobProgress(jobId, `Successfully saved ${batchSuccessCount} properties to database (${batchErrorCount} errors)`);
+                    }
+                    catch (error) {
+                        console.error('Error saving batch to database:', error);
+                        batchSuccessCount = 0;
+                        batchErrorCount = batchRecords.length;
+                        yield this.batchJobService.logJobProgress(jobId, `Failed to save batch to database: ${error instanceof Error ? error.message : String(error)}`, 'ERROR');
+                    }
                     // Update counts
                     processedCount += batchRecords.length;
                     successCount += batchSuccessCount;
