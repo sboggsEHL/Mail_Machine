@@ -206,6 +206,7 @@ class PropertyRadarProvider {
                 rate_type: rawProperty.FirstRateType,
                 term_years: safeNumber(rawProperty.FirstTermInYears),
                 loan_purpose: rawProperty.FirstPurpose,
+                lender_name: rawProperty.FirstLenderOriginal,
                 loan_position: 1,
                 origination_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,
                 first_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,

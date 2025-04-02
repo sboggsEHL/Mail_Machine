@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Container, Row, Col, Card, Table, Button, Spinner, 
-  Alert, Form, Badge, ProgressBar 
+  Alert, Form, Badge, ProgressBar, Modal
 } from 'react-bootstrap';
 import { listService } from '../services/list.service';
+import { CampaignCreationModal } from '../components/campaigns/CampaignCreationModal';
+import api, { fetchCampaigns, Campaign } from '../services/api';
 
 const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [list, setList] = useState<any>(null);
@@ -22,12 +24,34 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState<number>(1000);
   const [allDuplicates, setAllDuplicates] = useState<any[]>([]);
+  const [showLeadCountModal, setShowLeadCountModal] = useState<boolean>(false);
+  const [leadCount, setLeadCount] = useState<number>(0);
+  const [campaignId, setCampaignId] = useState<number | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignOption, setCampaignOption] = useState<string>('existing');
+  const [showCreateCampaign, setShowCreateCampaign] = useState<boolean>(false);
   
   useEffect(() => {
     if (listId) {
       fetchListDetails();
+      loadCampaigns();
     }
   }, [listId]);
+  
+  // Load campaigns from API
+  const loadCampaigns = async () => {
+    try {
+      const response = await fetchCampaigns();
+      if (response.success) {
+        setCampaigns(response.campaigns || []);
+        if (response.campaigns && response.campaigns.length > 0 && response.campaigns[0].campaign_id) {
+          setCampaignId(response.campaigns[0].campaign_id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading campaigns:', error);
+    }
+  };
   
   const fetchListDetails = async () => {
     try {
@@ -257,12 +281,51 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
     }
   };
   
+  const openLeadCountModal = () => {
+    // Default to all available properties
+    setLeadCount(totalItems - excludedRadarIds.length);
+    setShowLeadCountModal(true);
+  };
+  
+  // Extract criteria from list name
+  const extractCriteriaFromList = (): Record<string, any> => {
+    if (!list) return {};
+    
+    // Extract state code from list name
+    const stateRegex = /^([A-Z]{2})\s/;
+    const stateMatch = list.ListName.match(stateRegex);
+    const state = stateMatch ? [stateMatch[1]] : [];
+    
+    // Extract loan types from list name
+    const loanTypeRegex = /VA\s+No\s+Rate/i;
+    const loanTypes = ['VA']; // Based on user feedback, these are all VA loans
+    
+    return {
+      State: state,
+      FirstLoanType: loanTypes,
+    };
+  };
+  
+  // Handle campaign creation success
+  const handleCampaignCreated = (campaignId: number) => {
+    setCampaignId(campaignId);
+    setCampaignOption('existing');
+    setShowCreateCampaign(false);
+    loadCampaigns(); // Refresh the campaigns list
+  };
+  
   const processList = async () => {
     if (!listId) return;
     
     try {
       setProcessing(true);
-      const result = await listService.processList(parseInt(listId), excludedRadarIds);
+      // Use the leadCount parameter if specified
+      const result = await listService.processList(
+        parseInt(listId), 
+        excludedRadarIds, 
+        leadCount > 0 ? leadCount : undefined,
+        campaignId || undefined
+      );
       console.log('Process list result:', result);
       
       if (result.success) {
@@ -282,6 +345,7 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
       console.error(err);
     } finally {
       setProcessing(false);
+      setShowLeadCountModal(false);
     }
   };
   
@@ -335,10 +399,10 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
             {!checking && totalItems > 0 && (
               <Button
                 variant="success"
-                onClick={processList}
+                onClick={openLeadCountModal}
                 disabled={processing || totalItems - excludedRadarIds.length === 0}
               >
-                {processing ? 'Processing...' : `Process ${totalItems - excludedRadarIds.length} Properties`}
+                {processing ? 'Processing...' : `Process Properties`}
               </Button>
             )}
           </div>
@@ -347,6 +411,116 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
       
       {error && <Alert variant="danger">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
+      
+      {/* Lead Count Modal */}
+      <Modal show={showLeadCountModal} onHide={() => setShowLeadCountModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Process Properties</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Number of leads to process</Form.Label>
+              <Form.Control 
+                type="number" 
+                value={leadCount} 
+                onChange={(e) => setLeadCount(parseInt(e.target.value) || 0)}
+                min={1}
+                max={totalItems - excludedRadarIds.length}
+              />
+              <Form.Text className="text-muted">
+                Maximum available: {totalItems - excludedRadarIds.length}
+              </Form.Text>
+            </Form.Group>
+            
+            <Form.Group className="mb-4">
+              <h5>Campaign Selection</h5>
+              <Form.Check
+                type="radio"
+                name="campaignOption"
+                id="existing-campaign"
+                label="Use Existing Campaign"
+                checked={campaignOption === 'existing'}
+                onChange={() => setCampaignOption('existing')}
+              />
+              
+              {campaignOption === 'existing' && (
+                <Form.Select
+                  className="mt-2"
+                  value={campaignId || ''}
+                  onChange={(e) => setCampaignId(e.target.value ? parseInt(e.target.value) : null)}
+                  disabled={campaigns.length === 0}
+                >
+                  <option value="">Select a campaign</option>
+                  {campaigns.length === 0 ? (
+                    <option disabled>No campaigns available</option>
+                  ) : (
+                    campaigns.map(campaign => (
+                      <option key={campaign.campaign_id} value={campaign.campaign_id}>
+                        {campaign.campaign_name} ({campaign.campaign_date})
+                      </option>
+                    ))
+                  )}
+                </Form.Select>
+              )}
+              
+              <Form.Check
+                className="mt-3"
+                type="radio"
+                name="campaignOption"
+                id="new-campaign"
+                label="Create New Campaign"
+                checked={campaignOption === 'new'}
+                onChange={() => setCampaignOption('new')}
+              />
+              
+              {campaignOption === 'new' && (
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setShowCreateCampaign(true)}
+                >
+                  Create Campaign
+                </Button>
+              )}
+              
+              <Form.Check
+                className="mt-3"
+                type="radio"
+                name="campaignOption"
+                id="no-campaign"
+                label="No Campaign (Assign Later)"
+                checked={campaignOption === 'none'}
+                onChange={() => {
+                  setCampaignOption('none');
+                  setCampaignId(null);
+                }}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowLeadCountModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={processList}
+            disabled={leadCount <= 0 || leadCount > (totalItems - excludedRadarIds.length)}
+          >
+            Process {leadCount} Properties
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
+      {/* Campaign Creation Modal */}
+      <CampaignCreationModal
+        show={showCreateCampaign}
+        onHide={() => setShowCreateCampaign(false)}
+        criteria={extractCriteriaFromList()}
+        onSuccess={handleCampaignCreated}
+      />
       
       {checking && (
         <Card className="mb-4">
@@ -433,87 +607,93 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
               </Row>
             </Card.Header>
             <Card.Body>
-              <div className="mb-3">
-                <strong>Total Properties:</strong> {totalItems} |
-                <strong> Duplicates Found:</strong> {allDuplicates.length} |
-                <strong> Excluded:</strong> {excludedRadarIds.length} |
-                <strong> To Process:</strong> {totalItems - excludedRadarIds.length}
-                {activeFilter && (
-                  <Badge bg="info" className="ms-2">
-                    {activeFilter === 'exclude-all-mailed' && 'Excluding All Mailed'}
-                    {activeFilter === 'exclude-30-days' && 'Excluding Last 30 Days'}
-                    {activeFilter === 'exclude-60-days' && 'Excluding Last 60 Days'}
-                    {activeFilter === 'exclude-90-days' && 'Excluding Last 90 Days'}
-                  </Badge>
-                )}
-              </div>
-              
-              <ProgressBar className="mb-4">
-                <ProgressBar
-                  variant="success"
-                  now={(totalItems - allDuplicates.length) / totalItems * 100}
-                  key={1}
-                />
-                <ProgressBar
-                  variant="warning"
-                  now={(allDuplicates.length - excludedRadarIds.length) / totalItems * 100}
-                  key={2}
-                />
-                <ProgressBar
-                  variant="danger"
-                  now={excludedRadarIds.length / totalItems * 100}
-                  key={3}
-                />
-              </ProgressBar>
-              
-              <div className="mb-3">
-                <Badge bg="success" className="me-2">New Properties</Badge>
-                <Badge bg="warning" className="me-2">Duplicates (Included)</Badge>
-                <Badge bg="danger">Duplicates (Excluded)</Badge>
-              </div>
-              
-              <Table responsive hover>
-                <thead>
-                  <tr>
-                    {allDuplicates.length > 0 && <th>Exclude</th>}
-                    <th>RadarID</th>
-                    <th>Address</th>
-                    <th>Created Date</th>
-                    <th>Last Campaign</th>
-                    <th>Campaign Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(allDuplicates.length > 0 ? allDuplicates : allProperties).map(property => (
-                    <tr
-                      key={property.radar_id}
-                      className={excludedRadarIds.includes(property.radar_id) ? 'table-danger' : ''}
-                    >
-                      {allDuplicates.length > 0 && (
-                        <td>
-                          <Form.Check
-                            type="checkbox"
-                            checked={excludedRadarIds.includes(property.radar_id)}
-                            onChange={() => toggleExcludeProperty(property.radar_id)}
-                            disabled={allDuplicates.findIndex(d => d.radar_id === property.radar_id) === -1}
-                          />
-                        </td>
-                      )}
-                      <td>{property.radar_id}</td>
-                      <td>
-                        {property.address}, {property.city}, {property.state} {property.zip_code}
-                      </td>
-                      <td>{new Date(property.created_at).toLocaleDateString()}</td>
-                      <td>{property.last_campaign_name || 'N/A'}</td>
-                      <td>
-                        {property.last_campaign_date 
-                          ? new Date(property.last_campaign_date).toLocaleDateString() 
-                          : 'N/A'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              {allDuplicates.length > 0 ? (
+                <>
+                  <div className="mb-3">
+                    <strong>Total Properties:</strong> {totalItems} |
+                    <strong> Duplicates Found:</strong> {allDuplicates.length} |
+                    <strong> Excluded:</strong> {excludedRadarIds.length} |
+                    <strong> To Process:</strong> {totalItems - excludedRadarIds.length}
+                    {activeFilter && (
+                      <Badge bg="info" className="ms-2">
+                        {activeFilter === 'exclude-all-mailed' && 'Excluding All Mailed'}
+                        {activeFilter === 'exclude-30-days' && 'Excluding Last 30 Days'}
+                        {activeFilter === 'exclude-60-days' && 'Excluding Last 60 Days'}
+                        {activeFilter === 'exclude-90-days' && 'Excluding Last 90 Days'}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <ProgressBar className="mb-4">
+                    <ProgressBar
+                      variant="success"
+                      now={(totalItems - allDuplicates.length) / totalItems * 100}
+                      key={1}
+                    />
+                    <ProgressBar
+                      variant="warning"
+                      now={(allDuplicates.length - excludedRadarIds.length) / totalItems * 100}
+                      key={2}
+                    />
+                    <ProgressBar
+                      variant="danger"
+                      now={excludedRadarIds.length / totalItems * 100}
+                      key={3}
+                    />
+                  </ProgressBar>
+                  
+                  <div className="mb-3">
+                    <Badge bg="success" className="me-2">New Properties</Badge>
+                    <Badge bg="warning" className="me-2">Duplicates (Included)</Badge>
+                    <Badge bg="danger">Duplicates (Excluded)</Badge>
+                  </div>
+                  
+                  <Table responsive hover>
+                    <thead>
+                      <tr>
+                        <th>Exclude</th>
+                        <th>RadarID</th>
+                        <th>Address</th>
+                        <th>Created Date</th>
+                        <th>Last Campaign</th>
+                        <th>Campaign Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allDuplicates.map(property => (
+                        <tr
+                          key={property.radar_id}
+                          className={excludedRadarIds.includes(property.radar_id) ? 'table-danger' : ''}
+                        >
+                          <td>
+                            <Form.Check
+                              type="checkbox"
+                              checked={excludedRadarIds.includes(property.radar_id)}
+                              onChange={() => toggleExcludeProperty(property.radar_id)}
+                            />
+                          </td>
+                          <td>{property.radar_id}</td>
+                          <td>
+                            {property.address}, {property.city}, {property.state} {property.zip_code}
+                          </td>
+                          <td>{new Date(property.created_at).toLocaleDateString()}</td>
+                          <td>{property.last_campaign_name || 'N/A'}</td>
+                          <td>
+                            {property.last_campaign_date 
+                              ? new Date(property.last_campaign_date).toLocaleDateString() 
+                              : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </>
+              ) : (
+                <Alert variant="success">
+                  <h5>No duplicates found!</h5>
+                  <p>All {totalItems} properties in this list are new and ready to process.</p>
+                </Alert>
+              )}
             </Card.Body>
           </Card>
           

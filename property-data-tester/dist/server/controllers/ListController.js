@@ -90,24 +90,24 @@ class ListController {
                 const allRadarIds = items.map(item => item.RadarID);
                 // Calculate total pages
                 const totalPages = Math.ceil(allRadarIds.length / pageSize);
-                // Get radar IDs for the current page
+                // Process all radar IDs at once for better performance
+                console.log(`Processing all ${allRadarIds.length} items at once for better performance`);
+                const allDuplicates = yield this.listService.checkDuplicates(allRadarIds);
+                console.log(`Found ${allDuplicates.length} duplicates out of ${allRadarIds.length} items`);
+                // Return only the duplicates for the current page
                 const startIndex = (page - 1) * pageSize;
-                const endIndex = Math.min(startIndex + pageSize, allRadarIds.length);
-                const radarIds = allRadarIds.slice(startIndex, endIndex);
-                console.log(`Processing page ${page} of ${totalPages} (${radarIds.length} items)`);
-                // Check for duplicates for the current page
-                const duplicates = yield this.listService.checkDuplicates(radarIds);
-                console.log(`Found ${duplicates.length} duplicates out of ${radarIds.length} items on page ${page}`);
+                const endIndex = Math.min(startIndex + pageSize, allDuplicates.length);
+                const pageDuplicates = allDuplicates.slice(startIndex, endIndex);
                 res.json({
                     success: true,
                     totalItems: allRadarIds.length,
-                    duplicateCount: duplicates.length,
-                    duplicates,
+                    duplicateCount: allDuplicates.length,
+                    duplicates: pageDuplicates,
                     pagination: {
                         page,
                         pageSize,
-                        totalPages,
-                        hasMore: page < totalPages
+                        totalPages: Math.ceil(allDuplicates.length / pageSize),
+                        hasMore: page < Math.ceil(allDuplicates.length / pageSize)
                     }
                 });
             }
@@ -130,15 +130,22 @@ class ListController {
             try {
                 const listId = parseInt(req.params.listId);
                 const excludeRadarIds = req.body.excludeRadarIds || [];
-                console.log(`Processing list ${listId} with ${excludeRadarIds.length} excluded RadarIDs`);
+                const leadCount = req.body.leadCount ? parseInt(req.body.leadCount) : undefined;
+                const campaignId = req.body.campaignId ? parseInt(req.body.campaignId) : undefined;
+                console.log(`Processing list ${listId} with ${excludeRadarIds.length} excluded RadarIDs, leadCount: ${leadCount || 'all'}, campaignId: ${campaignId || 'none'}`);
                 // Get all items from the list
                 const items = yield this.listService.getAllListItems(listId);
                 console.log(`Retrieved ${items.length} items from list ${listId}`);
                 // Filter out excluded RadarIDs
-                const filteredRadarIds = items
+                let filteredRadarIds = items
                     .map(item => item.RadarID)
                     .filter(id => !excludeRadarIds.includes(id));
                 console.log(`After filtering, ${filteredRadarIds.length} items remain to be processed`);
+                // Apply lead count limit if specified
+                if (leadCount && leadCount > 0 && leadCount < filteredRadarIds.length) {
+                    console.log(`Limiting to ${leadCount} leads as requested`);
+                    filteredRadarIds = filteredRadarIds.slice(0, leadCount);
+                }
                 if (filteredRadarIds.length === 0) {
                     res.status(400).json({
                         success: false,
@@ -151,17 +158,19 @@ class ListController {
                     status: 'PENDING',
                     criteria: {
                         RadarID: filteredRadarIds,
-                        sourceListId: listId // Store list ID in criteria instead
+                        sourceListId: listId,
+                        campaign_id: campaignId // Include campaign ID if provided
                     },
                     created_by: req.body.userId || 'system',
                     priority: 1
                 });
-                console.log(`Created batch job ${job.job_id} with ${filteredRadarIds.length} properties`);
+                console.log(`Created batch job ${job.job_id} with ${filteredRadarIds.length} properties${campaignId ? ` and campaign ID ${campaignId}` : ''}`);
                 res.json({
                     success: true,
                     jobId: job.job_id,
                     processedCount: filteredRadarIds.length,
-                    excludedCount: excludeRadarIds.length
+                    excludedCount: excludeRadarIds.length,
+                    campaignId: campaignId
                 });
             }
             catch (error) {

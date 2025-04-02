@@ -297,13 +297,44 @@ export class PropertyBatchService extends PropertyService {
   ): Promise<InsertedProperty[]> {
     const results: InsertedProperty[] = [];
     
-    // Extract campaign ID from criteria if available
+    // Extract campaign ID and provider ID from criteria if available
     let campaignId: number | undefined = undefined;
-    if (rawPropertiesData.length > 0 &&
-        rawPropertiesData[0].criteria &&
-        rawPropertiesData[0].criteria.campaignId) {
-      campaignId = rawPropertiesData[0].criteria.campaignId;
-      console.log(`Found campaign ID ${campaignId} in criteria, will assign properties to this campaign`);
+    let providerId: number | undefined = undefined;
+    
+    // Check for campaign_id and provider_id in the batch job criteria
+    if (rawPropertiesData.length > 0) {
+      // First check in the batch job criteria
+      const batchJobCriteria = rawPropertiesData[0].batchJobCriteria || {};
+      
+      if (batchJobCriteria.campaign_id) {
+        campaignId = batchJobCriteria.campaign_id;
+        console.log(`Found campaign ID ${campaignId} in batch job criteria, will assign properties to this campaign`);
+      }
+      
+      if (batchJobCriteria.provider_id) {
+        providerId = batchJobCriteria.provider_id;
+        console.log(`Found provider ID ${providerId} in batch job criteria, will use this provider ID`);
+        
+        // Override the provider code with the provider ID from criteria
+        // This is needed because the LeadProviderFactory uses provider code, but we have provider ID
+        providerCode = 'PR'; // We know this is PropertyRadar
+      }
+      
+      // Then check in the property criteria
+      else if (rawPropertiesData[0].criteria) {
+        if (rawPropertiesData[0].criteria.campaignId || rawPropertiesData[0].criteria.campaign_id) {
+          campaignId = rawPropertiesData[0].criteria.campaignId || rawPropertiesData[0].criteria.campaign_id;
+          console.log(`Found campaign ID ${campaignId} in property criteria, will assign properties to this campaign`);
+        }
+        
+        if (rawPropertiesData[0].criteria.provider_id) {
+          providerId = rawPropertiesData[0].criteria.provider_id;
+          console.log(`Found provider ID ${providerId} in property criteria, will use this provider ID`);
+          
+          // Override the provider code with the provider ID from criteria
+          providerCode = 'PR'; // We know this is PropertyRadar
+        }
+      }
     }
     
     // Call the parent class's saveProperties method

@@ -59,9 +59,16 @@ class ListService {
   /**
    * Process a list (excluding specified duplicates)
    */
-  async processList(listId: number, excludeRadarIds: string[] = []) {
+  async processList(
+    listId: number, 
+    excludeRadarIds: string[] = [], 
+    leadCount?: number,
+    campaignId?: number
+  ) {
     const response = await api.post(`/lists/${listId}/process`, {
       excludeRadarIds,
+      leadCount,
+      campaignId,
       userId: localStorage.getItem('userId') || 'system'
     });
     return response.data;

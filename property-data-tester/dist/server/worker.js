@@ -48,6 +48,8 @@ const BatchJobRepository_1 = require("./repositories/BatchJobRepository");
 const BatchJobService_1 = require("./services/BatchJobService");
 const PropertyBatchService_1 = require("./services/PropertyBatchService");
 const JobQueueService_1 = require("./services/JobQueueService");
+const propertyradar_1 = require("./services/lead-providers/propertyradar");
+const LeadProviderFactory_1 = require("./services/lead-providers/LeadProviderFactory");
 // Load environment variables
 dotenv.config();
 /**
@@ -61,6 +63,16 @@ function startWorker() {
             (0, database_1.logDatabaseConfig)();
             // Test database connection
             yield (0, database_1.testDatabaseConnection)(database_1.dbPool);
+            // Register PropertyRadar provider
+            const propertyRadarToken = process.env.PROPERTY_RADAR_TOKEN;
+            if (propertyRadarToken) {
+                const propertyRadarProvider = (0, propertyradar_1.createPropertyRadarProvider)(propertyRadarToken);
+                LeadProviderFactory_1.leadProviderFactory.registerProvider(propertyRadarProvider);
+                console.log(`Registered PropertyRadar provider with token: ${propertyRadarToken.substring(0, 5)}...`);
+            }
+            else {
+                console.warn('No PropertyRadar token found in environment variables');
+            }
             // Create services
             const batchJobRepository = new BatchJobRepository_1.BatchJobRepository(database_1.dbPool);
             const batchJobService = new BatchJobService_1.BatchJobService(batchJobRepository);

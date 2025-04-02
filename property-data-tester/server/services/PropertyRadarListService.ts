@@ -114,7 +114,23 @@ export class PropertyRadarListService {
     try {
       console.log(`Checking for duplicates among ${radarIds.length} RadarIDs`);
       
-      // Use the complete_property_view as suggested by the user
+      // First, check which RadarIDs exist in the database
+      const existsResult = await this.pool.query(`
+        SELECT radar_id
+        FROM properties
+        WHERE radar_id = ANY($1) AND is_active = true
+      `, [radarIds]);
+      
+      if (existsResult.rows.length === 0) {
+        console.log('No duplicates found in the database');
+        return [];
+      }
+      
+      // Get the list of RadarIDs that exist in the database
+      const existingRadarIds = existsResult.rows.map(row => row.radar_id);
+      console.log(`Found ${existingRadarIds.length} matching properties in the database`);
+      
+      // Now get the full details for the existing RadarIDs
       const result = await this.pool.query(`
         SELECT
           cpv.radar_id,
@@ -129,9 +145,7 @@ export class PropertyRadarListService {
         FROM public.complete_property_view cpv
         WHERE cpv.radar_id = ANY($1)
         ORDER BY cpv.property_created_at DESC
-      `, [radarIds]);
-      
-      console.log(`Found ${result.rows.length} matching properties in the database`);
+      `, [existingRadarIds]);
       
       // Group by radar_id to get the latest campaign for each property
       const duplicateMap = new Map<string, DuplicateProperty>();

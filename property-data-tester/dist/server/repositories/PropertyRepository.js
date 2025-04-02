@@ -160,5 +160,12 @@ class PropertyRepository extends BaseRepository_1.BaseRepository {
             return result.rows.length > 0 ? result.rows[0] : null;
         });
     }
+    /**
+     * Override the ID field name to use property_id instead of propertie_id
+     * @returns The correct ID field name
+     */
+    getIdFieldName() {
+        return 'property_id'; // Override to return the correct column name
+    }
 }
 exports.PropertyRepository = PropertyRepository;

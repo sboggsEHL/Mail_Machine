@@ -284,22 +284,34 @@ export class JobQueueService {
           `Processing batch with ${batchRecords.length} records`
         );
         
-        // Process and store the records in the database
-        let batchSuccessCount = 0;
-        let batchErrorCount = 0;
-        
-        try {
-          // Save properties to database
-          await this.batchJobService.logJobProgress(
-            jobId!,
-            `Saving ${batchRecords.length} properties to database`
-          );
+          // Process and store the records in the database
+          let batchSuccessCount = 0;
+          let batchErrorCount = 0;
           
-          // Use the saveProperties method to save to database
-          const savedProperties = await this.propertyService.saveProperties(
-            this.propertyService.getProviderCode(),
-            batchRecords
-          );
+          try {
+            // Save properties to database
+            await this.batchJobService.logJobProgress(
+              jobId!,
+              `Saving ${batchRecords.length} properties to database`
+            );
+            
+            // Add batch job criteria to each property
+            const propertiesWithCriteria = batchRecords.map(property => ({
+              ...property,
+              batchJobCriteria: criteria
+            }));
+            
+            // Check if provider_id is in the criteria
+            let providerCode = this.propertyService.getProviderCode();
+            
+            // Log the criteria for debugging
+            console.log('Job criteria:', JSON.stringify(criteria, null, 2));
+            
+            // Use the saveProperties method to save to database
+            const savedProperties = await this.propertyService.saveProperties(
+              providerCode,
+              propertiesWithCriteria
+            );
           
           batchSuccessCount = savedProperties.length;
           batchErrorCount = batchRecords.length - savedProperties.length;

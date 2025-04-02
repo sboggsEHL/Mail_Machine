@@ -115,18 +115,31 @@ class PropertyService {
                 // Get the provider and transform the property data
                 const provider = LeadProviderFactory_1.leadProviderFactory.getProvider(providerCode);
                 const { property: propertyData, owners, loans } = provider.transformProperty(rawPropertyData);
-                // Get provider_id (This should be done outside the transaction in a real app)
-                const leadProviderResult = yield client.query(`SELECT provider_id FROM lead_providers WHERE provider_code = $1`, [providerCode]);
+                // Check if provider_id is directly provided in the batch job criteria
                 let providerId;
-                if (leadProviderResult.rows.length > 0) {
-                    providerId = leadProviderResult.rows[0].provider_id;
+                if (rawPropertyData.batchJobCriteria && rawPropertyData.batchJobCriteria.provider_id) {
+                    // Use the provider_id from the batch job criteria
+                    providerId = rawPropertyData.batchJobCriteria.provider_id;
+                    console.log(`Using provider_id ${providerId} from batch job criteria`);
+                }
+                else if (rawPropertyData.criteria && rawPropertyData.criteria.provider_id) {
+                    // Use the provider_id from the property criteria
+                    providerId = rawPropertyData.criteria.provider_id;
+                    console.log(`Using provider_id ${providerId} from property criteria`);
                 }
                 else {
-                    // Create the provider if it doesn't exist
-                    const insertResult = yield client.query(`INSERT INTO lead_providers (provider_name, provider_code)
-           VALUES ($1, $2)
-           RETURNING provider_id`, [provider.getName(), providerCode]);
-                    providerId = insertResult.rows[0].provider_id;
+                    // Get provider_id from the database
+                    const leadProviderResult = yield client.query(`SELECT provider_id FROM lead_providers WHERE provider_code = $1`, [providerCode]);
+                    if (leadProviderResult.rows.length > 0) {
+                        providerId = leadProviderResult.rows[0].provider_id;
+                    }
+                    else {
+                        // Create the provider if it doesn't exist
+                        const insertResult = yield client.query(`INSERT INTO lead_providers (provider_name, provider_code)
+             VALUES ($1, $2)
+             RETURNING provider_id`, [provider.getName(), providerCode]);
+                        providerId = insertResult.rows[0].provider_id;
+                    }
                 }
                 // Check if property already exists by radar_id
                 const existingProperty = yield this.propertyRepo.findByRadarId(propertyData.radar_id, client);
