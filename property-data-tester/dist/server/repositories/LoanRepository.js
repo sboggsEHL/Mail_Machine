@@ -35,6 +35,22 @@ class LoanRepository extends BaseRepository_1.BaseRepository {
         });
     }
     /**
+     * Find ALL loans (active or inactive) by property ID
+     * @param propertyId Property ID
+     * @param client Optional client for transaction handling
+     * @returns Array of loans
+     */
+    findAllByPropertyId(propertyId, client) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const queryExecutor = client || this.pool;
+            const result = yield queryExecutor.query(`SELECT * FROM ${this.tableName}
+       WHERE property_id = $1
+       ORDER BY is_active DESC, loan_position ASC, loan_id ASC`, // Prioritize active, then position, then ID
+            [propertyId]);
+            return result.rows;
+        });
+    }
+    /**
      * Find a loan by loan ID
      * @param loanId Loan ID
      * @param client Optional client for transaction handling
@@ -94,42 +110,52 @@ class LoanRepository extends BaseRepository_1.BaseRepository {
      */
     bulkUpsert(propertyId, loans, client) {
         return __awaiter(this, void 0, void 0, function* () {
-            const managedClient = client ? false : true;
+            const managedClient = !client;
             const queryExecutor = client || (yield this.getClient());
             try {
                 if (managedClient) {
                     yield queryExecutor.query('BEGIN');
                 }
-                const results = [];
-                // Process each loan
-                for (const loanData of loans) {
-                    const loan = Object.assign(Object.assign({}, loanData), { property_id: propertyId });
-                    // If we have a loan_id, update the existing loan
-                    if (loan.loan_id) {
-                        const existingLoan = yield this.findByLoanId(loan.loan_id, queryExecutor);
-                        if (existingLoan) {
-                            const updated = yield this.update(existingLoan.loan_id, loan, queryExecutor);
-                            if (updated) {
-                                results.push(updated);
-                            }
-                        }
-                        else {
-                            // If loan_id is provided but doesn't exist, create with that ID
-                            const created = yield this.create(loan, queryExecutor);
-                            results.push(created);
+                if (loans.length === 0) {
+                    console.log(`[LoanRepo.bulkUpsert] No loan data provided for property ${propertyId}. Skipping.`);
+                    return [];
+                }
+                // We expect only one consolidated loan object from the transformer
+                const consolidatedLoanData = Object.assign(Object.assign({}, loans[0]), { property_id: propertyId });
+                // Find *ANY* existing loan (active or inactive) for the property
+                // Use the new method findAllByPropertyId
+                const allExistingLoans = yield this.findAllByPropertyId(propertyId, queryExecutor);
+                // Prefer the first found (prioritized by active, position, id in the query)
+                const targetLoan = allExistingLoans.length > 0 ? allExistingLoans[0] : null;
+                let resultLoan = null;
+                // Ensure the data we are upserting marks the loan as active
+                consolidatedLoanData.is_active = true;
+                // Don't try to update the loan_id itself
+                const loanIdFromInput = consolidatedLoanData.loan_id;
+                if (loanIdFromInput) {
+                    delete consolidatedLoanData.loan_id;
+                }
+                if (targetLoan) {
+                    console.log(`[LoanRepo.bulkUpsert] Found existing loan ${targetLoan.loan_id} (active: ${targetLoan.is_active}) for property ${propertyId}. Updating and ensuring active.`);
+                    // Update the existing loan record, making sure is_active is true
+                    resultLoan = yield this.update(targetLoan.loan_id, consolidatedLoanData, queryExecutor);
+                    // Optional: Deactivate any OTHER loans found for the same property
+                    for (const otherLoan of allExistingLoans) {
+                        if (otherLoan.loan_id !== targetLoan.loan_id && otherLoan.is_active) {
+                            console.warn(`[LoanRepo.bulkUpsert] Deactivating redundant active loan ${otherLoan.loan_id} for property ${propertyId}.`);
+                            yield this.update(otherLoan.loan_id, { is_active: false }, queryExecutor);
                         }
                     }
-                    else {
-                        // Let the database trigger generate the loan_id automatically
-                        // The set_loan_id trigger will create a loan_id in the format [Type][State][YY][WEEK]-[Sequence]
-                        const created = yield this.create(loan, queryExecutor);
-                        results.push(created);
-                    }
+                }
+                else {
+                    console.log(`[LoanRepo.bulkUpsert] No existing loan found (active or inactive) for property ${propertyId}. Creating new active loan.`);
+                    // Create a single new loan record, ensuring is_active = true
+                    resultLoan = yield this.create(consolidatedLoanData, queryExecutor);
                 }
                 if (managedClient) {
                     yield queryExecutor.query('COMMIT');
                 }
-                return results;
+                return resultLoan ? [resultLoan] : [];
             }
             catch (error) {
                 if (managedClient) {
@@ -201,6 +227,22 @@ class LoanRepository extends BaseRepository_1.BaseRepository {
             }
             return parseFloat(result.rows[0].avg_rate);
         });
+    }
+    /**
+     * Find a matching loan in a list of loans
+     * This method is kept for backward compatibility but is no longer used
+     * in the new bulkUpsert implementation
+     * @param existingLoans List of existing loans
+     * @param newLoan New loan to match
+     * @returns Matching loan or undefined if no match found
+     */
+    findMatchingLoan(existingLoans, newLoan) {
+        // We now use property_id as the primary matching criterion
+        // This method is kept for backward compatibility
+        console.log(`[LoanRepo.findMatchingLoan] Checking for matching loan for property_id: ${newLoan.property_id}`);
+        // Simply return the first loan in the list if any exist
+        // This maintains backward compatibility while avoiding type errors
+        return existingLoans.length > 0 ? existingLoans[0] : undefined;
     }
     /**
      * Override the ID field name for loans

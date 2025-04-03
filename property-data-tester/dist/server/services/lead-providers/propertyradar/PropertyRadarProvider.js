@@ -195,11 +195,14 @@ class PropertyRadarProvider {
                 is_active: true
             });
         }
-        // Create loans array if loan data exists
+        // Create loans array
         const loans = [];
-        // Add first loan if data exists
-        if (rawProperty.FirstDate || rawProperty.FirstAmount || rawProperty.FirstLoanType) {
-            loans.push({
+        // Create a single loan record that includes both first and second loan details
+        // Only create a loan if we have first loan data with a lender name
+        if ((rawProperty.FirstDate || rawProperty.FirstAmount || rawProperty.FirstLoanType) &&
+            rawProperty.FirstLenderOriginal) {
+            const loanData = {
+                // Primary loan fields (from first loan)
                 loan_type: rawProperty.FirstLoanType,
                 loan_amount: safeNumber(rawProperty.FirstAmount),
                 interest_rate: safeNumber(rawProperty.FirstRate),
@@ -209,6 +212,7 @@ class PropertyRadarProvider {
                 lender_name: rawProperty.FirstLenderOriginal,
                 loan_position: 1,
                 origination_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,
+                // First loan details
                 first_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,
                 first_amount: safeNumber(rawProperty.FirstAmount),
                 first_rate: safeNumber(rawProperty.FirstRate),
@@ -216,21 +220,16 @@ class PropertyRadarProvider {
                 first_term_in_years: safeNumber(rawProperty.FirstTermInYears),
                 first_loan_type: rawProperty.FirstLoanType,
                 first_purpose: rawProperty.FirstPurpose,
-                is_active: true
-            });
-        }
-        // Add second loan if data exists
-        if (rawProperty.SecondDate || rawProperty.SecondAmount || rawProperty.SecondLoanType) {
-            loans.push({
-                loan_type: rawProperty.SecondLoanType,
-                loan_amount: safeNumber(rawProperty.SecondAmount),
-                loan_position: 2,
-                origination_date: rawProperty.SecondDate ? new Date(rawProperty.SecondDate) : undefined,
+                // Second loan details (if they exist)
                 second_date: rawProperty.SecondDate ? new Date(rawProperty.SecondDate) : undefined,
                 second_amount: safeNumber(rawProperty.SecondAmount),
                 second_loan_type: rawProperty.SecondLoanType,
                 is_active: true
-            });
+            };
+            loans.push(loanData);
+        }
+        else {
+            console.log(`Skipping loan for property ${rawProperty.RadarID} - missing first loan lender name`);
         }
         return {
             property,

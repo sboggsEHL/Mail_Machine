@@ -4,9 +4,9 @@
 
 // Use ts-node to register TypeScript
 require('ts-node').register({
-  project: 'tsconfig.server.json',
+  project: './property-data-tester/tsconfig.server.json',
   transpileOnly: true
 });
 
 // Load the worker
-require('./dist/worker');
+require('./server/worker');

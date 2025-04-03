@@ -145,17 +145,9 @@ class PropertyBatchService extends PropertyService_1.PropertyService {
                         yield this.propertyPayloadService.savePropertyPayload(batchProperties, campaignId, batchNumber);
                     }
                 }
-                try {
-                    // Save properties to database
-                    console.log(`Saving ${allProperties.length} properties to database`);
-                    const savedProperties = yield this.saveProperties(this.providerCode, allProperties);
-                    console.log(`Successfully saved ${savedProperties.length} properties to database`);
-                }
-                catch (error) {
-                    console.error('Error saving properties to database:', error);
-                    // The properties are still saved to file, so they can be processed later
-                    // We'll continue and return the properties to the caller
-                }
+                // REMOVED: Direct database insertion to prevent duplicates
+                // Properties will be processed and saved to the database by the worker
+                console.log(`Saved ${allProperties.length} properties to JSON files for worker processing`);
                 // Determine if there are more records
                 const totalCount = yield this.getEstimatedCount(criteria);
                 const hasMore = offset + allProperties.length < totalCount.count;
