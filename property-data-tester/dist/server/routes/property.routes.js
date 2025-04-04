@@ -34,10 +34,16 @@ function createPropertyRoutes() {
      */
     router.post('/search-properties', propertyController.searchProperties);
     /**
-     * @route GET /api/properties/:id
-     * @desc Get a property by ID
+     * @route POST /api/properties/preview
+     * @desc Preview properties (get count without purchasing)
      * @access Public
      */
+    router.post('/properties/preview', propertyController.previewProperties);
+    /**
+      * @route GET /api/properties/:id
+      * @desc Get a property by ID
+      * @access Public
+      */
     router.get('/properties/:id', propertyController.getProperty);
     return router;
 }

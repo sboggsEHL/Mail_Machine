@@ -38,13 +38,13 @@ const PROPERTY_TYPES: { value: string; label: string }[] = [
   { value: 'LND', label: 'Land' }
 ];
 
-// Loan Types
-const LOAN_TYPES: { value: string; label: string }[] = [
-  { value: 'C', label: 'Conventional' },
-  { value: 'F', label: 'FHA' },
-  { value: 'V', label: 'VA' },
-  { value: 'P', label: 'Private' }
-];
+// Loan Types - commented out as currently unused
+// const LOAN_TYPES: { value: string; label: string }[] = [
+//   { value: 'C', label: 'Conventional' },
+//   { value: 'F', label: 'FHA' },
+//   { value: 'V', label: 'VA' },
+//   { value: 'P', label: 'Private' }
+// ];
 
 interface LocalApiParamsFormProps {
   apiParams: PropertyRadarApiParams;
@@ -71,10 +71,13 @@ const getCategoryColor = (category: string): string => {
 function ApiParamsForm({ apiParams, setApiParams }: LocalApiParamsFormProps) {
   // Local state for managing criteria
   const [activeTab, setActiveTab] = useState<string>('location');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [criteriaDefs, setCriteriaDefs] = useState<AllCriteriaDefinitions>(criteriaDefinitions);
   const [selectedCriterion, setSelectedCriterion] = useState<CriterionDefinition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState<boolean>(false); // Start with false since we initialize with data
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [dateSelectionType, setDateSelectionType] = useState<'preset' | 'range'>('range');
   
   // Log criteria definitions for debugging on mount
@@ -88,18 +91,25 @@ function ApiParamsForm({ apiParams, setApiParams }: LocalApiParamsFormProps) {
   // Select first criterion in active category by default when tab changes
   useEffect(() => {
     if (criteriaDefs[activeTab]?.length > 0) {
-      // Find if there's any criterion from this category that's already selected in criteria
-      const selectedCriterionInCategory = criteriaDefs[activeTab].find(
-        criterion => (apiParams.criteria as any)?.[criterion.name] !== undefined
-      );
-      
-      if (selectedCriterionInCategory) {
-        // If there's a criterion from this category already in use, select it
-        setSelectedCriterion(selectedCriterionInCategory);
-      } else if (!selectedCriterion || !criteriaDefs[activeTab].some(c => c.name === selectedCriterion.name)) {
-        // If no criterion is selected or the selected one is not from this category, select the first one
-        setSelectedCriterion(criteriaDefs[activeTab][0]);
+      // Only set a default selection if:
+      // 1. There's no currently selected criterion, or
+      // 2. The currently selected criterion is not from this category
+      if (!selectedCriterion || !criteriaDefs[activeTab].some(c => c.name === selectedCriterion.name)) {
+        // First, check if any criterion from this category is already in use
+        const selectedCriterionInCategory = criteriaDefs[activeTab].find(
+          criterion => (apiParams.criteria as any)?.[criterion.name] !== undefined
+        );
+        
+        if (selectedCriterionInCategory) {
+          // If there's a criterion from this category already in use, select it
+          setSelectedCriterion(selectedCriterionInCategory);
+        } else {
+          // Otherwise, select the first one in the category
+          setSelectedCriterion(criteriaDefs[activeTab][0]);
+        }
       }
+      // If the user has already selected a criterion in this category, we don't change it
+      // This allows users to select and configure multiple criteria in the same category
     }
   }, [activeTab, criteriaDefs, apiParams.criteria, selectedCriterion]);
   
@@ -480,6 +490,9 @@ const getCriterionExplanation = (name: string, value: any): string => {
   switch (name) {
     case 'State':
       return `Properties located in ${Array.isArray(value) ? value.join(', ') : value}`;
+      
+    case 'Address':
+      return `Properties with address: ${Array.isArray(value) ? value.join(', ') : value}`;
       
     case 'PropertyType':
       const typeLabels = value.map((v: string) =>

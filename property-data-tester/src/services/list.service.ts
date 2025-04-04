@@ -73,6 +73,33 @@ class ListService {
     });
     return response.data;
   }
+
+  /**
+   * Create a new list
+   * @param criteria Search criteria
+   * @param listName List name
+   * @param listType List type (default: 'static')
+   * @param isMonitored Whether the list is monitored (default: 0)
+   * @returns API response
+   */
+  async createList(criteria: any[], listName: string, listType = 'static', isMonitored = 0) {
+    try {
+      const response = await api.post('/lists', {
+        criteria,
+        listName,
+        listType,
+        isMonitored
+      });
+      
+      return await response.data;
+    } catch (error) {
+      console.error('Error creating list:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create list'
+      };
+    }
+  }
   
   /**
    * Process multiple lists (excluding specified duplicates)

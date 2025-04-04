@@ -33,9 +33,16 @@ export function createPropertyRoutes(): Router {
    * @desc Search for properties in the database
    * @access Public
    */
-  router.post('/search-properties', propertyController.searchProperties);
-  
-  /**
+ router.post('/search-properties', propertyController.searchProperties);
+ 
+ /**
+  * @route POST /api/properties/preview
+  * @desc Preview properties (get count without purchasing)
+  * @access Public
+  */
+ router.post('/properties/preview', propertyController.previewProperties);
+ 
+ /**
    * @route GET /api/properties/:id
    * @desc Get a property by ID
    * @access Public

@@ -311,4 +311,54 @@ export class ListController {
       });
     }
   }
+
+  /**
+   * Create a new list
+   */
+  async createList(req: Request, res: Response): Promise<void> {
+    console.log('ListController.createList called');
+    try {
+      const { criteria, listName, listType = 'static', isMonitored = 0 } = req.body;
+      
+      if (!criteria || !listName) {
+        res.status(400).json({
+          success: false,
+          error: 'Missing required parameters'
+        });
+        return;
+      }
+      
+      // Validate list name
+      if (!listName.trim()) {
+        res.status(400).json({
+          success: false,
+          error: 'List name cannot be empty'
+        });
+        return;
+      }
+      
+      const listData = {
+        Criteria: criteria,
+        ListName: listName,
+        ListType: listType,
+        isMonitored: isMonitored
+      };
+      
+      console.log(`Creating list "${listName}" with type ${listType}`);
+      const createdList = await this.listService.createList(listData);
+      console.log(`List created successfully with ID ${createdList.ListID}`);
+      
+      res.json({
+        success: true,
+        list: createdList
+      });
+    } catch (error) {
+      console.error('Error in createList:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create list',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
 }

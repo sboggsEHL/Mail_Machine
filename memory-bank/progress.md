@@ -111,6 +111,16 @@
    - Added detailed information about PropertyRadar API requirements to PropertyRadarAPI.md
    - Documented common pitfalls and their solutions
 
+4. **Fixed UI issues**
+   - Fixed issue in ApiParamsForm.tsx where selecting a criterion (like Property Type) prevented selecting other criteria in the same tab
+   - Modified the useEffect hook to respect user selections within the same category
+   - Improved the logic for determining when to set the default selected criterion without overriding user choices
+
+5. **Added Address search capability**
+   - Added Address criterion to criteriaDefinitions.ts in the property section
+   - Added human-readable explanation for Address criterion in ApiParamsForm.tsx
+   - Ensured proper formatting for the PropertyRadar API
+
 ### Next Steps:
 
 1. Implement batch processing for large property datasets

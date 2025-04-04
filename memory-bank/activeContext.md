@@ -34,6 +34,8 @@
   - Fixed state management issues 
   - Added JSON preview to show criteria before submission
   - Added visual feedback for selected criteria (colored badges)
+  - Fixed issue with criteria selection in the same tab (now multiple criteria can be selected within the same category without interfering with each other)
+  - Added Address search capability in the Property tab for searching by specific street addresses
 - Implemented JWT-based authentication:
   - Created auth service for token management
   - Added token refresh functionality

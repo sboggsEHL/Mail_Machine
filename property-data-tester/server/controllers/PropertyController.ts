@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PropertyService } from '../services/PropertyService';
 import { Property } from '../../shared/types/database';
 import { PropertyRadarCriteriaInput } from '../services/lead-providers/propertyradar/types';
+import { leadProviderFactory } from '../services/lead-providers/LeadProviderFactory';
 
 /**
  * Controller for property-related endpoints
@@ -228,6 +229,48 @@ export class PropertyController {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get property'
+      });
+    }
+  };
+
+  /**
+   * Preview properties (get count without purchasing)
+   */
+  previewProperties = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { criteria } = req.body;
+      
+      if (!criteria) {
+        res.status(400).json({
+          success: false,
+          error: 'Criteria is required'
+        });
+        return;
+      }
+      
+      // Get the provider from the factory
+      const provider = leadProviderFactory.getProvider('PR');
+      
+      if (!provider.previewProperties) {
+        res.status(500).json({
+          success: false,
+          error: 'Provider does not support preview functionality'
+        });
+        return;
+      }
+      
+      // Get preview count
+      const previewResult = await provider.previewProperties(criteria);
+      
+      res.json({
+        success: true,
+        count: previewResult.count
+      });
+    } catch (error) {
+      console.error('Error previewing properties:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to preview properties'
       });
     }
   };

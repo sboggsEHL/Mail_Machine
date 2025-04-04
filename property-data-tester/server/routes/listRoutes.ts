@@ -9,6 +9,9 @@ export function createListRoutes(pool: Pool): Router {
   // Get all lists
   router.get('/lists', (req, res) => listController.getLists(req, res));
   
+  // Create a new list
+  router.post('/lists', (req, res) => listController.createList(req, res));
+  
   // Get items from a specific list
   router.get('/lists/:listId/items', (req, res) => listController.getListItems(req, res));
   

@@ -266,5 +266,43 @@ class PropertyRadarProvider {
         console.error('PropertyRadar unknown error:', error);
         throw new Error(`PropertyRadar unknown error: ${String(error)}`);
     }
+    /**
+     * Preview properties based on criteria without purchasing
+     * @param criteria Search criteria
+     * @returns Preview result with count
+     */
+    previewProperties(criteria) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.isConfigured()) {
+                throw new Error('PropertyRadar API is not configured. Please provide a valid API token.');
+            }
+            try {
+                // Transform criteria to PropertyRadar format
+                const requestBody = PropertyRadarCriteriaMapper_1.PropertyRadarCriteriaMapper.transformCriteria(criteria);
+                console.log('Making preview request to PropertyRadar API');
+                // Make the API request with Purchase=0 to avoid purchasing the properties
+                const response = yield axios_1.default.post(`${this.baseUrl}/properties`, requestBody, {
+                    params: {
+                        Fields: 'RadarID',
+                        Limit: 1,
+                        Purchase: 0
+                    },
+                    headers: {
+                        'Authorization': `Bearer ${this.apiToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+                // Return the total count of matching properties
+                return {
+                    count: response.data.resultCount || 0
+                };
+            }
+            catch (error) {
+                this.handleApiError(error);
+                throw error;
+            }
+        });
+    }
 }
 exports.PropertyRadarProvider = PropertyRadarProvider;

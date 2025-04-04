@@ -147,6 +147,89 @@ class PropertyRadarListService {
         });
     }
     /**
+     * Create a new list in PropertyRadar
+     * @param listData List creation data
+     * @returns Created list information
+     */
+    createList(listData) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // Check if criteria might result in too many properties
+            try {
+                // First, get an estimate of how many properties match the criteria
+                const previewResponse = yield axios_1.default.post(`${this.apiBaseUrl}/v1/properties`, { Criteria: listData.Criteria }, {
+                    params: {
+                        Fields: 'RadarID',
+                        Limit: 1,
+                        Purchase: 0
+                    },
+                    headers: this.getAuthHeaders()
+                });
+                const estimatedCount = previewResponse.data.resultCount || 0;
+                // If the count is extremely large, log it for monitoring
+                // PropertyRadar can handle up to ~150k properties in a list
+                if (estimatedCount > 100000) {
+                    console.log(`Creating large list with ${estimatedCount} properties`);
+                }
+                // Validate list name length (PropertyRadar has a 50 character limit)
+                if (listData.ListName.length > 50) {
+                    console.warn(`List name exceeds 50 characters, it will be truncated by PropertyRadar`);
+                    // We don't truncate here as PropertyRadar will do it automatically
+                }
+                // Create the list
+                const response = yield this.executeWithRetry(() => axios_1.default.post(`${this.apiBaseUrl}/v1/lists`, listData, {
+                    headers: this.getAuthHeaders()
+                }));
+                if (response.data && response.data.results && response.data.results.length > 0) {
+                    return response.data.results[0];
+                }
+                throw new Error('No list created in response');
+            }
+            catch (error) {
+                console.error('Error creating PropertyRadar list:', error);
+                throw error;
+            }
+        });
+    }
+    /**
+     * Execute a function with retry logic
+     * @param fn Function to execute
+     * @param maxRetries Maximum number of retries
+     * @param initialDelay Initial delay in milliseconds
+     * @param backoffFactor Factor to increase delay on each retry
+     * @returns Promise with the function result
+     */
+    executeWithRetry(fn_1) {
+        return __awaiter(this, arguments, void 0, function* (fn, maxRetries = 3, initialDelay = 1000, backoffFactor = 2) {
+            var _a, _b;
+            let lastError;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    return yield fn();
+                }
+                catch (error) {
+                    lastError = error;
+                    // Check if this is a rate limit error (429 status code)
+                    const isRateLimit = axios_1.default.isAxiosError(error) &&
+                        ((_a = error.response) === null || _a === void 0 ? void 0 : _a.status) === 429;
+                    // Extract retry time from response headers if available
+                    let waitTime = initialDelay * Math.pow(backoffFactor, attempt);
+                    if (isRateLimit && axios_1.default.isAxiosError(error) && ((_b = error.response) === null || _b === void 0 ? void 0 : _b.headers['retry-after'])) {
+                        const retryAfter = error.response.headers['retry-after'];
+                        waitTime = parseInt(retryAfter) * 1000;
+                    }
+                    // Don't retry on the last attempt
+                    if (attempt >= maxRetries) {
+                        break;
+                    }
+                    console.log(`API call failed, retrying in ${waitTime}ms (attempt ${attempt + 1}/${maxRetries})...`);
+                    // Wait before retrying
+                    yield new Promise(resolve => setTimeout(resolve, waitTime));
+                }
+            }
+            throw lastError;
+        });
+    }
+    /**
      * Get authentication headers for PropertyRadar API
      */
     getAuthHeaders() {

@@ -43,6 +43,14 @@ export const criteriaDefinitions: AllCriteriaDefinitions = {
   
   'property': [
     {
+      name: "Address",
+      description: "Property street address (include street number, name, direction, type, and unit/suite number if applicable. Do NOT include city, state, or ZIP)",
+      criteriaType: "Multiple Values",
+      example: {
+        value: ["120 SE Main St #500"]
+      }
+    },
+    {
       name: "PropertyType",
       description: "Type of property (SFR, Condo, etc.)",
       criteriaType: "PropertyType",

@@ -4,7 +4,7 @@
 
 // Use ts-node to register TypeScript
 require('ts-node').register({
-  project: './property-data-tester/tsconfig.server.json',
+  project: './tsconfig.server.json',
   transpileOnly: true
 });
 

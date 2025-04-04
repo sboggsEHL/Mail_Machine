@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PropertyController = void 0;
+const LeadProviderFactory_1 = require("../services/lead-providers/LeadProviderFactory");
 /**
  * Controller for property-related endpoints
  */
@@ -203,6 +204,43 @@ class PropertyController {
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : 'Failed to get property'
+                });
+            }
+        });
+        /**
+         * Preview properties (get count without purchasing)
+         */
+        this.previewProperties = (req, res) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { criteria } = req.body;
+                if (!criteria) {
+                    res.status(400).json({
+                        success: false,
+                        error: 'Criteria is required'
+                    });
+                    return;
+                }
+                // Get the provider from the factory
+                const provider = LeadProviderFactory_1.leadProviderFactory.getProvider('PR');
+                if (!provider.previewProperties) {
+                    res.status(500).json({
+                        success: false,
+                        error: 'Provider does not support preview functionality'
+                    });
+                    return;
+                }
+                // Get preview count
+                const previewResult = yield provider.previewProperties(criteria);
+                res.json({
+                    success: true,
+                    count: previewResult.count
+                });
+            }
+            catch (error) {
+                console.error('Error previewing properties:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Failed to preview properties'
                 });
             }
         });

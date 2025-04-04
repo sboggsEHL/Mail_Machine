@@ -38,6 +38,8 @@
 - Worker processes handle jobs based on priority and creation date
 - Boolean values in PropertyRadar API must be sent as strings ("1"/"0") not numbers
 - Date fields must use MM/DD/YYYY format for PropertyRadar API
+- When implementing selection UI components, ensure that user selections aren't overridden by automatic state updates
+- Component useEffect hooks should respect user interactions and not reset selections unexpectedly
 
 ## Known Challenges
 - History tables will grow over time and require archival strategies

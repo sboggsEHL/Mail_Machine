@@ -34,6 +34,13 @@ export interface LeadProvider {
   fetchPropertyById?(propertyId: string, fields: string[]): Promise<any>;
   
   /**
+   * Preview properties based on criteria without purchasing
+   * @param criteria Search criteria
+   * @returns Preview result with count
+   */
+  previewProperties?(criteria: any): Promise<{ count: number }>;
+  
+  /**
    * Transform raw property data from provider format to our system format
    * @param rawProperty Raw property data from provider API
    */
