@@ -360,7 +360,7 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
       .filter(Boolean) as string[];
     
     // Extract loan types from list names
-    const loanTypeRegex = /VA\s+No\s+Rate/i;
+    // const loanTypeRegex = /VA\s+No\s+Rate/i; // Removed unused regex
     const loanTypes = ['VA']; // Based on user feedback, these are all VA loans
     
     return {

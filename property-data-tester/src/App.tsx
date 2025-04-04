@@ -70,6 +70,9 @@ function App() {
       const hash = window.location.hash.substring(1); // Remove the # character
       if (hash) {
         setCurrentPage(hash);
+      } else {
+        // Default to 'main' if hash is empty or just '#'
+        setCurrentPage('main'); 
       }
     };
 
@@ -92,41 +95,48 @@ function App() {
         // Initialize auth service interceptors for token refreshing
         authService.setupInterceptors();
         
-        // Check if token exists and is valid
-        if (authService.isAuthenticated()) {
-          // Get current user data if authenticated
-          const user = await authService.getCurrentUser();
-          if (user) {
-            setCurrentUser(user);
-            setIsAuthenticated(true);
-          } else {
-            // Clear tokens if getCurrentUser fails
-            authService.clearTokens();
-            setIsAuthenticated(false);
-          }
+        // Only proceed with user data fetch if we have valid tokens
+        if (!authService.isAuthenticated()) {
+          setIsAuthenticated(false);
+          return;
+        }
+
+        // Get current user data if authenticated
+        const user = await authService.getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
         } else {
+          // Clear tokens and state if getCurrentUser fails
+          authService.clearTokens();
+          setCurrentUser(null);
           setIsAuthenticated(false);
         }
       } catch (error) {
         console.error('Auth check error:', error);
+        // Clear everything on error
+        authService.clearTokens();
+        setCurrentUser(null);
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
     };
 
+    // Run auth check immediately
     checkAuth();
   }, []);
 
   // Handle successful login
   const handleLoginSuccess = () => {
+    // User data and tokens are already set by Login component
     setIsAuthenticated(true);
-    // Try to get user details
-    authService.getCurrentUser().then(user => {
-      if (user) {
-        setCurrentUser(user);
-      }
-    });
+    
+    // Set default page after login if needed
+    if (!window.location.hash || window.location.hash === '#') {
+      setCurrentPage('main');
+      window.location.hash = 'main';
+    }
   };
 
   // Handle logout
@@ -134,6 +144,9 @@ function App() {
     await authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
+    // Optionally redirect or set page state after logout
+    setCurrentPage('login'); // Or wherever you want the user to land
+    window.location.hash = ''; // Clear hash on logout
   };
 
   const handleFetchProperties = async (): Promise<void> => {
@@ -162,6 +175,7 @@ function App() {
           setFetchStatus({ loading: false, error: null });
           alert(`Your request for ${apiParams.limit} properties is being processed in the background. Navigating to Batch Jobs tab to view progress.`);
           setCurrentPage('batch-jobs');
+          window.location.hash = 'batch-jobs'; // Update hash
         } else {
           throw new Error('Failed to create batch job');
         }
@@ -179,7 +193,8 @@ function App() {
       const response = await fetch('http://localhost:3001/api/fetch-properties', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
+          // Authorization header likely handled by interceptor if needed
         },
         body: JSON.stringify({
           fields: selectedFields,
@@ -189,6 +204,12 @@ function App() {
           criteria: apiParams.criteria
         }),
       });
+
+      // Handle unauthorized or other errors
+      if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -219,12 +240,18 @@ function App() {
       const response = await fetch('http://localhost:3001/api/insert-properties', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
+          // Authorization header likely handled by interceptor if needed
         },
         body: JSON.stringify({
           properties: properties
         }),
       });
+
+      if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -264,6 +291,7 @@ function App() {
         // Show success message and navigate to batch jobs page
         alert(`Batch job created successfully! Navigating to Batch Jobs tab to view progress.`);
         setCurrentPage('batch-jobs');
+        window.location.hash = 'batch-jobs'; // Update hash
       } else {
         throw new Error('Failed to create batch job');
       }
@@ -291,32 +319,43 @@ function App() {
     authService.clearTokens();
     setIsAuthenticated(false);
     setCurrentUser(null);
-    window.location.reload();
+    window.location.hash = ''; // Clear hash
+    window.location.reload(); // Force reload to show login
   };
 
   // Login page for unauthenticated users
-  if (!isAuthenticated) {
-    return (
-      <Container className="mt-4">
-        <h1 className="mb-4 text-center">PropertyRadar API Tester</h1>
-        <Login onLoginSuccess={handleLoginSuccess} />
-      </Container>
-    );
+  if (!isAuthenticated && currentPage !== 'login') { // Redirect to login if not authenticated
+      // Set current page to login to avoid rendering other components
+      // This check prevents infinite loops if Login component itself causes issues
+      if (currentPage !== 'login') {
+          setCurrentPage('login');
+          window.location.hash = 'login'; // Optionally update hash
+      }
   }
+  
+  if (!isAuthenticated || currentPage === 'login') {
+      return (
+          <Container className="mt-4">
+              <h1 className="mb-4 text-center">PropertyRadar API Tester</h1>
+              <Login onLoginSuccess={handleLoginSuccess} />
+          </Container>
+      );
+  }
+
 
   // Main application for authenticated users
   return (
     <>
       <Navbar bg="dark" variant="dark" expand="lg" className="mb-4">
         <Container>
-          <Navbar.Brand href="#home">Property Data Tester</Navbar.Brand>
+          <Navbar.Brand href="#main">Property Data Tester</Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">
               <Nav.Link
                 href="#main"
                 active={currentPage === 'main'}
-                onClick={() => setCurrentPage('main')}
+                onClick={() => { setCurrentPage('main'); window.location.hash = 'main'; }}
               >
                 Main App
               </Nav.Link>
@@ -324,28 +363,28 @@ function App() {
               <Nav.Link
                 href="#campaigns"
                 active={currentPage === 'campaigns'}
-                onClick={() => setCurrentPage('campaigns')}
+                onClick={() => { setCurrentPage('campaigns'); window.location.hash = 'campaigns'; }}
               >
                 Campaign Manager
               </Nav.Link>
               <Nav.Link
                 href="#batch-jobs"
                 active={currentPage === 'batch-jobs'}
-                onClick={() => setCurrentPage('batch-jobs')}
+                onClick={() => { setCurrentPage('batch-jobs'); window.location.hash = 'batch-jobs'; }}
               >
                 Batch Jobs
               </Nav.Link>
               <Nav.Link
                 href="#lists"
                 active={currentPage === 'lists'}
-                onClick={() => setCurrentPage('lists')}
+                onClick={() => { setCurrentPage('lists'); window.location.hash = 'lists'; }}
               >
                 PropertyRadar Lists
               </Nav.Link>
               <Nav.Link
                 href="#property-files"
                 active={currentPage === 'property-files'}
-                onClick={() => setCurrentPage('property-files')}
+                onClick={() => { setCurrentPage('property-files'); window.location.hash = 'property-files'; }}
               >
                 Process Property Files
               </Nav.Link>
@@ -379,19 +418,11 @@ function App() {
                 <ApiParamsForm
                   apiParams={apiParams}
                   setApiParams={setApiParams}
+                  onSubmitQuery={handleFetchProperties} // Pass the handler function
                 />
-                
-                <div className="d-flex gap-2 mt-3">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="flex-grow-1"
-                    onClick={handleFetchProperties}
-                    disabled={fetchStatus.loading}
-                  >
-                    {fetchStatus.loading ? 'Fetching...' : 'Fetch Properties'}
-                  </Button>
-                  
+                {/* The submit button is now rendered within ApiParamsForm */}
+                {/* The div below contains the "Force Background Processing" button */}
+                <div className="d-flex gap-2 mt-3"> 
                   <Button
                     variant="secondary"
                     size="lg"

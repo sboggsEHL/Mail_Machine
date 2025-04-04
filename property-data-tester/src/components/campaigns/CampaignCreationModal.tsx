@@ -152,6 +152,12 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
     
     // Set default target loan types
     setTargetLoanTypes(extractTargetLoanTypes().join(', '));
+  /* Note on dependencies:
+   * - criteria and show trigger the effect as they represent user input/visibility
+   * - Helper functions (extractTargetLoanTypes, extractTargetStates, generateDescription)
+   *   are stable and only depend on criteria which is already included
+   * - Consider moving helpers to useCallback if this pattern causes issues
+   */
   }, [criteria, show]);
   
   return (

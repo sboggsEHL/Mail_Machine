@@ -17,7 +17,13 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
   const [radarIdSearch, setRadarIdSearch] = useState<string>('');
   const [filteredJobs, setFilteredJobs] = useState<BatchJob[]>([]);
 
-  // Load jobs on component mount and when status filter changes
+  /* Load jobs on component mount and when status filter changes
+   * Note on dependencies:
+   * - statusFilter triggers a reload when the user changes the filter
+   * - loadJobs is defined in component but only uses statusFilter
+   * - Adding loadJobs to deps would cause unnecessary reruns
+   * - Consider moving to useCallback if this pattern causes issues
+   */
   useEffect(() => {
     loadJobs();
   }, [statusFilter]);

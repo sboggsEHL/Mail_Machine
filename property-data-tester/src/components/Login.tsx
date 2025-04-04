@@ -13,12 +13,18 @@ function Login({ onLoginSuccess }: LoginProps) {
 
   // Check if already authenticated on component mount
   useEffect(() => {
-    if (authService.isAuthenticated()) {
-      if (onLoginSuccess) {
-        onLoginSuccess();
+    // Only check on mount, not when onLoginSuccess changes
+    const checkInitialAuth = async () => {
+      if (authService.isAuthenticated()) {
+        const user = await authService.getCurrentUser();
+        if (user && onLoginSuccess) {
+          onLoginSuccess();
+        }
       }
-    }
-  }, [onLoginSuccess]);
+    };
+    checkInitialAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -45,8 +51,9 @@ function Login({ onLoginSuccess }: LoginProps) {
         // Set up interceptors for auto-refresh
         authService.setupInterceptors();
         
-        // Call the success callback
-        if (onLoginSuccess) {
+        // Get user data before calling success callback
+        const user = await authService.getCurrentUser();
+        if (user && onLoginSuccess) {
           onLoginSuccess();
         }
       } else {

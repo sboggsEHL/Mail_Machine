@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Badge, Button } from 'react-bootstrap';
+import { Card, Badge, Button } from 'react-bootstrap'; // Removed unused Table
 import { fetchCampaignById, fetchCampaignStats, Campaign, CampaignStats } from '../../services/api';
 
 interface CampaignDetailProps {
@@ -46,7 +46,10 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
   };
   
   // Load campaign data on component mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    // loadCampaignData depends on campaignId which is already included.
+    // Adding loadCampaignData itself might cause infinite loops without useCallback.
     loadCampaignData();
   }, [campaignId]);
   

@@ -15,10 +15,12 @@ const api = axios.create({
  * Interface for API response
  * @template T The type of data contained in the response
  */
+// T is used by interfaces that extend ApiResponse, even though it's not directly used here
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ApiResponse<T = any> {
   success: boolean;
   error?: string;
-  [key: string]: any;
+  [key: string]: any; // Consider replacing with specific data property of type T in future refactor
 }
 
 /**

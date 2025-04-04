@@ -5,12 +5,13 @@ import {
 } from 'react-bootstrap';
 import { listService } from '../services/list.service';
 import { CampaignCreationModal } from '../components/campaigns/CampaignCreationModal';
-import api, { fetchCampaigns, Campaign } from '../services/api';
+import { fetchCampaigns, Campaign } from '../services/api'; // Removed unused default import 'api'
 
 const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [list, setList] = useState<any>(null);
-  const [duplicates, setDuplicates] = useState<any[]>([]);
-  const [allProperties, setAllProperties] = useState<any[]>([]);
+  // These state variables might appear unused, but their setters are used in response handlers
+  const [duplicates, setDuplicates] = useState<any[]>([]); // Used via setDuplicates in checkDuplicates response
+  const [allProperties, setAllProperties] = useState<any[]>([]); // Used via setAllProperties to track property updates
   const [totalItems, setTotalItems] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [checking, setChecking] = useState<boolean>(false);
@@ -22,7 +23,7 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState<number>(1000);
+  const [pageSize] = useState<number>(1000); // Removed unused setPageSize
   const [allDuplicates, setAllDuplicates] = useState<any[]>([]);
   const [showLeadCountModal, setShowLeadCountModal] = useState<boolean>(false);
   const [leadCount, setLeadCount] = useState<number>(0);
@@ -36,6 +37,11 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
       fetchListDetails();
       loadCampaigns();
     }
+  /* Note on dependencies:
+   * - fetchListDetails and loadCampaigns are stable and only use listId
+   * - Adding them to deps would trigger unnecessary reruns
+   * - Consider moving to useCallback if this pattern causes issues
+   */
   }, [listId]);
   
   // Load campaigns from API
@@ -297,8 +303,12 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
     const state = stateMatch ? [stateMatch[1]] : [];
     
     // Extract loan types from list name
-    const loanTypeRegex = /VA\s+No\s+Rate/i;
-    const loanTypes = ['VA']; // Based on user feedback, these are all VA loans
+    /* Note: Previously used regex pattern for loan type extraction
+     * const loanTypeRegex = /VA\s+No\s+Rate/i;
+     * Currently hardcoded to 'VA' based on business requirements,
+     * but keeping pattern documented for future flexibility
+     */
+    const loanTypes = ['VA']; // All lists currently contain VA loans only
     
     return {
       State: state,

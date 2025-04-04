@@ -114,7 +114,8 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
         setRefreshInterval(null);
       }
     };
-  }, [jobId]); // Only depend on jobId
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]); // Dependencies loadJobDetails, isUpdating, refreshInterval omitted for now
 
   /**
    * Load job details from the API
