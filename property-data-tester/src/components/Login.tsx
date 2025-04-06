@@ -15,11 +15,17 @@ function Login({ onLoginSuccess }: LoginProps) {
   useEffect(() => {
     // Only check on mount, not when onLoginSuccess changes
     const checkInitialAuth = async () => {
-      if (authService.isAuthenticated()) {
-        const user = await authService.getCurrentUser();
-        if (user && onLoginSuccess) {
-          onLoginSuccess();
+      try {
+        if (authService.isAuthenticated()) {
+          const user = await authService.getCurrentUser();
+          if (user && onLoginSuccess) {
+            await onLoginSuccess();
+          }
         }
+      } catch (error) {
+        console.error('Initial auth check error:', error);
+        // Clear tokens on error
+        authService.clearTokens();
       }
     };
     checkInitialAuth();
@@ -54,7 +60,7 @@ function Login({ onLoginSuccess }: LoginProps) {
         // Get user data before calling success callback
         const user = await authService.getCurrentUser();
         if (user && onLoginSuccess) {
-          onLoginSuccess();
+          await onLoginSuccess();
         }
       } else {
         setError(data.error || 'Login failed');

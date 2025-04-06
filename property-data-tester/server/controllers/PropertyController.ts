@@ -3,6 +3,8 @@ import { PropertyService } from '../services/PropertyService';
 import { Property } from '../../shared/types/database';
 import { PropertyRadarCriteriaInput } from '../services/lead-providers/propertyradar/types';
 import { leadProviderFactory } from '../services/lead-providers/LeadProviderFactory';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Controller for property-related endpoints
@@ -22,11 +24,11 @@ export class PropertyController {
       const { fields, limit, start, criteria, campaignId } = req.body;
       
       if (!Array.isArray(fields) || fields.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Fields array is required'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Fields array is required',
+          400
+        );
       }
       // Format criteria as an array of objects with name and value properties
       const formattedCriteria = Object.entries(criteria).map(([name, value]) => {
@@ -121,11 +123,16 @@ export class PropertyController {
         properties
       });
     } catch (error) {
-      console.error('Error fetching properties:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch properties'
-      });
+      logger.error('Error fetching properties:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred while fetching properties',
+        500,
+        error
+      );
     }
   };
 

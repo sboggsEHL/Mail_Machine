@@ -1,7 +1,7 @@
 import { PropertyRadarProperty, PropertyRadarApiParams } from './api';
 
 export interface LoginProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: () => Promise<void>;
 }
 
 export interface ApiParamsFormProps {

@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BatchJobService = void 0;
+const errors_1 = require("../utils/errors");
 /**
  * Service for batch job operations
  */
@@ -34,7 +35,11 @@ class BatchJobService {
      */
     getJobById(jobId) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.batchJobRepository.getJobById(jobId);
+            const job = yield this.batchJobRepository.getJobById(jobId);
+            if (!job) {
+                throw new errors_1.AppError(errors_1.ERROR_CODES.BATCH_JOB_NOT_FOUND, `Batch job with ID ${jobId} not found`, 404);
+            }
+            return job;
         });
     }
     /**

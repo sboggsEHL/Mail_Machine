@@ -19,6 +19,8 @@ const routes_1 = require("./routes");
 const database_1 = require("./config/database");
 const propertyradar_1 = require("./services/lead-providers/propertyradar");
 const LeadProviderFactory_1 = require("./services/lead-providers/LeadProviderFactory");
+const errors_1 = require("./utils/errors");
+const logger_1 = __importDefault(require("./utils/logger"));
 const dotenv_1 = __importDefault(require("dotenv"));
 // Load environment variables
 dotenv_1.default.config();
@@ -72,11 +74,28 @@ function createApp() {
         });
         // Error handling middleware
         app.use((err, req, res, next) => {
-            console.error('Unhandled error:', err);
-            res.status(500).json({
-                success: false,
-                error: err.message || 'Internal server error'
-            });
+            logger_1.default.error('Unhandled error:', err);
+            if (err instanceof errors_1.AppError) {
+                const { statusCode, code, message, details } = err;
+                res.status(statusCode).json({
+                    success: false,
+                    error: {
+                        code,
+                        message: message || errors_1.ERROR_DESCRIPTIONS[code] || 'Unknown error',
+                        details,
+                    },
+                });
+            }
+            else {
+                // For non-AppError instances, return a generic 500 error
+                res.status(500).json({
+                    success: false,
+                    error: {
+                        code: 'SYS001',
+                        message: 'Internal server error',
+                    },
+                });
+            }
         });
         return app;
     });

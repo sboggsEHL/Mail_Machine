@@ -88,16 +88,19 @@ function App() {
     };
   }, []);
 
-  // Check authentication status on app load
+  // Check authentication status on app load and when auth state changes
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        setIsLoading(true);
+        
         // Initialize auth service interceptors for token refreshing
         authService.setupInterceptors();
         
         // Only proceed with user data fetch if we have valid tokens
         if (!authService.isAuthenticated()) {
           setIsAuthenticated(false);
+          setCurrentUser(null);
           return;
         }
 
@@ -107,10 +110,7 @@ function App() {
           setCurrentUser(user);
           setIsAuthenticated(true);
         } else {
-          // Clear tokens and state if getCurrentUser fails
-          authService.clearTokens();
-          setCurrentUser(null);
-          setIsAuthenticated(false);
+          throw new Error('Failed to get user data');
         }
       } catch (error) {
         console.error('Auth check error:', error);
@@ -118,6 +118,9 @@ function App() {
         authService.clearTokens();
         setCurrentUser(null);
         setIsAuthenticated(false);
+        // Redirect to login page on error
+        setCurrentPage('login');
+        window.location.hash = 'login';
       } finally {
         setIsLoading(false);
       }
@@ -128,14 +131,28 @@ function App() {
   }, []);
 
   // Handle successful login
-  const handleLoginSuccess = () => {
-    // User data and tokens are already set by Login component
-    setIsAuthenticated(true);
-    
-    // Set default page after login if needed
-    if (!window.location.hash || window.location.hash === '#') {
-      setCurrentPage('main');
-      window.location.hash = 'main';
+  const handleLoginSuccess = async () => {
+    try {
+      // Get current user data after login
+      const user = await authService.getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+        
+        // Set default page after login if needed
+        if (!window.location.hash || window.location.hash === '#') {
+          setCurrentPage('main');
+          window.location.hash = 'main';
+        }
+      } else {
+        throw new Error('Failed to get user data after login');
+      }
+    } catch (error) {
+      console.error('Login success handler error:', error);
+      // Clear everything on error
+      authService.clearTokens();
+      setCurrentUser(null);
+      setIsAuthenticated(false);
     }
   };
 

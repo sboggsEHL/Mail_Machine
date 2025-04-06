@@ -8,10 +8,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const UserRepository_1 = require("../repositories/UserRepository");
 const jwt_1 = require("../utils/jwt");
+const errors_1 = require("../utils/errors");
+const logger_1 = __importDefault(require("../utils/logger"));
 /**
  * Controller for authentication operations
  */
@@ -25,20 +30,12 @@ class AuthController {
             try {
                 const { username, password } = req.body;
                 if (!username || !password) {
-                    res.status(400).json({
-                        success: false,
-                        error: 'Username and password are required'
-                    });
-                    return;
+                    throw new errors_1.AppError(errors_1.ERROR_CODES.VALIDATION_ERROR, 'Username and password are required', 400);
                 }
                 // Verify credentials
                 const user = yield this.userRepository.verifyCredentials(username, password);
                 if (!user) {
-                    res.status(401).json({
-                        success: false,
-                        error: 'Invalid credentials'
-                    });
-                    return;
+                    throw new errors_1.AppError(errors_1.ERROR_CODES.AUTH_INVALID_CREDENTIALS, 'Invalid credentials', 401);
                 }
                 // Map database user to client user
                 const clientUser = this.userRepository.mapToClientUser(user);
@@ -48,11 +45,11 @@ class AuthController {
                 res.json(Object.assign({ success: true, user: clientUser }, tokens));
             }
             catch (error) {
-                console.error('Login error:', error);
-                res.status(500).json({
-                    success: false,
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                });
+                logger_1.default.error('Login error:', error);
+                if (error instanceof errors_1.AppError) {
+                    throw error;
+                }
+                throw new errors_1.AppError(errors_1.ERROR_CODES.SYSTEM_UNEXPECTED_ERROR, 'An unexpected error occurred during login', 500, error);
             }
         });
         /**
@@ -63,29 +60,17 @@ class AuthController {
             try {
                 const { refreshToken } = req.body;
                 if (!refreshToken) {
-                    res.status(400).json({
-                        success: false,
-                        error: 'Refresh token is required'
-                    });
-                    return;
+                    throw new errors_1.AppError(errors_1.ERROR_CODES.VALIDATION_ERROR, 'Refresh token is required', 400);
                 }
                 // Verify refresh token
                 const decoded = (0, jwt_1.verifyToken)(refreshToken);
                 if (!decoded) {
-                    res.status(401).json({
-                        success: false,
-                        error: 'Invalid or expired refresh token'
-                    });
-                    return;
+                    throw new errors_1.AppError(errors_1.ERROR_CODES.AUTH_TOKEN_EXPIRED, 'Invalid or expired refresh token', 401);
                 }
                 // Find user by ID
                 const user = yield this.userRepository.findById(decoded.userId);
                 if (!user || !user.is_active) {
-                    res.status(401).json({
-                        success: false,
-                        error: 'User not found or inactive'
-                    });
-                    return;
+                    throw new errors_1.AppError(errors_1.ERROR_CODES.AUTH_INVALID_CREDENTIALS, 'User not found or inactive', 401);
                 }
                 // Map database user to client user
                 const clientUser = this.userRepository.mapToClientUser(user);
@@ -95,11 +80,11 @@ class AuthController {
                 res.json(Object.assign({ success: true }, tokens));
             }
             catch (error) {
-                console.error('Refresh token error:', error);
-                res.status(500).json({
-                    success: false,
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                });
+                logger_1.default.error('Refresh token error:', error);
+                if (error instanceof errors_1.AppError) {
+                    throw error;
+                }
+                throw new errors_1.AppError(errors_1.ERROR_CODES.SYSTEM_UNEXPECTED_ERROR, 'An unexpected error occurred during token refresh', 500, error);
             }
         });
         /**
@@ -110,18 +95,13 @@ class AuthController {
         this.getCurrentUser = (req, res) => {
             // User info should be set by the auth middleware
             const user = req.user;
-            if (user) {
-                res.json({
-                    success: true,
-                    user
-                });
+            if (!user) {
+                throw new errors_1.AppError(errors_1.ERROR_CODES.AUTH_INSUFFICIENT_PERMISSIONS, 'Not authenticated', 401);
             }
-            else {
-                res.status(401).json({
-                    success: false,
-                    message: 'Not authenticated'
-                });
-            }
+            res.json({
+                success: true,
+                user
+            });
         };
         /**
          * Verify token endpoint

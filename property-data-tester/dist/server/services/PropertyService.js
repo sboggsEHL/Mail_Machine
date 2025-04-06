@@ -8,6 +8,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PropertyService = void 0;
 const PropertyRepository_1 = require("../repositories/PropertyRepository");
@@ -15,6 +18,8 @@ const PropertyOwnerRepository_1 = require("../repositories/PropertyOwnerReposito
 const LoanRepository_1 = require("../repositories/LoanRepository");
 const LeadProviderFactory_1 = require("../services/lead-providers/LeadProviderFactory");
 const PropertyPayloadService_1 = require("./PropertyPayloadService");
+const errors_1 = require("../utils/errors");
+const logger_1 = __importDefault(require("../utils/logger"));
 /**
  * Service for managing properties
  */
@@ -38,7 +43,7 @@ class PropertyService {
         return __awaiter(this, arguments, void 0, function* (providerCode, criteria, fields, campaignId = 'individual-request') {
             const provider = LeadProviderFactory_1.leadProviderFactory.getProvider(providerCode);
             if (!provider.isConfigured()) {
-                throw new Error(`Provider ${providerCode} is not properly configured.`);
+                throw new errors_1.AppError(errors_1.ERROR_CODES.SYSTEM_CONFIGURATION_ERROR, `Provider ${providerCode} is not properly configured.`, 500);
             }
             // Fetch properties from provider
             const properties = yield provider.fetchProperties(criteria, fields);
@@ -49,10 +54,10 @@ class PropertyService {
                     const batchNumber = this.getNextBatchNumber(campaignId);
                     // Save properties to file
                     yield this.propertyPayloadService.savePropertyPayload(properties, campaignId, batchNumber);
-                    console.log(`Saved raw payload for ${properties.length} properties from individual request`);
+                    logger_1.default.info(`Saved raw payload for ${properties.length} properties from individual request`);
                 }
                 catch (error) {
-                    console.error('Error saving raw payload:', error);
+                    logger_1.default.error('Error saving raw payload:', error);
                     // Continue even if saving the payload fails
                 }
             }

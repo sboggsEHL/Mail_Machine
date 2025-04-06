@@ -8,9 +8,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PropertyController = void 0;
 const LeadProviderFactory_1 = require("../services/lead-providers/LeadProviderFactory");
+const errors_1 = require("../utils/errors");
+const logger_1 = __importDefault(require("../utils/logger"));
 /**
  * Controller for property-related endpoints
  */
@@ -23,11 +28,7 @@ class PropertyController {
             try {
                 const { fields, limit, start, criteria, campaignId } = req.body;
                 if (!Array.isArray(fields) || fields.length === 0) {
-                    res.status(400).json({
-                        success: false,
-                        error: 'Fields array is required'
-                    });
-                    return;
+                    throw new errors_1.AppError(errors_1.ERROR_CODES.VALIDATION_ERROR, 'Fields array is required', 400);
                 }
                 // Format criteria as an array of objects with name and value properties
                 const formattedCriteria = Object.entries(criteria).map(([name, value]) => {
@@ -112,11 +113,11 @@ class PropertyController {
                 });
             }
             catch (error) {
-                console.error('Error fetching properties:', error);
-                res.status(500).json({
-                    success: false,
-                    error: error instanceof Error ? error.message : 'Failed to fetch properties'
-                });
+                logger_1.default.error('Error fetching properties:', error);
+                if (error instanceof errors_1.AppError) {
+                    throw error;
+                }
+                throw new errors_1.AppError(errors_1.ERROR_CODES.SYSTEM_UNEXPECTED_ERROR, 'An unexpected error occurred while fetching properties', 500, error);
             }
         });
         /**

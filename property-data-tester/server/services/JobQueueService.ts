@@ -2,6 +2,8 @@ import { BatchJob, BatchJobLog } from '../models';
 import { BatchJobService } from './BatchJobService';
 import { PropertyBatchService } from './PropertyBatchService';
 import { Pool } from 'pg';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Job queue service using PostgreSQL
@@ -21,7 +23,7 @@ export class JobQueueService {
   ) {
     // Start polling for jobs
     this.startPolling();
-    console.log(`Job queue service initialized with worker ID: ${this.workerName}`);
+    logger.info(`Job queue service initialized with worker ID: ${this.workerName}`);
   }
 
   /**
@@ -43,11 +45,11 @@ export class JobQueueService {
     
     if (job) {
       // Update existing job
-      console.log(`Updating existing job ${jobData.jobId} to PENDING status`);
+      logger.info(`Updating existing job ${jobData.jobId} to PENDING status`);
       return this.batchJobService.updateJobStatus(jobData.jobId, 'PENDING');
     } else {
       // Create new job
-      console.log(`Creating new job with ID ${jobData.jobId} and priority ${priority}`);
+      logger.info(`Creating new job with ID ${jobData.jobId} and priority ${priority}`);
       return this.batchJobService.createJob({
         job_id: jobData.jobId,
         status: 'PENDING',
@@ -68,14 +70,14 @@ export class JobQueueService {
         try {
           await this.processNextJob();
         } catch (error) {
-          console.error('Error processing job:', error);
+          logger.error('Error processing job:', error);
         } finally {
           this.isProcessing = false;
         }
       }
     }, this.pollInterval);
     
-    console.log(`Started polling for jobs every ${this.pollInterval}ms`);
+    logger.info(`Started polling for jobs every ${this.pollInterval}ms`);
   }
 
   /**
@@ -85,7 +87,7 @@ export class JobQueueService {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('Stopped polling for jobs');
+      logger.info('Stopped polling for jobs');
     }
   }
 
@@ -101,14 +103,14 @@ export class JobQueueService {
     }
     
     this.activeJobs++;
-    console.log(`Processing job ${job.job_id} (${this.activeJobs} active jobs)`);
+    logger.info(`Processing job ${job.job_id} (${this.activeJobs} active jobs)`);
     
     try {
       // Process the job
       await this.processJob(job);
     } catch (error: any) {
       // Handle job failure
-      console.error(`Job ${job.job_id} failed:`, error);
+      logger.error(`Job ${job.job_id} failed:`, error);
       await this.batchJobService.updateJobStatus(
         job.job_id!, 
         'FAILED', 
@@ -178,7 +180,7 @@ export class JobQueueService {
       return result.rows.length ? result.rows[0] : null;
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Error acquiring job:', error);
+      logger.error('Error acquiring job:', error);
       return null;
     } finally {
       client.release();
@@ -201,9 +203,9 @@ export class JobQueueService {
         WHERE job_id = $1 AND locked_by = $2
       `, [jobId, this.workerName]);
       
-      console.log(`Released lock on job ${jobId}`);
+      logger.info(`Released lock on job ${jobId}`);
     } catch (error) {
-      console.error(`Error releasing job ${jobId}:`, error);
+      logger.error(`Error releasing job ${jobId}:`, error);
     }
   }
 
@@ -230,10 +232,10 @@ export class JobQueueService {
         RETURNING *
       `, [jobId]);
       
-      console.log(`Scheduled job ${jobId} for retry in ${delaySeconds} seconds`);
+      logger.info(`Scheduled job ${jobId} for retry in ${delaySeconds} seconds`);
       return result.rows.length ? result.rows[0] : null;
     } catch (error) {
-      console.error(`Error scheduling retry for job ${jobId}:`, error);
+      logger.error(`Error scheduling retry for job ${jobId}:`, error);
       return null;
     }
   }
@@ -305,7 +307,7 @@ export class JobQueueService {
             let providerCode = this.propertyService.getProviderCode();
             
             // Log the criteria for debugging
-            console.log('Job criteria:', JSON.stringify(criteria, null, 2));
+            logger.info('Job criteria:', JSON.stringify(criteria, null, 2));
             
             // Use the saveProperties method to save to database
             const savedProperties = await this.propertyService.saveProperties(
@@ -321,7 +323,7 @@ export class JobQueueService {
             `Successfully saved ${batchSuccessCount} properties to database (${batchErrorCount} errors)`
           );
         } catch (error) {
-          console.error('Error saving batch to database:', error);
+          logger.error('Error saving batch to database:', error);
           batchSuccessCount = 0;
           batchErrorCount = batchRecords.length;
           
@@ -372,7 +374,7 @@ export class JobQueueService {
       
     } catch (error: any) {
       // Log error and update job status
-      console.error(`Job ${job.job_id} failed:`, error);
+      logger.error(`Job ${job.job_id} failed:`, error);
       await this.batchJobService.updateJobStatus(job.job_id!, 'FAILED', error.message);
       await this.batchJobService.logJobProgress(job.job_id!, `Job failed: ${error.message}`, 'ERROR');
       throw error;
@@ -426,7 +428,7 @@ export class JobQueueService {
         delayed: parseInt(stats.delayed) || 0
       };
     } catch (error) {
-      console.error('Error getting queue stats:', error);
+      logger.error('Error getting queue stats:', error);
       return {
         waiting: 0,
         active: 0,
@@ -444,7 +446,7 @@ export class JobQueueService {
   async cleanQueue(): Promise<void> {
     try {
       if (!this.pool) {
-        console.log('Pool not available for cleaning queue');
+        logger.info('Pool not available for cleaning queue');
         return;
       }
       
@@ -456,9 +458,9 @@ export class JobQueueService {
           AND updated_at < NOW() - INTERVAL '7 days'
       `);
       
-      console.log('Cleaned queue of old completed and failed jobs');
+      logger.info('Cleaned queue of old completed and failed jobs');
     } catch (error) {
-      console.error('Error cleaning queue:', error);
+      logger.error('Error cleaning queue:', error);
     }
   }
 }

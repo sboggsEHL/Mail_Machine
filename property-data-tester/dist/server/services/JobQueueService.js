@@ -8,8 +8,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JobQueueService = void 0;
+const logger_1 = __importDefault(require("../utils/logger"));
 /**
  * Job queue service using PostgreSQL
  */
@@ -26,7 +30,7 @@ class JobQueueService {
         this.intervalId = null;
         // Start polling for jobs
         this.startPolling();
-        console.log(`Job queue service initialized with worker ID: ${this.workerName}`);
+        logger_1.default.info(`Job queue service initialized with worker ID: ${this.workerName}`);
     }
     /**
      * Add a job to the queue
@@ -40,12 +44,12 @@ class JobQueueService {
             const job = yield this.batchJobService.getJobById(jobData.jobId);
             if (job) {
                 // Update existing job
-                console.log(`Updating existing job ${jobData.jobId} to PENDING status`);
+                logger_1.default.info(`Updating existing job ${jobData.jobId} to PENDING status`);
                 return this.batchJobService.updateJobStatus(jobData.jobId, 'PENDING');
             }
             else {
                 // Create new job
-                console.log(`Creating new job with ID ${jobData.jobId} and priority ${priority}`);
+                logger_1.default.info(`Creating new job with ID ${jobData.jobId} and priority ${priority}`);
                 return this.batchJobService.createJob({
                     job_id: jobData.jobId,
                     status: 'PENDING',
@@ -67,14 +71,14 @@ class JobQueueService {
                     yield this.processNextJob();
                 }
                 catch (error) {
-                    console.error('Error processing job:', error);
+                    logger_1.default.error('Error processing job:', error);
                 }
                 finally {
                     this.isProcessing = false;
                 }
             }
         }), this.pollInterval);
-        console.log(`Started polling for jobs every ${this.pollInterval}ms`);
+        logger_1.default.info(`Started polling for jobs every ${this.pollInterval}ms`);
     }
     /**
      * Stop polling for jobs
@@ -83,7 +87,7 @@ class JobQueueService {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
-            console.log('Stopped polling for jobs');
+            logger_1.default.info('Stopped polling for jobs');
         }
     }
     /**
@@ -97,14 +101,14 @@ class JobQueueService {
                 return; // No jobs available
             }
             this.activeJobs++;
-            console.log(`Processing job ${job.job_id} (${this.activeJobs} active jobs)`);
+            logger_1.default.info(`Processing job ${job.job_id} (${this.activeJobs} active jobs)`);
             try {
                 // Process the job
                 yield this.processJob(job);
             }
             catch (error) {
                 // Handle job failure
-                console.error(`Job ${job.job_id} failed:`, error);
+                logger_1.default.error(`Job ${job.job_id} failed:`, error);
                 yield this.batchJobService.updateJobStatus(job.job_id, 'FAILED', error.message);
                 yield this.batchJobService.logJobProgress(job.job_id, `Job failed: ${error.message}`, 'ERROR');
             }
@@ -162,7 +166,7 @@ class JobQueueService {
             }
             catch (error) {
                 yield client.query('ROLLBACK');
-                console.error('Error acquiring job:', error);
+                logger_1.default.error('Error acquiring job:', error);
                 return null;
             }
             finally {
@@ -185,10 +189,10 @@ class JobQueueService {
         SET locked_at = NULL, locked_by = NULL
         WHERE job_id = $1 AND locked_by = $2
       `, [jobId, this.workerName]);
-                console.log(`Released lock on job ${jobId}`);
+                logger_1.default.info(`Released lock on job ${jobId}`);
             }
             catch (error) {
-                console.error(`Error releasing job ${jobId}:`, error);
+                logger_1.default.error(`Error releasing job ${jobId}:`, error);
             }
         });
     }
@@ -214,11 +218,11 @@ class JobQueueService {
         WHERE job_id = $1
         RETURNING *
       `, [jobId]);
-                console.log(`Scheduled job ${jobId} for retry in ${delaySeconds} seconds`);
+                logger_1.default.info(`Scheduled job ${jobId} for retry in ${delaySeconds} seconds`);
                 return result.rows.length ? result.rows[0] : null;
             }
             catch (error) {
-                console.error(`Error scheduling retry for job ${jobId}:`, error);
+                logger_1.default.error(`Error scheduling retry for job ${jobId}:`, error);
                 return null;
             }
         });
@@ -267,7 +271,7 @@ class JobQueueService {
                         // Check if provider_id is in the criteria
                         let providerCode = this.propertyService.getProviderCode();
                         // Log the criteria for debugging
-                        console.log('Job criteria:', JSON.stringify(criteria, null, 2));
+                        logger_1.default.info('Job criteria:', JSON.stringify(criteria, null, 2));
                         // Use the saveProperties method to save to database
                         const savedProperties = yield this.propertyService.saveProperties(providerCode, propertiesWithCriteria);
                         batchSuccessCount = savedProperties.length;
@@ -275,7 +279,7 @@ class JobQueueService {
                         yield this.batchJobService.logJobProgress(jobId, `Successfully saved ${batchSuccessCount} properties to database (${batchErrorCount} errors)`);
                     }
                     catch (error) {
-                        console.error('Error saving batch to database:', error);
+                        logger_1.default.error('Error saving batch to database:', error);
                         batchSuccessCount = 0;
                         batchErrorCount = batchRecords.length;
                         yield this.batchJobService.logJobProgress(jobId, `Failed to save batch to database: ${error instanceof Error ? error.message : String(error)}`, 'ERROR');
@@ -303,7 +307,7 @@ class JobQueueService {
             }
             catch (error) {
                 // Log error and update job status
-                console.error(`Job ${job.job_id} failed:`, error);
+                logger_1.default.error(`Job ${job.job_id} failed:`, error);
                 yield this.batchJobService.updateJobStatus(job.job_id, 'FAILED', error.message);
                 yield this.batchJobService.logJobProgress(job.job_id, `Job failed: ${error.message}`, 'ERROR');
                 throw error;
@@ -348,7 +352,7 @@ class JobQueueService {
                 };
             }
             catch (error) {
-                console.error('Error getting queue stats:', error);
+                logger_1.default.error('Error getting queue stats:', error);
                 return {
                     waiting: 0,
                     active: 0,
@@ -367,7 +371,7 @@ class JobQueueService {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 if (!this.pool) {
-                    console.log('Pool not available for cleaning queue');
+                    logger_1.default.info('Pool not available for cleaning queue');
                     return;
                 }
                 // Delete completed and failed jobs older than 7 days
@@ -377,10 +381,10 @@ class JobQueueService {
           (status = 'COMPLETED' OR status = 'FAILED')
           AND updated_at < NOW() - INTERVAL '7 days'
       `);
-                console.log('Cleaned queue of old completed and failed jobs');
+                logger_1.default.info('Cleaned queue of old completed and failed jobs');
             }
             catch (error) {
-                console.error('Error cleaning queue:', error);
+                logger_1.default.error('Error cleaning queue:', error);
             }
         });
     }

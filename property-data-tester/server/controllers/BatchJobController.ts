@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { BatchJobService } from '../services/BatchJobService';
 import { JobQueueService } from '../services/JobQueueService';
 import { BatchJob } from '../models';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Controller for batch job operations
@@ -37,7 +39,11 @@ export class BatchJobController {
       const createdJob = await this.batchJobService.createJob(job);
       
       if (!createdJob.job_id) {
-        throw new Error('Failed to create job record');
+        throw new AppError(
+          ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+          'Failed to create job record',
+          500
+        );
       }
       
       // Add job to queue
@@ -51,12 +57,17 @@ export class BatchJobController {
         success: true,
         job: createdJob
       });
-    } catch (error: any) {
-      console.error('Error creating batch job:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to create batch job'
-      });
+    } catch (error) {
+      logger.error('Error creating batch job:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred while creating batch job',
+        500,
+        error
+      );
     }
   }
 
@@ -70,33 +81,38 @@ export class BatchJobController {
       const jobId = parseInt(req.params.id);
       
       if (isNaN(jobId)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid job ID'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Invalid job ID',
+          400
+        );
       }
       
       const job = await this.batchJobService.getJobById(jobId);
       
       if (!job) {
-        res.status(404).json({
-          success: false,
-          error: `Job with ID ${jobId} not found`
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.BATCH_JOB_NOT_FOUND,
+          `Job with ID ${jobId} not found`,
+          404
+        );
       }
       
       res.json({
         success: true,
         job
       });
-    } catch (error: any) {
-      console.error('Error getting batch job:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to get batch job'
-      });
+    } catch (error) {
+      logger.error('Error getting batch job:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred while getting batch job',
+        500,
+        error
+      );
     }
   }
 

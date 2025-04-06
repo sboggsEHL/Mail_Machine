@@ -3,9 +3,11 @@ import { Property, PropertyOwner, Loan } from '../../shared/types/database';
 import { PropertyRepository } from '../repositories/PropertyRepository';
 import { PropertyOwnerRepository } from '../repositories/PropertyOwnerRepository';
 import { LoanRepository } from '../repositories/LoanRepository';
-import { LeadProvider, PropertyTransformResult } from '../services/lead-providers/interfaces';
+import { LeadProvider } from '../services/lead-providers/interfaces';
 import { leadProviderFactory } from '../services/lead-providers/LeadProviderFactory';
 import { PropertyPayloadService } from './PropertyPayloadService';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Result of property insertion
@@ -59,7 +61,11 @@ export class PropertyService {
     const provider = leadProviderFactory.getProvider(providerCode);
     
     if (!provider.isConfigured()) {
-      throw new Error(`Provider ${providerCode} is not properly configured.`);
+      throw new AppError(
+        ERROR_CODES.SYSTEM_CONFIGURATION_ERROR,
+        `Provider ${providerCode} is not properly configured.`,
+        500
+      );
     }
     
     // Fetch properties from provider
@@ -78,9 +84,9 @@ export class PropertyService {
           batchNumber
         );
         
-        console.log(`Saved raw payload for ${properties.length} properties from individual request`);
+        logger.info(`Saved raw payload for ${properties.length} properties from individual request`);
       } catch (error) {
-        console.error('Error saving raw payload:', error);
+        logger.error('Error saving raw payload:', error);
         // Continue even if saving the payload fails
       }
     }

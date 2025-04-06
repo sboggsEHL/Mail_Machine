@@ -8,10 +8,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PropertyBatchService = void 0;
 const PropertyService_1 = require("./PropertyService");
 const PropertyPayloadService_1 = require("./PropertyPayloadService");
+const logger_1 = __importDefault(require("../utils/logger"));
 /**
  * Extension of PropertyService with batch processing capabilities
  */
@@ -112,7 +116,7 @@ class PropertyBatchService extends PropertyService_1.PropertyService {
                 for (let i = 0; i < radarIds.length; i += batchSize) {
                     batches.push(radarIds.slice(i, i + batchSize));
                 }
-                console.log(`Processing ${radarIds.length} properties in ${batches.length} batches of up to ${batchSize} properties each`);
+                logger_1.default.info(`Processing ${radarIds.length} properties in ${batches.length} batches of up to ${batchSize} properties each`);
                 // Process each batch
                 for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
                     const batchRadarIds = batches[batchIndex];
@@ -128,11 +132,11 @@ class PropertyBatchService extends PropertyService_1.PropertyService {
                                 allProperties.push(property);
                             }
                             else {
-                                console.error(`Property ${radarId} missing RadarID in response`);
+                                logger_1.default.error(`Property ${radarId} missing RadarID in response`);
                             }
                         }
                         catch (error) {
-                            console.error(`Error fetching property ${radarId}:`, error);
+                            logger_1.default.error(`Error fetching property ${radarId}:`, error);
                             // Continue with next property
                         }
                     }

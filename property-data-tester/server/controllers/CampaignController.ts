@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { CampaignService } from '../services/CampaignService';
 import { Campaign } from '../models';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Controller for handling campaign-related HTTP requests
@@ -31,12 +33,16 @@ export class CampaignController {
         count: campaigns.length
       });
     } catch (error) {
-      console.error('Error getting campaigns:', error);
-      
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to get campaigns'
-      });
+      logger.error('Error getting campaigns:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred while getting campaigns',
+        500,
+        error
+      );
     }
   }
 
@@ -50,21 +56,21 @@ export class CampaignController {
       const id = parseInt(req.params.id);
       
       if (isNaN(id)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid campaign ID'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Invalid campaign ID',
+          400
+        );
       }
       
       const campaign = await this.campaignService.getCampaignById(id);
       
       if (!campaign) {
-        res.status(404).json({
-          success: false,
-          error: `Campaign with ID ${id} not found`
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.CAMPAIGN_NOT_FOUND,
+          `Campaign with ID ${id} not found`,
+          404
+        );
       }
       
       res.json({
@@ -72,12 +78,16 @@ export class CampaignController {
         campaign
       });
     } catch (error) {
-      console.error(`Error getting campaign:`, error);
-      
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to get campaign'
-      });
+      logger.error(`Error getting campaign:`, error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred while getting campaign',
+        500,
+        error
+      );
     }
   }
 
@@ -92,19 +102,19 @@ export class CampaignController {
       
       // Validate required fields
       if (!campaignData.campaign_name) {
-        res.status(400).json({
-          success: false,
-          error: 'Campaign name is required'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Campaign name is required',
+          400
+        );
       }
       
       if (!campaignData.campaign_date) {
-        res.status(400).json({
-          success: false,
-          error: 'Campaign date is required'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Campaign date is required',
+          400
+        );
       }
       
       // Create the campaign
@@ -115,12 +125,16 @@ export class CampaignController {
         campaign
       });
     } catch (error) {
-      console.error('Error creating campaign:', error);
-      
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create campaign'
-      });
+      logger.error('Error creating campaign:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred while creating campaign',
+        500,
+        error
+      );
     }
   }
 
@@ -134,11 +148,11 @@ export class CampaignController {
       const id = parseInt(req.params.id);
       
       if (isNaN(id)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid campaign ID'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Invalid campaign ID',
+          400
+        );
       }
       
       const campaignData = req.body as Partial<Campaign>;
@@ -147,11 +161,11 @@ export class CampaignController {
       const campaign = await this.campaignService.updateCampaign(id, campaignData);
       
       if (!campaign) {
-        res.status(404).json({
-          success: false,
-          error: `Campaign with ID ${id} not found`
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.CAMPAIGN_NOT_FOUND,
+          `Campaign with ID ${id} not found`,
+          404
+        );
       }
       
       res.json({
@@ -159,12 +173,16 @@ export class CampaignController {
         campaign
       });
     } catch (error) {
-      console.error('Error updating campaign:', error);
-      
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update campaign'
-      });
+      logger.error(`Error getting campaign:`, error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred while getting campaign',
+        500,
+        error
+      );
     }
   }
 
@@ -178,22 +196,22 @@ export class CampaignController {
       const id = parseInt(req.params.id);
       
       if (isNaN(id)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid campaign ID'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Invalid campaign ID',
+          400
+        );
       }
       
       // Delete the campaign
       const deleted = await this.campaignService.deleteCampaign(id);
       
       if (!deleted) {
-        res.status(404).json({
-          success: false,
-          error: `Campaign with ID ${id} not found`
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.CAMPAIGN_NOT_FOUND,
+          `Campaign with ID ${id} not found`,
+          404
+        );
       }
       
       res.json({
@@ -230,11 +248,11 @@ export class CampaignController {
       const stats = await this.campaignService.getCampaignStats(id);
       
       if (!stats) {
-        res.status(404).json({
-          success: false,
-          error: `Campaign with ID ${id} not found`
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.CAMPAIGN_NOT_FOUND,
+          `Campaign with ID ${id} not found`,
+          404
+        );
       }
       
       res.json({

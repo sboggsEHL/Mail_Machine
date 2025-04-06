@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CampaignService = void 0;
+const errors_1 = require("../utils/errors");
 /**
  * Service for managing campaigns
  */
@@ -37,7 +38,11 @@ class CampaignService {
      */
     getCampaignById(id) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.campaignRepository.findById(id);
+            const campaign = yield this.campaignRepository.findById(id);
+            if (!campaign) {
+                throw new errors_1.AppError(errors_1.ERROR_CODES.CAMPAIGN_NOT_FOUND, `Campaign with ID ${id} not found`, 404);
+            }
+            return campaign;
         });
     }
     /**
@@ -62,7 +67,11 @@ class CampaignService {
      */
     updateCampaign(id, campaign) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.campaignRepository.update(id, campaign);
+            const updatedCampaign = yield this.campaignRepository.update(id, campaign);
+            if (!updatedCampaign) {
+                throw new errors_1.AppError(errors_1.ERROR_CODES.CAMPAIGN_NOT_FOUND, `Campaign with ID ${id} not found`, 404);
+            }
+            return updatedCampaign;
         });
     }
     /**
@@ -72,7 +81,11 @@ class CampaignService {
      */
     deleteCampaign(id) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.campaignRepository.softDelete(id);
+            const deleted = yield this.campaignRepository.softDelete(id);
+            if (!deleted) {
+                throw new errors_1.AppError(errors_1.ERROR_CODES.CAMPAIGN_NOT_FOUND, `Campaign with ID ${id} not found`, 404);
+            }
+            return deleted;
         });
     }
     /**
@@ -82,7 +95,11 @@ class CampaignService {
      */
     getCampaignStats(id) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.campaignRepository.getCampaignStats(id);
+            const stats = yield this.campaignRepository.getCampaignStats(id);
+            if (!stats) {
+                throw new errors_1.AppError(errors_1.ERROR_CODES.CAMPAIGN_NOT_FOUND, `Campaign with ID ${id} not found`, 404);
+            }
+            return stats;
         });
     }
     /**

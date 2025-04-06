@@ -1,5 +1,7 @@
 import { BatchJob, BatchJobLog, BatchJobProgress } from '../models';
 import { BatchJobRepository } from '../repositories/BatchJobRepository';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Service for batch job operations
@@ -21,8 +23,16 @@ export class BatchJobService {
    * @param jobId The job ID
    * @returns The batch job or null if not found
    */
-  async getJobById(jobId: number): Promise<BatchJob | null> {
-    return this.batchJobRepository.getJobById(jobId);
+  async getJobById(jobId: number): Promise<BatchJob> {
+    const job = await this.batchJobRepository.getJobById(jobId);
+    if (!job) {
+      throw new AppError(
+        ERROR_CODES.BATCH_JOB_NOT_FOUND,
+        `Batch job with ID ${jobId} not found`,
+        404
+      );
+    }
+    return job;
   }
 
   /**

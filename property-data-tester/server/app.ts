@@ -4,6 +4,8 @@ import { configureRoutes } from './routes';
 import { dbPool, logDatabaseConfig, testDatabaseConnection } from './config/database';
 import { createPropertyRadarProvider } from './services/lead-providers/propertyradar';
 import { leadProviderFactory } from './services/lead-providers/LeadProviderFactory';
+import { AppError, ERROR_DESCRIPTIONS } from './utils/errors';
+import logger from './utils/logger';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -66,11 +68,28 @@ export async function createApp(): Promise<Express> {
   
   // Error handling middleware
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('Unhandled error:', err);
-    res.status(500).json({
-      success: false,
-      error: err.message || 'Internal server error'
-    });
+    logger.error('Unhandled error:', err);
+
+    if (err instanceof AppError) {
+      const { statusCode, code, message, details } = err;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code,
+          message: message || ERROR_DESCRIPTIONS[code] || 'Unknown error',
+          details,
+        },
+      });
+    } else {
+      // For non-AppError instances, return a generic 500 error
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS001',
+          message: 'Internal server error',
+        },
+      });
+    }
   });
   
   return app;

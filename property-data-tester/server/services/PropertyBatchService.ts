@@ -1,6 +1,8 @@
 import { PropertyService, InsertedProperty } from './PropertyService';
 import { PropertyPayloadService } from './PropertyPayloadService';
-import { Pool, PoolClient } from 'pg';
+import { Pool } from 'pg';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Result of property batch operation
@@ -142,7 +144,7 @@ export class PropertyBatchService extends PropertyService {
         batches.push(radarIds.slice(i, i + batchSize));
       }
       
-      console.log(`Processing ${radarIds.length} properties in ${batches.length} batches of up to ${batchSize} properties each`);
+      logger.info(`Processing ${radarIds.length} properties in ${batches.length} batches of up to ${batchSize} properties each`);
       
       // Process each batch
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
@@ -166,13 +168,13 @@ export class PropertyBatchService extends PropertyService {
               batchProperties.push(property);
               allProperties.push(property);
             } else {
-              console.error(`Property ${radarId} missing RadarID in response`);
-            }
-          } catch (error) {
-            console.error(`Error fetching property ${radarId}:`, error);
-            // Continue with next property
+            logger.error(`Property ${radarId} missing RadarID in response`);
           }
+        } catch (error) {
+          logger.error(`Error fetching property ${radarId}:`, error);
+          // Continue with next property
         }
+      }
         
         // Only save batch if it has properties
         if (batchProperties.length > 0) {

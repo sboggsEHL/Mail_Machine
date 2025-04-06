@@ -3,6 +3,8 @@ import { Pool } from 'pg';
 import { UserRepository } from '../repositories/UserRepository';
 import { generateTokens, verifyToken } from '../utils/jwt';
 import { LoginRequest, LoginResponse, User } from '../../shared/types/auth';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Controller for authentication operations
@@ -23,22 +25,22 @@ export class AuthController {
       const { username, password } = req.body as LoginRequest;
       
       if (!username || !password) {
-        res.status(400).json({
-          success: false,
-          error: 'Username and password are required'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Username and password are required',
+          400
+        );
       }
       
       // Verify credentials
       const user = await this.userRepository.verifyCredentials(username, password);
       
       if (!user) {
-        res.status(401).json({
-          success: false,
-          error: 'Invalid credentials'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+          'Invalid credentials',
+          401
+        );
       }
       
       // Map database user to client user
@@ -54,11 +56,16 @@ export class AuthController {
         ...tokens
       });
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      logger.error('Login error:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred during login',
+        500,
+        error
+      );
     }
   };
 
@@ -71,33 +78,33 @@ export class AuthController {
       const { refreshToken } = req.body;
       
       if (!refreshToken) {
-        res.status(400).json({
-          success: false,
-          error: 'Refresh token is required'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Refresh token is required',
+          400
+        );
       }
       
       // Verify refresh token
       const decoded = verifyToken(refreshToken);
       
       if (!decoded) {
-        res.status(401).json({
-          success: false,
-          error: 'Invalid or expired refresh token'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.AUTH_TOKEN_EXPIRED,
+          'Invalid or expired refresh token',
+          401
+        );
       }
       
       // Find user by ID
       const user = await this.userRepository.findById(decoded.userId);
       
       if (!user || !user.is_active) {
-        res.status(401).json({
-          success: false,
-          error: 'User not found or inactive'
-        });
-        return;
+        throw new AppError(
+          ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+          'User not found or inactive',
+          401
+        );
       }
       
       // Map database user to client user
@@ -112,11 +119,16 @@ export class AuthController {
         ...tokens
       });
     } catch (error) {
-      console.error('Refresh token error:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      logger.error('Refresh token error:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        ERROR_CODES.SYSTEM_UNEXPECTED_ERROR,
+        'An unexpected error occurred during token refresh',
+        500,
+        error
+      );
     }
   };
 
@@ -129,17 +141,18 @@ export class AuthController {
     // User info should be set by the auth middleware
     const user = (req as any).user;
     
-    if (user) {
-      res.json({
-        success: true,
-        user
-      });
-    } else {
-      res.status(401).json({
-        success: false,
-        message: 'Not authenticated'
-      });
+    if (!user) {
+      throw new AppError(
+        ERROR_CODES.AUTH_INSUFFICIENT_PERMISSIONS,
+        'Not authenticated',
+        401
+      );
     }
+    
+    res.json({
+      success: true,
+      user
+    });
   };
 
   /**

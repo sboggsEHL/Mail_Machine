@@ -1,5 +1,7 @@
 import { Campaign, CampaignStats } from '../models';
 import { CampaignRepository } from '../repositories/CampaignRepository';
+import { AppError, ERROR_CODES } from '../utils/errors';
+import logger from '../utils/logger';
 
 /**
  * Service for managing campaigns
@@ -29,7 +31,15 @@ export class CampaignService {
    * @returns Campaign or null if not found
    */
   async getCampaignById(id: number): Promise<Campaign | null> {
-    return this.campaignRepository.findById(id);
+    const campaign = await this.campaignRepository.findById(id);
+    if (!campaign) {
+      throw new AppError(
+        ERROR_CODES.CAMPAIGN_NOT_FOUND,
+        `Campaign with ID ${id} not found`,
+        404
+      );
+    }
+    return campaign;
   }
 
   /**
@@ -53,7 +63,15 @@ export class CampaignService {
    * @returns Updated campaign or null if not found
    */
   async updateCampaign(id: number, campaign: Partial<Campaign>): Promise<Campaign | null> {
-    return this.campaignRepository.update(id, campaign);
+    const updatedCampaign = await this.campaignRepository.update(id, campaign);
+    if (!updatedCampaign) {
+      throw new AppError(
+        ERROR_CODES.CAMPAIGN_NOT_FOUND,
+        `Campaign with ID ${id} not found`,
+        404
+      );
+    }
+    return updatedCampaign;
   }
 
   /**
@@ -62,7 +80,15 @@ export class CampaignService {
    * @returns True if deleted, false otherwise
    */
   async deleteCampaign(id: number): Promise<boolean> {
-    return this.campaignRepository.softDelete(id);
+    const deleted = await this.campaignRepository.softDelete(id);
+    if (!deleted) {
+      throw new AppError(
+        ERROR_CODES.CAMPAIGN_NOT_FOUND,
+        `Campaign with ID ${id} not found`,
+        404
+      );
+    }
+    return deleted;
   }
 
   /**
@@ -70,8 +96,16 @@ export class CampaignService {
    * @param id Campaign ID
    * @returns Campaign statistics or null if not found
    */
-  async getCampaignStats(id: number): Promise<CampaignStats | null> {
-    return this.campaignRepository.getCampaignStats(id);
+  async getCampaignStats(id: number): Promise<CampaignStats> {
+    const stats = await this.campaignRepository.getCampaignStats(id);
+    if (!stats) {
+      throw new AppError(
+        ERROR_CODES.CAMPAIGN_NOT_FOUND,
+        `Campaign with ID ${id} not found`,
+        404
+      );
+    }
+    return stats;
   }
 
   /**
