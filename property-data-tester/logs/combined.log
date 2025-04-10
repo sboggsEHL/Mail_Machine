@@ -21,3 +21,25 @@
 {"level":"info","message":"Job criteria:","timestamp":"2025-04-10T22:33:38.982Z"}
 {"level":"info","message":"Released lock on job 28","timestamp":"2025-04-10T22:33:39.206Z"}
 {"level":"info","message":"Stopped polling for jobs","timestamp":"2025-04-10T22:35:00.294Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T22:48:23.576Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-qh0rmb3b","timestamp":"2025-04-10T22:48:23.578Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T22:48:24.543Z"}
+{"level":"info","message":"Stopped polling for jobs","timestamp":"2025-04-10T23:04:16.213Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:04:20.452Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-rx6im43f","timestamp":"2025-04-10T23:04:20.453Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:04:21.377Z"}
+{"level":"info","message":"Stopped polling for jobs","timestamp":"2025-04-10T23:05:16.211Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:05:20.160Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-w9sbinjc","timestamp":"2025-04-10T23:05:20.162Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:05:21.097Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-grbft0h7","timestamp":"2025-04-10T23:05:21.098Z"}
+{"level":"info","message":"Stopped polling for jobs","timestamp":"2025-04-10T23:05:48.408Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:06:23.963Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-xnlxobjt","timestamp":"2025-04-10T23:06:23.965Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:06:24.881Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-h7unol9o","timestamp":"2025-04-10T23:06:24.883Z"}
+{"level":"info","message":"Stopped polling for jobs","timestamp":"2025-04-10T23:08:27.115Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:08:38.133Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-c5yon5wh","timestamp":"2025-04-10T23:08:38.135Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-10T23:08:39.055Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-iiuch78o","timestamp":"2025-04-10T23:08:39.056Z"}

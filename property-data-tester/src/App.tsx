@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Button, Alert, Navbar, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Button, Alert, Navbar, Nav, NavDropdown } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import FieldSelector from './components/FieldSelector';
@@ -16,6 +16,7 @@ import ListsPage from './pages/ListsPage';
 import ListProcessPage from './pages/ListProcessPage';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
 import { createBatchJob } from './services/batchJob.service';
+import { DATA_PROVIDERS, DataProvider } from './constants/providers';
 import authService from './services/auth.service';
 
 interface FetchStatus {
@@ -47,6 +48,15 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState<string>('main');
+  // Data Provider selection state
+  const [selectedProvider, setSelectedProvider] = useState<string>(() => {
+    return localStorage.getItem('selectedProvider') || DATA_PROVIDERS[0].id;
+  });
+  const [showProviderDropdown, setShowProviderDropdown] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('selectedProvider', selectedProvider);
+  }, [selectedProvider]);
 
   // Data state
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -361,7 +371,35 @@ if (user) {
     <>
       <Navbar bg="dark" variant="dark" expand="lg" className="mb-4">
         <Container>
-          <Navbar.Brand href="#main">Property Data Tester</Navbar.Brand>
+          <div className="d-flex align-items-center">
+            <Navbar.Brand href="#main" className="me-3">Property Data Tester</Navbar.Brand>
+            <div className="provider-dropdown-container">
+              <Button 
+                variant="light" 
+                className="provider-dropdown-button me-3"
+                onClick={() => setShowProviderDropdown(!showProviderDropdown)}
+              >
+                Data Provider: {selectedProvider} ▼
+              </Button>
+              {showProviderDropdown && (
+                <div className="provider-dropdown-menu">
+                  {DATA_PROVIDERS.map((provider: DataProvider) => (
+                    <Button
+                      key={provider.id}
+                      variant="link"
+                      className={`provider-dropdown-item w-100 text-start ${selectedProvider === provider.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedProvider(provider.id);
+                        setShowProviderDropdown(false);
+                      }}
+                    >
+                      {provider.name}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">
@@ -418,7 +456,7 @@ if (user) {
       <Container>
         {currentPage === 'main' && (
           <>
-            <h1 className="mb-4">PropertyRadar API Tester</h1>
+            <h1 className="mb-4">{selectedProvider} API Tester</h1>
             
             <Row className="mb-4">
               <Col lg={6}>
