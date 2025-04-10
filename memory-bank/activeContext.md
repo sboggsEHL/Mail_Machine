@@ -77,3 +77,52 @@
 - UI/UX design for batch job monitoring and management
 - Implementation of comprehensive logging for debugging and auditing
 - Backup and recovery procedures for data protection
+
+---
+
+# Application Codebase Review (April 2025)
+
+## Backend (Node.js + Express + TypeScript)
+- Modular, function-based design with clear separation:
+  - `server.ts` starts the API server and handles shutdown.
+  - `app.ts` initializes the Express app.
+  - `worker.ts` runs background workers for batch jobs.
+  - `property-processor.ts` handles batch property processing.
+- Likely uses repositories and services for data access and business logic.
+- Integrates with PostgreSQL for data storage and job queue.
+- Implements JWT-based authentication.
+- Async/await used throughout for non-blocking operations.
+- Batch processing is decoupled from API server, improving scalability.
+- TypeScript enforces type safety.
+
+## Frontend (React + TypeScript)
+- Root component: `App.tsx`.
+- Key components:
+  - `ApiParamsForm` for PropertyRadar criteria building.
+  - `FieldSelector` for selecting fields.
+  - `InsertResults` for displaying API/data results.
+  - `Login` for authentication.
+  - `PropertyList` for displaying property data.
+- Likely uses hooks for state management.
+- Integrates with backend API.
+- Modular, reusable components with strong typing.
+
+## Shared Types
+- Located in `shared/types/`.
+- Define interfaces for auth, criteria, database models, API contracts.
+- Promote strong typing across backend and frontend.
+
+## Scripts
+- Located in `property-data-tester/scripts/`.
+- Utilities for batch processing, data import/export, validation, maintenance.
+- Support main workflows but not core app logic.
+
+## Overall Observations
+- Clean separation of backend API, background processing, and frontend UI.
+- Batch processing well-isolated.
+- Extensive use of TypeScript improves reliability.
+- Modular design supports extensibility.
+- Aligns well with documented architecture and goals.
+- Potential future review areas: service/repository implementations, error handling, security, database queries, React state management.
+
+---

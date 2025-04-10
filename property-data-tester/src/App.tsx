@@ -135,18 +135,14 @@ function App() {
     try {
       // Get current user data after login
       const user = await authService.getCurrentUser();
-      if (user) {
-        setCurrentUser(user);
-        setIsAuthenticated(true);
-        
-        // Set default page after login if needed
-        if (!window.location.hash || window.location.hash === '#') {
+if (user) {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
           setCurrentPage('main');
           window.location.hash = 'main';
+        } else {
+          throw new Error('Failed to get user data after login');
         }
-      } else {
-        throw new Error('Failed to get user data after login');
-      }
     } catch (error) {
       console.error('Login success handler error:', error);
       // Clear everything on error
