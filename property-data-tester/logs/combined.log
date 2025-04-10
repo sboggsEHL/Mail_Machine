@@ -1,0 +1,5 @@
+{"level":"info","message":"Job queue service initialized with worker ID: worker-l481oo3e","timestamp":"2025-04-06T06:15:55.781Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-06T06:21:10.105Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-95kocnml","timestamp":"2025-04-06T06:21:10.106Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-06T06:21:12.358Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-mtnew3xe","timestamp":"2025-04-06T06:21:12.361Z"}

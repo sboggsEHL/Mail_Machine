@@ -1,0 +1,123 @@
+{
+    "propertyTaxCriteria": [
+      {
+        "name": "AssessedValue",
+        "description": "The assessed value of the property for tax purposes as provided by the county assessor",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "AssessedValue",
+          "value": [[200000, 500000]]
+        }
+      },
+      {
+        "name": "YearAssessed",
+        "description": "The year the property was last assessed for tax purposes",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "YearAssessed",
+          "value": [2022, 2023]
+        }
+      },
+      {
+        "name": "TaxesPerYear",
+        "description": "Annual property taxes based on the current assessed value and tax rate",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "TaxesPerYear",
+          "value": [[5000, 10000]]
+        }
+      },
+      {
+        "name": "EstimatedTaxRate",
+        "description": "The annual property taxes as a percentage of the total assessed value of the property",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "EstimatedTaxRate",
+          "value": [[1.0, 2.0]]
+        }
+      },
+      {
+        "name": "HomeownerTaxExemption",
+        "description": "Whether the owner claimed the property as primary residence for tax exemption purposes",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "HomeownerTaxExemption",
+          "value": [1]
+        }
+      },
+      {
+        "name": "TaxRateArea",
+        "description": "The tax rate area the property is located in as provided by the county assessor's office",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TaxRateArea",
+          "value": ["001-001", "002-005"]
+        }
+      },
+      {
+        "name": "PropertyTaxDelinquent",
+        "description": "Whether the property had delinquent property taxes as of the last tax status update",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "PropertyTaxDelinquent",
+          "value": [1]
+        }
+      },
+      {
+        "name": "YearsPropertyTaxDelinquent",
+        "description": "The number of years the property taxes have been delinquent",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "YearsPropertyTaxDelinquent",
+          "value": [[1, 5]]
+        }
+      },
+      {
+        "name": "PropertyTaxDelinquentAmount",
+        "description": "The estimated amount of property taxes delinquent as of the last tax status update",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "PropertyTaxDelinquentAmount",
+          "value": [[1000, 10000]]
+        }
+      },
+      {
+        "name": "PropertyTaxDelinquentSince",
+        "description": "The year when the property taxes first became delinquent",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "PropertyTaxDelinquentSince",
+          "value": [2021, 2022]
+        }
+      },
+      {
+        "name": "NumberOfMissedTaxPayments",
+        "description": "The number of missed property tax payments",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "NumberOfMissedTaxPayments",
+          "value": [[1, 5]]
+        }
+      },
+      {
+        "name": "AssessedToEstimatedValueRatio",
+        "description": "The ratio of assessed value to estimated market value (percentage)",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "AssessedToEstimatedValueRatio",
+          "value": [[50, 100]]
+        }
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts one or more values, which are OR'd together. Example: [\"97202\", \"97212\"]",
+      "Multiple Values Beginning With": "Similar to Multiple Value, except an exact match is not required; properties will be found if they merely begin with the given value. Example: [\"123\", \"910-021-669-000\"]",
+      "Boolean": "Accepts either integer 1 or 0. Example: [1] means the property must have this attribute, [0] means it must not have it.",
+      "Multiple Range": "Accepts a series of arrays with min and max values. Example: [[100000, null]] returns properties having values from $100,000 to infinity. [[null, 100000]] returns properties with up to $100,000.",
+      "Multiple Range Including Unknowns": "Same as Multiple Range, but when null is used as the left (minimum) end of the range, unknown values are included in the results.",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and date ranges using a from: to: syntax. Example: [\"Last 7 Days\", \"from: 1/1/2023 to: 1/31/2023\", \"1/1/2028\"]",
+      "Relative Date Including Unknowns": "Same as Relative Date but when the from: section is left empty, includes properties for which we don't know the value for that field.",
+      "Single Value": "Like Multiple Value but accepts only one value.",
+      "PropertyType": "A special format combining both our list of simple property types known as PType along with our AdvancedPropertyTypes."
+    }
+  }

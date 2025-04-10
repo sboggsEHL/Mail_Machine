@@ -93,7 +93,12 @@ CREATE TABLE properties (
     last_transfer_rec_date DATE,
     last_transfer_value DECIMAL(15, 2),
     last_transfer_down_payment_percent DECIMAL(5, 2),
-    last_transfer_seller VARCHAR(255),
+    
+    -- Tax Assessment Information (Added)
+    assessed_value DECIMAL(15, 2),
+    owner_exemption_amount DECIMAL(15, 2),
+    improvement_value DECIMAL(15, 2),
+    assessment_year INTEGER,
     
     -- Status flags
     is_owner_occupied BOOLEAN,
@@ -121,7 +126,7 @@ CREATE INDEX idx_properties_provider ON properties(provider_id);
 CREATE INDEX idx_properties_apn ON properties(apn);
 ```
 
-**Expected outcome:** You now have a table to store all property information with proper indexes for fast lookups. Note that owner information has been moved to a separate table.
+**Expected outcome:** You now have a table to store all property information, including tax assessment details, with proper indexes for fast lookups. Note that owner information has been moved to a separate table, and `last_transfer_seller` has been moved to the `loans` table.
 
 ## Step 3: Create the Property Owners Table
 
@@ -216,6 +221,10 @@ CREATE TABLE loans (
     second_amount DECIMAL(15, 2),
     second_loan_type VARCHAR(50),
     
+    -- Transfer Information (Added/Moved)
+    last_transfer_type VARCHAR(50),
+    last_transfer_seller VARCHAR(255), -- Moved from properties table
+    
     -- Tracking fields
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -229,7 +238,7 @@ CREATE INDEX idx_loans_lender ON loans(lender_name);
 CREATE INDEX idx_loans_position ON loans(loan_position);
 ```
 
-**Expected outcome:** You now have a table to store loan information with a link to the properties table.
+**Expected outcome:** You now have a table to store loan information, including last transfer details, with a link to the properties table.
 
 ## Step 5: Set Up the Loan ID Generation System
 
@@ -430,6 +439,12 @@ CREATE TABLE property_history (
     prev_annual_taxes DECIMAL(15, 2),
     prev_estimated_tax_rate DECIMAL(5, 3),
     
+    -- Previous tax assessment values (Added)
+    prev_assessed_value DECIMAL(15, 2),
+    prev_owner_exemption_amount DECIMAL(15, 2),
+    prev_improvement_value DECIMAL(15, 2),
+    prev_assessment_year INTEGER,
+    
     -- Fields to track what changed
     changed_fields TEXT[]
 );
@@ -552,6 +567,23 @@ BEGIN
         changed_field_list := array_append(changed_field_list, 'estimated_tax_rate');
     END IF;
     
+    -- Tax Assessment fields (Added)
+    IF OLD.assessed_value IS DISTINCT FROM NEW.assessed_value THEN
+        changed_field_list := array_append(changed_field_list, 'assessed_value');
+    END IF;
+    
+    IF OLD.owner_exemption_amount IS DISTINCT FROM NEW.owner_exemption_amount THEN
+        changed_field_list := array_append(changed_field_list, 'owner_exemption_amount');
+    END IF;
+    
+    IF OLD.improvement_value IS DISTINCT FROM NEW.improvement_value THEN
+        changed_field_list := array_append(changed_field_list, 'improvement_value');
+    END IF;
+    
+    IF OLD.assessment_year IS DISTINCT FROM NEW.assessment_year THEN
+        changed_field_list := array_append(changed_field_list, 'assessment_year');
+    END IF;
+    
     -- Only track if something changed
     IF array_length(changed_field_list, 1) > 0 THEN
         -- Store the old data in the history table
@@ -576,6 +608,11 @@ BEGIN
             prev_number_loans,
             prev_annual_taxes,
             prev_estimated_tax_rate,
+            -- Added tax fields
+            prev_assessed_value,
+            prev_owner_exemption_amount,
+            prev_improvement_value,
+            prev_assessment_year,
             changed_fields
         ) VALUES (
             OLD.property_id,
@@ -598,6 +635,11 @@ BEGIN
             OLD.number_loans,
             OLD.annual_taxes,
             OLD.estimated_tax_rate,
+            -- Added tax fields
+            OLD.assessed_value,
+            OLD.owner_exemption_amount,
+            OLD.improvement_value,
+            OLD.assessment_year,
             changed_field_list
         );
     END IF;
@@ -773,6 +815,10 @@ CREATE TABLE loan_history (
     prev_equity_amount DECIMAL(15, 2),
     prev_equity_percentage DECIMAL(5, 2),
     
+    -- Previous transfer values (Added)
+    prev_last_transfer_type VARCHAR(50),
+    prev_last_transfer_seller VARCHAR(255),
+    
     -- Fields to track what changed
     changed_fields TEXT[]
 );
@@ -837,6 +883,15 @@ BEGIN
         changed_field_list := array_append(changed_field_list, 'equity_percentage');
     END IF;
     
+    -- Transfer fields (Added)
+    IF OLD.last_transfer_type IS DISTINCT FROM NEW.last_transfer_type THEN
+        changed_field_list := array_append(changed_field_list, 'last_transfer_type');
+    END IF;
+    
+    IF OLD.last_transfer_seller IS DISTINCT FROM NEW.last_transfer_seller THEN
+        changed_field_list := array_append(changed_field_list, 'last_transfer_seller');
+    END IF;
+    
     -- Only track if something changed
     IF array_length(changed_field_list, 1) > 0 THEN
         -- Store the old data in the history table
@@ -858,6 +913,9 @@ BEGIN
             prev_maturity_date,
             prev_equity_amount,
             prev_equity_percentage,
+            -- Added transfer fields
+            prev_last_transfer_type,
+            prev_last_transfer_seller,
             changed_fields
         ) VALUES (
             OLD.loan_id,
@@ -877,6 +935,9 @@ BEGIN
             OLD.maturity_date,
             OLD.equity_amount,
             OLD.equity_percentage,
+            -- Added transfer fields
+            OLD.last_transfer_type,
+            OLD.last_transfer_seller,
             changed_field_list
         );
     END IF;
@@ -1235,6 +1296,12 @@ SELECT
     p.last_transfer_rec_date,
     p.last_transfer_value,
     
+    -- Tax Assessment Information (Added)
+    p.assessed_value,
+    p.owner_exemption_amount,
+    p.improvement_value,
+    p.assessment_year,
+    
     -- Lead Provider Information
     lp.provider_name,
     lp.provider_code,
@@ -1278,6 +1345,10 @@ SELECT
     l.second_date,
     l.second_amount,
     l.second_loan_type,
+    
+    -- Transfer Information (Added/Moved)
+    l.last_transfer_type,
+    l.last_transfer_seller,
     
     -- DNM Status
     CASE 
@@ -1557,4 +1628,3 @@ $$ LANGUAGE plpgsql;
 ```
 
 **Expected outcome:** You now have functions to archive old data, which you can call from a cron job.
-

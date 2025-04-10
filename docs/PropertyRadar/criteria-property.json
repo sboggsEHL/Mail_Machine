@@ -1,0 +1,218 @@
+{
+    "propertyCriteria": [
+      {
+        "name": "PropertyType",
+        "description": "A special format combining both simple property types (PType) and AdvancedPropertyTypes",
+        "criteriaType": "PropertyType",
+        "example": {
+          "name": "PropertyType",
+          "value": [
+            {
+              "name": "PType",
+              "value": ["SFR"]
+            }
+          ]
+        }
+      },
+      {
+        "name": "OwnerOccupied",
+        "description": "Whether the property is owner-occupied. True if owner claims as primary residence OR owner's address is same as site address",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "OwnerOccupied",
+          "value": [1]
+        }
+      },
+      {
+        "name": "OwnershipType",
+        "description": "The type of ownership: individual, couple, multiple owners, corporate or trust",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "OwnershipType",
+          "value": ["Individual", "Trust"]
+        }
+      },
+      {
+        "name": "Beds",
+        "description": "The number of bedrooms in the primary structure",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "Beds",
+          "value": [[2, 4], [null, null]]
+        }
+      },
+      {
+        "name": "Baths",
+        "description": "The number of bathrooms in the primary structure (.5 is toilet and sink only, .75 adds shower but no tub)",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "Baths",
+          "value": [[1.5, 3]]
+        }
+      },
+      {
+        "name": "YearBuilt",
+        "description": "The year the property was built",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "YearBuilt",
+          "value": [[1950, 2000]]
+        }
+      },
+      {
+        "name": "Age",
+        "description": "Age in years of the primary structure of the property",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "Age",
+          "value": [[0, 50]]
+        }
+      },
+      {
+        "name": "SquareFeet",
+        "description": "The square footage of the property",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "SquareFeet",
+          "value": [[1000, 3000]]
+        }
+      },
+      {
+        "name": "LotSqFt",
+        "description": "The size of the lot in square feet",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "LotSqFt",
+          "value": [[5000, 10000]]
+        }
+      },
+      {
+        "name": "LotAcres",
+        "description": "The size of the lot in acres",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "LotAcres",
+          "value": [[0.5, 5]]
+        }
+      },
+      {
+        "name": "Units",
+        "description": "The number of units, if the property contains more than one",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "Units",
+          "value": [[2, 4]]
+        }
+      },
+      {
+        "name": "Pool",
+        "description": "Whether or not the property has a swimming pool",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "Pool",
+          "value": [1]
+        }
+      },
+      {
+        "name": "Vacant",
+        "description": "Whether the property has been identified as vacant by the United States Postal Service",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "Vacant",
+          "value": [1]
+        }
+      },
+      {
+        "name": "SameMailingAddress",
+        "description": "Whether the mailing address for the property tax bill is the same as the property address",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "SameMailingAddress",
+          "value": [1]
+        }
+      },
+      {
+        "name": "SameCounty",
+        "description": "Whether the owner's mailing address is in the same county as the property",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "SameCounty",
+          "value": [0]
+        }
+      },
+      {
+        "name": "SameState",
+        "description": "Whether the owner's mailing address is in the same state as the property",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "SameState",
+          "value": [0]
+        }
+      },
+      {
+        "name": "ZoningCode",
+        "description": "The city or county zoning code for the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "ZoningCode",
+          "value": ["R1", "R2"]
+        }
+      },
+      {
+        "name": "View",
+        "description": "View from building (e.g., Gulf, Mountains, Pool)",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "View",
+          "value": ["Ocean", "Mountain"]
+        }
+      },
+      {
+        "name": "Rooms",
+        "description": "The number of rooms in the property",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "Rooms",
+          "value": [[5, 10]]
+        }
+      },
+      {
+        "name": "Stories",
+        "description": "The number of stories the primary structure has",
+        "criteriaType": "Multiple Range Including Unknowns",
+        "example": {
+          "name": "Stories",
+          "value": [[1, 2]]
+        }
+      },
+      {
+        "name": "Fireplace",
+        "description": "Whether or not the primary structure has a fireplace",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "Fireplace",
+          "value": [1]
+        }
+      },
+      {
+        "name": "AirConditioning",
+        "description": "Whether or not the property has an air conditioning system",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "AirConditioning",
+          "value": [1]
+        }
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts one or more values, which are OR'd together. Example: [\"97202\", \"97212\"]",
+      "Multiple Values Beginning With": "Similar to Multiple Value, except an exact match is not required; properties will be found if they merely begin with the given value. Example: [\"123\", \"910-021-669-000\"]",
+      "Boolean": "Accepts either integer 1 or 0. Example: [1] means the property must have this attribute, [0] means it must not have it.",
+      "Multiple Range": "Accepts a series of arrays with min and max values. Example: [[100000, null]] returns properties having values from $100,000 to infinity. [[null, 100000]] returns properties with up to $100,000.",
+      "Multiple Range Including Unknowns": "Same as Multiple Range, but when null is used as the left (minimum) end of the range, unknown values are included in the results.",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and date ranges using a from: to: syntax. Example: [\"Last 7 Days\", \"from: 1/1/2023 to: 1/31/2023\", \"1/1/2028\"]",
+      "Relative Date Including Unknowns": "Same as Relative Date but when the from: section is left empty, includes properties for which we don't know the value for that field.",
+      "Single Value": "Like Multiple Value but accepts only one value.",
+      "PropertyType": "A special format combining both our list of simple property types known as PType along with our AdvancedPropertyTypes."
+    }
+  }

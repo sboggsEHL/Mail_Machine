@@ -1,0 +1,213 @@
+{
+    "foreclosureCriteria": [
+      {
+        "name": "InForeclosure",
+        "description": "Whether the property is currently in foreclosure (Preforeclosure, Auction, or Bank Owned stages)",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "InForeclosure",
+          "value": [1]
+        }
+      },
+      {
+        "name": "ForeclosureStage",
+        "description": "The current stage of foreclosure - Preforeclosure, Auction, or Bank Owned",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "ForeclosureStage",
+          "value": ["Preforeclosure", "Auction"]
+        }
+      },
+      {
+        "name": "NoticeDocumentType",
+        "description": "The type of foreclosure document for judicial or non-judicial foreclosures",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "NoticeDocumentType",
+          "value": ["NoticeOfDefault", "NoticeOfTrusteeSale"]
+        }
+      },
+      {
+        "name": "NoticeRecordingDate",
+        "description": "The date the foreclosure document was recorded at the county recorder's office",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "NoticeRecordingDate",
+          "value": ["Last 30 Days"]
+        }
+      },
+      {
+        "name": "NoticePublishedDate",
+        "description": "The date the foreclosure record was published to PropertyRadar",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "NoticePublishedDate",
+          "value": ["Last 7 Days"]
+        }
+      },
+      {
+        "name": "OriginalSaleDate",
+        "description": "The date the foreclosure sale was initially published to be held on before any postponements",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "OriginalSaleDate",
+          "value": ["Next 30 Days"]
+        }
+      },
+      {
+        "name": "ForeclosureSaleDate",
+        "description": "The scheduled date of the foreclosure auction after any postponements",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "ForeclosureSaleDate",
+          "value": ["Next 7 Days"]
+        }
+      },
+      {
+        "name": "SaleTime",
+        "description": "The time at which the foreclosure auction will be held",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "SaleTime",
+          "value": ["9:00 AM", "10:00 AM"]
+        }
+      },
+      {
+        "name": "SalePlace",
+        "description": "The address and city for the foreclosure auction",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "SalePlace",
+          "value": ["County Courthouse", "Main Street Steps"]
+        }
+      },
+      {
+        "name": "PublishedBid",
+        "description": "The published bid in the notice of trustee sale, typically the total amount owed on the loan",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "PublishedBid",
+          "value": [[200000, 500000]]
+        }
+      },
+      {
+        "name": "PublishedBidToEstValue",
+        "description": "The published bid as a percentage of the estimated property value",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "PublishedBidToEstValue",
+          "value": [[50, 100]]
+        }
+      },
+      {
+        "name": "DefaultAmount",
+        "description": "The amount required to bring the loan current as of the default date",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "DefaultAmount",
+          "value": [[10000, 50000]]
+        }
+      },
+      {
+        "name": "DefaultDate",
+        "description": "The date on which the default amount was calculated",
+        "criteriaType": "Relative Date",
+        "example": {
+          "name": "DefaultDate",
+          "value": ["Last 90 Days"]
+        }
+      },
+      {
+        "name": "ForeclosingLoanPosition",
+        "description": "The position of the loan in foreclosure versus other open loans on the property",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "ForeclosingLoanPosition",
+          "value": ["First", "Second"]
+        }
+      },
+      {
+        "name": "LisPendensType",
+        "description": "Type of lawsuit being noticed as pending, including foreclosure on mortgage/HOA/lien or other action",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "LisPendensType",
+          "value": ["ForeclosureMortgage", "ForeclosureHOA"]
+        }
+      },
+      {
+        "name": "NoticePageNumber",
+        "description": "Page number in recorder's book, used by some counties to record transactions",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "NoticePageNumber",
+          "value": ["100", "101"]
+        }
+      },
+      {
+        "name": "NoticeDocumentNumber",
+        "description": "The document number assigned by the recorder's office to identify a particular document",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "NoticeDocumentNumber",
+          "value": ["2023-001234", "2023-005678"]
+        }
+      },
+      {
+        "name": "NoticeBookNumber",
+        "description": "Recorder's book number, used by some counties to record transactions",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "NoticeBookNumber",
+          "value": ["500", "501"]
+        }
+      },
+      {
+        "name": "Trustee",
+        "description": "The name of the trustee handling the foreclosure",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "Trustee",
+          "value": ["First American Title", "Quality Loan Service Corp"]
+        }
+      },
+      {
+        "name": "TrusteePhone",
+        "description": "The phone number to call for updated information on the trustee sale",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TrusteePhone",
+          "value": ["800-555-1212", "888-555-1212"]
+        }
+      },
+      {
+        "name": "TSNumber",
+        "description": "Trustee Sales Number, the unique number assigned by trustee to identify a foreclosure",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TSNumber",
+          "value": ["TS-12345", "TS-67890"]
+        }
+      },
+      {
+        "name": "Attorney",
+        "description": "Name of attorney involved in the preparation of the notice",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "Attorney",
+          "value": ["Smith & Associates", "Johnson Law Group"]
+        }
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts one or more values, which are OR'd together. Example: [\"97202\", \"97212\"]",
+      "Multiple Values Beginning With": "Similar to Multiple Value, except an exact match is not required; properties will be found if they merely begin with the given value. Example: [\"123\", \"910-021-669-000\"]",
+      "Boolean": "Accepts either integer 1 or 0. Example: [1] means the property must have this attribute, [0] means it must not have it.",
+      "Multiple Range": "Accepts a series of arrays with min and max values. Example: [[100000, null]] returns properties having values from $100,000 to infinity. [[null, 100000]] returns properties with up to $100,000.",
+      "Multiple Range Including Unknowns": "Same as Multiple Range, but when null is used as the left (minimum) end of the range, unknown values are included in the results.",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and date ranges using a from: to: syntax. Example: [\"Last 7 Days\", \"from: 1/1/2023 to: 1/31/2023\", \"1/1/2028\"]",
+      "Relative Date Including Unknowns": "Same as Relative Date but when the from: section is left empty, includes properties for which we don't know the value for that field.",
+      "Single Value": "Like Multiple Value but accepts only one value.",
+      "PropertyType": "A special format combining both our list of simple property types known as PType along with our AdvancedPropertyTypes."
+    }
+  }

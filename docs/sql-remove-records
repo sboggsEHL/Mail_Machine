@@ -1,0 +1,73 @@
+# Mailhaus Database Deletion Rules
+
+This document outlines the critical rules and procedures for deleting related records (properties, owners, loans, etc.) from the `mailhaus` database to avoid foreign key constraint violations and issues caused by triggers.
+
+## 1. Deletion Order (Foreign Keys)
+
+Due to foreign key constraints, records **must** be deleted in the following order within a single transaction:
+
+1.  **History Tables:**
+    *   `property_owner_history` (references `property_owners.owner_id`)
+    *   `property_history` (references `properties.property_id`)
+    *   `loan_history` (if applicable, check constraints)
+2.  **Child Tables:**
+    *   `loans` (references `properties.property_id`)
+    *   `property_owners` (references `properties.property_id`)
+    *   *Other tables referencing `properties` or `property_owners`*
+3.  **Parent Table:**
+    *   `properties`
+
+## 2. Trigger Handling
+
+There are `BEFORE DELETE` triggers that automatically insert records into history tables, which interfere with the required deletion order. These triggers **must** be temporarily disabled during the deletion process within the transaction.
+
+*   **`track_property_owner_changes` on `property_owners`:**
+    *   This trigger inserts into `property_owner_history` before a delete on `property_owners`.
+    *   **Action:** Disable this trigger *immediately before* deleting from `property_owners` and re-enable it *immediately after*.
+    ```sql
+    -- Within the transaction
+    ALTER TABLE property_owners DISABLE TRIGGER track_property_owner_changes;
+    DELETE FROM property_owners WHERE ...;
+    ALTER TABLE property_owners ENABLE TRIGGER track_property_owner_changes;
+    ```
+
+*   **`track_property_changes` on `properties`:**
+    *   This trigger inserts into `property_history` before a delete on `properties`.
+    *   **Action:** Disable this trigger *immediately before* deleting from `properties` and re-enable it *immediately after*.
+    ```sql
+    -- Within the transaction
+    ALTER TABLE properties DISABLE TRIGGER track_property_changes;
+    DELETE FROM properties WHERE ...;
+    ALTER TABLE properties ENABLE TRIGGER track_property_changes;
+    ```
+
+## 3. Transaction Management
+
+All deletion operations and trigger enable/disable commands **must** be executed within a single database transaction (`BEGIN; ... COMMIT;` or `conn.autocommit = False` followed by `conn.commit()` in psycopg2). If any step fails, the entire transaction must be rolled back (`ROLLBACK;` or `conn.rollback()`) to maintain data integrity.
+
+## Example Deletion Flow (Conceptual)
+
+```sql
+BEGIN;
+
+-- 1. Delete History (if applicable, script handles finding relevant IDs)
+DELETE FROM property_owner_history WHERE owner_id = ANY(...);
+DELETE FROM property_history WHERE property_id = ANY(...);
+-- DELETE FROM loan_history WHERE ...;
+
+-- 2. Delete Child Tables
+DELETE FROM loans WHERE property_id = ANY(...);
+
+-- Disable owner trigger, delete owners, re-enable trigger
+ALTER TABLE property_owners DISABLE TRIGGER track_property_owner_changes;
+DELETE FROM property_owners WHERE property_id = ANY(...);
+ALTER TABLE property_owners ENABLE TRIGGER track_property_owner_changes;
+
+-- 3. Delete Parent Table
+-- Disable property trigger, delete properties, re-enable trigger
+ALTER TABLE properties DISABLE TRIGGER track_property_changes;
+DELETE FROM properties WHERE property_id = ANY(...);
+ALTER TABLE properties ENABLE TRIGGER track_property_changes;
+
+COMMIT; -- Or ROLLBACK on error
+Following these rules ensures that deletions are performed correctly without violating constraints or being blocked by history-tracking triggers.

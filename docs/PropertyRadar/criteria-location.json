@@ -1,0 +1,205 @@
+{
+    "locationCriteria": [
+      {
+        "name": "State",
+        "description": "State in which the property is located",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "State",
+          "value": ["CA", "NV", "AZ"]
+        }
+      },
+      {
+        "name": "County",
+        "description": "County in which the property is located. Expressed as a 4 or 5 digit FIPS code",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "County", 
+          "value": ["06037", "06073"]
+        }
+      },
+      {
+        "name": "City",
+        "description": "City in which the property is located",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "City",
+          "value": ["San Diego", "Los Angeles"]
+        }
+      },
+      {
+        "name": "ZipFive",
+        "description": "ZIP Code in which the property is located",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "ZipFive",
+          "value": ["96161", "94505", "90210"]
+        }
+      },
+      {
+        "name": "Address",
+        "description": "The property address per county tax assessor records. Should include street number, street name, direction, type, and unit/suite number. Should NOT include city, state, or ZIP Code",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "Address",
+          "value": ["120 SE Main St #500"]
+        }
+      },
+      {
+        "name": "StreetName",
+        "description": "The name of the street without the street number, direction or type",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "StreetName",
+          "value": ["Main", "Broadway"]
+        }
+      },
+      {
+        "name": "AddressNumber",
+        "description": "The number portion of the street address",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "AddressNumber",
+          "value": [[100, 200], [300, 350]]
+        }
+      },
+      {
+        "name": "APN",
+        "description": "Assessors Parcel Number assigned by the tax assessors office to uniquely identify the property. Formatting including dashes must match",
+        "criteriaType": "Multiple Values Beginning With",
+        "example": {
+          "name": "APN",
+          "value": ["014-1234-006-02", "2345-005-039", "910-021-669-000"]
+        }
+      },
+      {
+        "name": "Subdivision",
+        "description": "The name of the subdivision the property is located in as provided by the county assessor's office",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "Subdivision",
+          "value": ["College Greens"]
+        }
+      },
+      {
+        "name": "RadarID",
+        "description": "Unique ID for locating properties within PropertyRadar",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "RadarID",
+          "value": ["P8A0E18D", "P16926CB"]
+        }
+      },
+      {
+        "name": "FIPS",
+        "description": "The 4 or 5-digit code assigned to the state and county under the Federal Information Processing Standards",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "FIPS",
+          "value": ["06037", "06073"]
+        }
+      },
+      {
+        "name": "OddEven",
+        "description": "Is the property street number odd or even",
+        "criteriaType": "Single Value",
+        "example": {
+          "name": "OddEven",
+          "value": ["Odd"]
+        }
+      },
+      {
+        "name": "AddressComplete",
+        "description": "Whether or not the property address is complete and not Unknown",
+        "criteriaType": "Boolean",
+        "example": {
+          "name": "AddressComplete",
+          "value": [1]
+        }
+      },
+      {
+        "name": "StreetPrefix",
+        "description": "The predirection at the beginning of the street name - N, S, E, W, NE, NW, SE and SW",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "StreetPrefix",
+          "value": ["N", "SE"]
+        }
+      },
+      {
+        "name": "StreetSuffix",
+        "description": "The post direction at ending of the street name - N, S, E, W, NE, NW, SE and SW",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "StreetSuffix",
+          "value": ["N", "SW"]
+        }
+      },
+      {
+        "name": "CarrierRoute",
+        "description": "The 4-character USPS delivery route code in which the property is located",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "CarrierRoute",
+          "value": ["R001", "C002"]
+        }
+      },
+      {
+        "name": "TaxRateArea",
+        "description": "The tax rate area the property is located in as provided by the county assessor's office",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "TaxRateArea",
+          "value": ["001-001", "002-005"]
+        }
+      },
+      {
+        "name": "CensusTract",
+        "description": "A geographic region defined for the purpose of taking a U.S. Census, usually coincides with city or town limits or other administrative areas",
+        "criteriaType": "Multiple Range",
+        "example": {
+          "name": "CensusTract",
+          "value": [[100000, 200000]]
+        }
+      },
+      {
+        "name": "SiteCongressionalDistrict",
+        "description": "The number of the property's congressional district within the state, between 1st and 53rd",
+        "criteriaType": "Multiple Values",
+        "example": {
+          "name": "SiteCongressionalDistrict",
+          "value": ["02", "05"]
+        }
+      },
+      {
+        "name": "DrawPolygon",
+        "description": "Draw exactly where you want your location by clicking on map to create polygon",
+        "criteriaType": "Map Drawing",
+        "example": "Uses interactive map interface"
+      },
+      {
+        "name": "DrawRectangle",
+        "description": "Draw a rectangle where you click and drag your mouse on the map",
+        "criteriaType": "Map Drawing",
+        "example": "Uses interactive map interface"
+      },
+      {
+        "name": "DrawCircle",
+        "description": "Draw a circle in the Map View with center point and radius",
+        "criteriaType": "Map Drawing",
+        "example": "Uses interactive map interface"
+      }
+    ],
+    "criteriaTypes": {
+      "Multiple Values": "Accepts one or more values, which are OR'd together. Example: [\"97202\", \"97212\"]",
+      "Multiple Values Beginning With": "Similar to Multiple Value, except an exact match is not required; properties will be found if they merely begin with the given value. Example: [\"123\", \"910-021-669-000\"]",
+      "Boolean": "Accepts either integer 1 or 0. Example: [1] means the property must have this attribute, [0] means it must not have it.",
+      "Multiple Range": "Accepts a series of arrays with min and max values. Example: [[100000, null]] returns properties having values from $100,000 to infinity. [[null, 100000]] returns properties with up to $100,000.",
+      "Multiple Range Including Unknowns": "Same as Multiple Range, but when null is used as the left (minimum) end of the range, unknown values are included in the results.",
+      "Relative Date": "Accepts preset date strings like 'Last 30 Days' or specific dates and date ranges using a from: to: syntax. Example: [\"Last 7 Days\", \"from: 1/1/2023 to: 1/31/2023\", \"1/1/2028\"]",
+      "Relative Date Including Unknowns": "Same as Relative Date but when the from: section is left empty, includes properties for which we don't know the value for that field.",
+      "Single Value": "Like Multiple Value but accepts only one value.",
+      "PropertyType": "A special format combining both our list of simple property types known as PType along with our AdvancedPropertyTypes.",
+      "Map Drawing": "Uses interactive map interface to define geographic boundaries"
+    }
+  }
