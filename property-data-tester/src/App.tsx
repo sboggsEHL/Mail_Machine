@@ -7,7 +7,6 @@ import ApiParamsForm from './components/ApiParamsForm';
 import PropertyList from './components/PropertyList';
 import InsertResults from './components/InsertResults';
 import Login from './components/Login';
-import { PropertyRadarCriteriaDemo } from './components/archive/PropertyRadarCriteriaDemo';
 import { TestPage } from './components/archive/TestPage';
 import { CampaignManager, CampaignCreationModal } from './components/campaigns';
 import BatchJobManager from './components/BatchJobManager';
@@ -17,6 +16,8 @@ import ListProcessPage from './pages/ListProcessPage';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
 import { createBatchJob } from './services/batchJob.service';
 import { DATA_PROVIDERS, DataProvider } from './constants/providers';
+import { useProvider } from './context/ProviderContext';
+import { getProviderApi } from './services/providerApiFactory';
 import authService from './services/auth.service';
 
 interface FetchStatus {
@@ -49,14 +50,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState<string>('main');
   // Data Provider selection state
-  const [selectedProvider, setSelectedProvider] = useState<string>(() => {
-    return localStorage.getItem('selectedProvider') || DATA_PROVIDERS[0].id;
-  });
+  const { selectedProvider, setSelectedProvider } = useProvider();
+  const api = getProviderApi(selectedProvider);
   const [showProviderDropdown, setShowProviderDropdown] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('selectedProvider', selectedProvider);
-  }, [selectedProvider]);
 
   // Data state
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -181,60 +177,14 @@ if (user) {
     setFetchStatus({ loading: true, error: null });
     setProperties([]);
 
-    // Check if this is a large request that should be processed in batches
-    if (apiParams.limit > 1000) {
-      try {
-        // Create a batch job instead of fetching directly
-        const job = await createBatchJob({
-          fields: selectedFields,
-          limit: apiParams.limit,
-          start: apiParams.start,
-          purchase: apiParams.purchase,
-          criteria: apiParams.criteria
-        });
-        
-        if (job) {
-          // Show success message and navigate to batch jobs page
-          setFetchStatus({ loading: false, error: null });
-          alert(`Your request for ${apiParams.limit} properties is being processed in the background. Navigating to Batch Jobs tab to view progress.`);
-          setCurrentPage('batch-jobs');
-          window.location.hash = 'batch-jobs'; // Update hash
-        } else {
-          throw new Error('Failed to create batch job');
-        }
-      } catch (error) {
-        setFetchStatus({
-          loading: false,
-          error: error instanceof Error ? error.message : 'An unknown error occurred creating batch job'
-        });
-      }
-      return;
-    }
-
-    // For smaller requests, fetch directly as before
     try {
-      const response = await fetch('http://localhost:3001/api/fetch-properties', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-          // Authorization header likely handled by interceptor if needed
-        },
-        body: JSON.stringify({
-          fields: selectedFields,
-          limit: apiParams.limit,
-          start: apiParams.start,
-          purchase: apiParams.purchase,
-          criteria: apiParams.criteria
-        }),
+      const data = await api.fetchProperties({
+        fields: selectedFields,
+        limit: apiParams.limit,
+        start: apiParams.start,
+        purchase: apiParams.purchase,
+        criteria: apiParams.criteria
       });
-
-      // Handle unauthorized or other errors
-      if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch properties');
@@ -260,23 +210,7 @@ if (user) {
     setInsertResults(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/insert-properties', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-          // Authorization header likely handled by interceptor if needed
-        },
-        body: JSON.stringify({
-          properties: properties
-        }),
-      });
-
-      if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await api.insertProperties(properties);
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to insert properties');
@@ -556,9 +490,6 @@ if (user) {
         )}
         
         {/* Archived components - still available but hidden from navigation */}
-        {currentPage === 'criteria-demo' && (
-          <PropertyRadarCriteriaDemo />
-        )}
         
         {currentPage === 'test-page' && (
           <TestPage />

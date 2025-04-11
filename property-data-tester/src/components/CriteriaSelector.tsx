@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BaseCriteriaComponent } from './criteria/BaseCriteriaComponent';
-import { fetchAllCriteria } from '../services';
+import { useProvider } from '../context/ProviderContext';
+import { getProviderApi } from '../services/providerApiFactory';
 
 /**
  * Interface for criteria definition
@@ -36,7 +37,10 @@ export const CriteriaSelector: React.FC<CriteriaSelectorProps> = ({ onCriteriaCh
   const [criteriaValues, setCriteriaValues] = useState<CriteriaValues>(initialCriteria);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
+
+  const { selectedProvider } = useProvider();
+  const api = getProviderApi(selectedProvider);
+
   // Categories for criteria
   const categories = [
     { id: 'location', name: 'Location' },
@@ -50,20 +54,20 @@ export const CriteriaSelector: React.FC<CriteriaSelectorProps> = ({ onCriteriaCh
     { id: 'tax', name: 'Property Tax' },
     { id: 'other', name: 'Other' }
   ];
-  
+
   // Load criteria on component mount
   useEffect(() => {
     loadCriteria();
-  }, []);
-  
+  }, [api]);
+
   // Load criteria from API
   const loadCriteria = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetchAllCriteria();
-      if (response.success) {
+  
+      const response = await api.fetchAllCriteria?.();
+      if (response?.success) {
         setCriteria(response.criteria);
       } else {
         setError('Failed to load criteria');

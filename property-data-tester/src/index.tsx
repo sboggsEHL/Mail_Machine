@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { ProviderContextProvider } from './context/ProviderContext';
 
 const rootElement = document.getElementById('root');
 
@@ -14,7 +15,9 @@ const root = ReactDOM.createRoot(rootElement);
 // Temporarily disable StrictMode to prevent duplicate rendering during development
 root.render(
   // <React.StrictMode>
-    <App />
+    <ProviderContextProvider>
+      <App />
+    </ProviderContextProvider>
   // </React.StrictMode>
 );
 
