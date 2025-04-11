@@ -1,15 +1,16 @@
 import React from 'react';
 import { Form, Badge, Button } from 'react-bootstrap';
 import { PropertyRadarApiParams } from '../../types/api';
-import { AllCriteriaDefinitions, CriterionDefinition } from '../../../shared/types/criteria';
-import { CRITERIA_CATEGORIES } from '../../constants/formConstants';
+import { CriteriaDefinition } from '../../providers'; // Use the unified type
+// CRITERIA_CATEGORIES import removed
 import { getCategoryColor, formatCriteriaValue, getCriterionExplanation } from '../../utils/formUtils';
 
 interface ActiveCriteriaDisplayProps {
   apiParams: PropertyRadarApiParams;
-  criteriaDefs: AllCriteriaDefinitions;
+  // Accept the grouped structure directly from ApiParamsForm
+  criteriaDefs: Record<string, CriteriaDefinition[]>;
   onRemoveCriterion: (criterionName: string) => void;
-  onSelectCriterion: (category: string, definition: CriterionDefinition) => void;
+  onSelectCriterion: (category: string, definition: CriteriaDefinition) => void;
   onSubmit: () => void; // Callback for the submit button
 }
 
@@ -38,12 +39,13 @@ const ActiveCriteriaDisplay: React.FC<ActiveCriteriaDisplayProps> = ({
           {activeCriteriaEntries.map(([criteriaName, value]) => {
             // Find the category and definition for coloring and click behavior
             let category = 'other';
-            let definition: CriterionDefinition | undefined = undefined;
-            
-            for (const cat of CRITERIA_CATEGORIES) {
-              const foundDef = criteriaDefs[cat.key]?.find((def: CriterionDefinition) => def.name === criteriaName);
+            let definition: CriteriaDefinition | undefined = undefined;
+
+            // Iterate through the grouped definitions passed via props
+            for (const [categoryKey, definitionsInCategory] of Object.entries(criteriaDefs)) {
+              const foundDef = definitionsInCategory.find(def => def.name === criteriaName);
               if (foundDef) {
-                category = cat.key;
+                category = categoryKey; // Use the key from the object
                 definition = foundDef;
                 break;
               }

@@ -1,5 +1,31 @@
 # Progress Report
 
+
+## Frontend Provider Configuration Refactoring (Modular Structure)
+
+### Completed:
+
+1.  **Implemented Modular Provider Structure:**
+    - Created base directory `src/providers/` with subdirectories for each provider (`PropertyRadar`, `FirstAmerican`).
+    - Defined provider-specific configurations (`fields.ts`, `criteria.ts`, `parameters.ts`) within each provider's directory.
+    - Established shared types in `src/providers/types.ts`.
+    - Created a central registry `src/providers/index.ts` (`PROVIDER_MODULES`).
+2.  **Refactored UI Components:**
+    - Updated `FieldSelector.tsx` to dynamically load field definitions from the registry.
+    - Updated `ApiParamsForm.tsx` to dynamically load static criteria definitions and derive categories from the registry.
+    - Updated `ActiveCriteriaDisplay.tsx` to work with the dynamic structure and remove dependency on static categories.
+3.  **Cleaned Up Redundant Code/Files:**
+    - Removed hardcoded `AVAILABLE_FIELDS` from `FieldSelector.tsx`.
+    - Removed static `criteriaDefinitions.ts` file and its usages.
+    - Removed redundant `shared/types/criteria.ts` file.
+    - Removed `CRITERIA_CATEGORIES` constant definition and usages.
+    - Removed outdated markdown plan files (`multi-provider-*.md`).
+
+### Next Steps:
+
+1.  Perform functional testing to ensure UI components load correct data for each provider.
+2.  Populate configurations for `FirstAmerican` provider when its implementation begins.
+
 ## Batch Job System Implementation
 
 ### Completed:

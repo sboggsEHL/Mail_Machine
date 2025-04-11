@@ -1,15 +1,4 @@
-// Criteria categories
-export const CRITERIA_CATEGORIES = [
-  { key: 'location', label: 'Location' },
-  { key: 'property', label: 'Property' },
-  { key: 'ownerdetails', label: 'Owner Details' },
-  { key: 'value&equity', label: 'Value & Equity' },
-  { key: 'propertytax', label: 'Property Tax' },
-  { key: 'listing', label: 'Listing' },
-  { key: 'loans&liens', label: 'Loans & Liens' },
-  { key: 'foreclosure', label: 'Foreclosure' },
-  { key: 'transfer', label: 'Transfer' }
-];
+// CRITERIA_CATEGORIES removed as categories are now derived dynamically in ApiParamsForm.tsx
 
 // US States for dropdown
 export const US_STATES: string[] = [

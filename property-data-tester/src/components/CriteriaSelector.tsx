@@ -55,10 +55,9 @@ export const CriteriaSelector: React.FC<CriteriaSelectorProps> = ({ onCriteriaCh
     { id: 'other', name: 'Other' }
   ];
 
-  // Load criteria on component mount
   useEffect(() => {
     loadCriteria();
-  }, [api]);
+  }, [selectedProvider]);
 
   // Load criteria from API
   const loadCriteria = async () => {

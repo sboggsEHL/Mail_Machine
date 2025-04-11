@@ -11,13 +11,9 @@ export const DATA_PROVIDERS: DataProvider[] = [
     description: 'PropertyRadar API integration'
   },
   {
-    id: 'ProviderX',
-    name: 'ProviderX',
-    description: 'Future provider X integration'
-  },
-  {
-    id: 'ProviderY',
-    name: 'ProviderY',
-    description: 'Future provider Y integration'
+    id: 'FirstAmerican',
+    name: 'FirstAmerican',
+    description: 'FirstAmerican (DataTree) API integration (stub)'
   }
+ 
 ];
