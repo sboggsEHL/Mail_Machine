@@ -55,7 +55,7 @@ export async function createApp(): Promise<Express> {
   console.log(`JWT auth configured with secret: ${JWT_SECRET.substring(0, 3)}...`);
   
   // Configure API routes
-  app.use('/api', configureRoutes(dbPool));
+  app.use('/', configureRoutes(dbPool));
   
   // Add basic route for health check
   app.get('/', (req, res) => {
