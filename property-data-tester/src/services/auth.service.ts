@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { TokenResponse, User } from '../../shared/types/auth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api/auth';
+// Use relative path for API calls, assuming frontend and backend are served on the same domain
+const API_BASE_URL = '/api/auth'; 
 
 /**
  * Auth service for JWT token management and user authentication
@@ -91,7 +92,7 @@ class AuthService {
         return false;
       }
       
-      const response = await axios.post<TokenResponse>(`${API_URL}/refresh-token`, {
+      const response = await axios.post<TokenResponse>(`${API_BASE_URL}/refresh-token`, {
         refreshToken
       });
       
@@ -152,7 +153,7 @@ class AuthService {
   async logout(): Promise<boolean> {
     try {
       // Call logout API
-      await axios.post(`${API_URL}/logout`);
+      await axios.post(`${API_BASE_URL}/logout`);
       
       // Clear tokens regardless of API success
       this.clearTokens();
