@@ -106,6 +106,25 @@ class CampaignRepository extends BaseRepository_1.BaseRepository {
         });
     }
     /**
+     * Get all loan_ids for a campaign's recipients
+     * @param campaignId Campaign ID
+     * @param client Optional client for transaction handling
+     * @returns Map of loan_id to recipient_id
+     */
+    getRecipientLoanIdsByCampaignId(campaignId, client) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const queryExecutor = client || this.pool;
+            const result = yield queryExecutor.query(`SELECT loan_id, recipient_id FROM mail_recipients WHERE campaign_id = $1`, [campaignId]);
+            const map = new Map(); // Use <string, any> to avoid TS inference issue
+            result.rows.forEach(row => {
+                if (row && typeof row.loan_id === 'string' && typeof row.recipient_id === 'number') {
+                    map.set(row.loan_id, row.recipient_id);
+                }
+            });
+            return map; // Return type is still Promise<Map<string, number>>
+        });
+    }
+    /**
      * Count recipients for a campaign
      * @param campaignId Campaign ID
      * @param client Optional client for transaction handling
@@ -119,6 +138,82 @@ class CampaignRepository extends BaseRepository_1.BaseRepository {
       WHERE campaign_id = $1
     `, [campaignId]);
             return parseInt(result.rows[0].count);
+        });
+    }
+    /**
+     * Bulk insert recipients into mail_recipients
+     * @param recipients Array of recipient objects
+     * @param client Optional client for transaction handling
+     * @returns Number of inserted rows
+     */
+    insertRecipientsBulk(recipients, client) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            if (recipients.length === 0)
+                return 0;
+            const queryExecutor = client || this.pool;
+            // Get all columns from the first recipient
+            const columns = Object.keys(recipients[0]);
+            const values = recipients.map(rec => columns.map(col => rec[col]));
+            const colNames = columns.map(col => `"${col}"`).join(', ');
+            // Build parameterized values string
+            const valuePlaceholders = values
+                .map((row, i) => `(${row.map((_, j) => `$${i * columns.length + j + 1}`).join(', ')})`)
+                .join(', ');
+            const flatValues = values.flat();
+            const query = `
+      INSERT INTO mail_recipients (${colNames})
+      VALUES ${valuePlaceholders}
+      RETURNING recipient_id
+    `;
+            const result = yield queryExecutor.query(query, flatValues);
+            return (_a = result.rowCount) !== null && _a !== void 0 ? _a : 0;
+        });
+    }
+    /**
+     * Bulk update recipients in mail_recipients by recipient_id
+     * @param recipients Array of recipient objects (must include recipient_id)
+     * @param client Optional client for transaction handling
+     * @returns Number of updated rows
+     */
+    updateRecipientsBulk(recipients, client) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            if (recipients.length === 0)
+                return 0;
+            const queryExecutor = client || this.pool;
+            // Assume all recipients have the same fields
+            const columns = Object.keys(recipients[0]).filter(col => col !== 'recipient_id' && col !== 'created_at' // Exclude recipient_id and created_at from update
+            );
+            const updates = [];
+            const params = [];
+            let paramIndex = 1;
+            for (const rec of recipients) {
+                const setClauses = columns
+                    .map(col => `"${col}" = $${paramIndex++}`)
+                    .join(', ');
+                // Add updated_at separately
+                const finalSetClause = `${setClauses}, "updated_at" = NOW()`;
+                const currentParams = columns.map(col => rec[col]);
+                currentParams.push(rec.recipient_id); // Add recipient_id for WHERE clause
+                params.push(...currentParams);
+                updates.push(`UPDATE mail_recipients SET ${finalSetClause} WHERE recipient_id = $${paramIndex++};`);
+                // Adjust paramIndex for the recipient_id used in WHERE
+                paramIndex--;
+            }
+            // Note: This executes multiple UPDATE statements in one go.
+            // For very large batches, consider alternative bulk update strategies if performance is critical.
+            const query = updates.join('\n');
+            const result = yield queryExecutor.query(query, params);
+            // Sum up row counts from potentially multiple result objects if the driver returns them
+            let totalRowsAffected = 0;
+            if (Array.isArray(result)) {
+                totalRowsAffected = result.reduce((sum, res) => { var _a; return sum + ((_a = res.rowCount) !== null && _a !== void 0 ? _a : 0); }, 0);
+            }
+            else {
+                totalRowsAffected = (_a = result.rowCount) !== null && _a !== void 0 ? _a : 0;
+            }
+            return totalRowsAffected;
         });
     }
     /**
@@ -158,6 +253,28 @@ class CampaignRepository extends BaseRepository_1.BaseRepository {
        WHERE ${idField} = $1
        RETURNING ${idField}`, [id]);
             return ((_a = result.rowCount) !== null && _a !== void 0 ? _a : 0) > 0;
+        });
+    }
+    /**
+     * Get leads for a campaign for CSV export
+     * @param campaignId Campaign ID
+     * @returns Array of leads with required columns
+     */
+    getLeadsForCampaignCsv(campaignId, client) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const queryExecutor = client || this.pool;
+            const result = yield queryExecutor.query(`SELECT
+        property_address AS address,
+        property_city AS city,
+        property_state AS state,
+        property_zip AS zip,
+        loan_id,
+        primary_owner_first_name AS first_name,
+        primary_owner_last_name AS last_name
+      FROM public.complete_property_view
+      WHERE campaign_id = $1
+      ORDER BY property_address`, [campaignId]);
+            return result.rows;
         });
     }
 }

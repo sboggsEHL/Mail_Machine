@@ -109,6 +109,30 @@ export class CampaignRepository extends BaseRepository<Campaign> {
   }
 
   /**
+   * Get all loan_ids for a campaign's recipients
+   * @param campaignId Campaign ID
+   * @param client Optional client for transaction handling
+   * @returns Map of loan_id to recipient_id
+   */
+  async getRecipientLoanIdsByCampaignId(
+    campaignId: number,
+    client?: PoolClient
+  ): Promise<Map<string, number>> {
+    const queryExecutor = client || this.pool;
+    const result = await queryExecutor.query<{ loan_id: string, recipient_id: number }>(
+      `SELECT loan_id, recipient_id FROM mail_recipients WHERE campaign_id = $1`,
+      [campaignId]
+    );
+    const map = new Map<string, any>(); // Use <string, any> to avoid TS inference issue
+    result.rows.forEach(row => {
+      if (row && typeof row.loan_id === 'string' && typeof row.recipient_id === 'number') {
+        map.set(row.loan_id, row.recipient_id);
+      }
+    });
+    return map; // Return type is still Promise<Map<string, number>>
+  }
+
+  /**
    * Count recipients for a campaign
    * @param campaignId Campaign ID
    * @param client Optional client for transaction handling
@@ -123,6 +147,98 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     `, [campaignId]);
     
     return parseInt(result.rows[0].count);
+  }
+
+  /**
+   * Bulk insert recipients into mail_recipients
+   * @param recipients Array of recipient objects
+   * @param client Optional client for transaction handling
+   * @returns Number of inserted rows
+   */
+  async insertRecipientsBulk(
+    recipients: any[],
+    client?: PoolClient
+  ): Promise<number> {
+    if (recipients.length === 0) return 0;
+    const queryExecutor = client || this.pool;
+
+    // Get all columns from the first recipient
+    const columns = Object.keys(recipients[0]);
+    const values = recipients.map(rec =>
+      columns.map(col => rec[col])
+    );
+    const colNames = columns.map(col => `"${col}"`).join(', ');
+
+    // Build parameterized values string
+    const valuePlaceholders = values
+      .map(
+        (row, i) =>
+          `(${row.map((_, j) => `$${i * columns.length + j + 1}`).join(', ')})`
+      )
+      .join(', ');
+
+    const flatValues = values.flat();
+
+    const query = `
+      INSERT INTO mail_recipients (${colNames})
+      VALUES ${valuePlaceholders}
+      RETURNING recipient_id
+    `;
+
+    const result = await queryExecutor.query(query, flatValues);
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Bulk update recipients in mail_recipients by recipient_id
+   * @param recipients Array of recipient objects (must include recipient_id)
+   * @param client Optional client for transaction handling
+   * @returns Number of updated rows
+   */
+  async updateRecipientsBulk(
+    recipients: any[],
+    client?: PoolClient
+  ): Promise<number> {
+    if (recipients.length === 0) return 0;
+    const queryExecutor = client || this.pool;
+
+    // Assume all recipients have the same fields
+    const columns = Object.keys(recipients[0]).filter(
+      col => col !== 'recipient_id' && col !== 'created_at' // Exclude recipient_id and created_at from update
+    );
+    const updates = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    for (const rec of recipients) {
+      const setClauses = columns
+        .map(col => `"${col}" = $${paramIndex++}`)
+        .join(', ');
+      
+      // Add updated_at separately
+      const finalSetClause = `${setClauses}, "updated_at" = NOW()`;
+
+      const currentParams = columns.map(col => rec[col]);
+      currentParams.push(rec.recipient_id); // Add recipient_id for WHERE clause
+      params.push(...currentParams);
+
+      // Adjust paramIndex for the recipient_id used in WHERE
+      paramIndex--; 
+    }
+
+    // Note: This executes multiple UPDATE statements in one go.
+    // For very large batches, consider alternative bulk update strategies if performance is critical.
+    const query = updates.join('\n');
+    const result = await queryExecutor.query(query, params);
+    
+    // Sum up row counts from potentially multiple result objects if the driver returns them
+    let totalRowsAffected = 0;
+    if (Array.isArray(result)) {
+        totalRowsAffected = result.reduce((sum, res) => sum + (res.rowCount ?? 0), 0);
+    } else {
+        totalRowsAffected = result.rowCount ?? 0;
+    }
+    return totalRowsAffected;
   }
 
   /**
@@ -167,5 +283,29 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     );
     
     return (result.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Get leads for a campaign for CSV export
+   * @param campaignId Campaign ID
+   * @returns Array of leads with required columns
+   */
+  async getLeadsForCampaignCsv(campaignId: number, client?: PoolClient): Promise<any[]> {
+    const queryExecutor = client || this.pool;
+    const result = await queryExecutor.query(
+      `SELECT
+        property_address AS address,
+        property_city AS city,
+        property_state AS state,
+        property_zip AS zip,
+        loan_id,
+        primary_owner_first_name AS first_name,
+        primary_owner_last_name AS last_name
+      FROM public.complete_property_view
+      WHERE campaign_id = $1
+      ORDER BY property_address`,
+      [campaignId]
+    );
+    return result.rows;
   }
 }

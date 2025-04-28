@@ -3,6 +3,7 @@ import { CampaignController } from '../controllers/CampaignController';
 import { CampaignService } from '../services/CampaignService';
 import { CampaignRepository } from '../repositories/CampaignRepository';
 import { Pool } from 'pg';
+import multer from 'multer';
 
 /**
  * Create campaign routes
@@ -16,6 +17,9 @@ export function createCampaignRoutes(pool: Pool): Router {
   const campaignRepository = new CampaignRepository(pool);
   const campaignService = new CampaignService(campaignRepository);
   const campaignController = new CampaignController(campaignService);
+
+  // Multer setup for file upload (memory storage)
+  const upload = multer({ storage: multer.memoryStorage() });
 
   // GET /campaigns - Get all campaigns
   router.get('/', (req, res) => campaignController.getCampaigns(req, res));
@@ -34,6 +38,12 @@ export function createCampaignRoutes(pool: Pool): Router {
 
   // GET /campaigns/:id/stats - Get campaign statistics
   router.get('/:id/stats', (req, res) => campaignController.getCampaignStats(req, res));
+
+  // GET /campaigns/:id/leads-csv - Download leads as CSV
+  router.get('/:id/leads-csv', (req, res) => campaignController.downloadLeadsCsv(req, res));
+
+  // POST /campaigns/:id/upload-recipients - Upload recipients via CSV
+  router.post('/:id/upload-recipients', upload.single('file'), (req, res) => campaignController.uploadRecipientsCsv(req, res));
 
   return router;
 }

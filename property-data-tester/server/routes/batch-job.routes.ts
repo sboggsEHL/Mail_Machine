@@ -36,6 +36,9 @@ export function createBatchJobRoutes(pool: Pool): Router {
   // Get job progress
   router.get('/:id/progress', (req, res) => batchJobController.getJobProgress(req, res));
 
+  // Download leads as CSV for a batch job
+  router.get('/:id/leads-csv', (req, res) => batchJobController.downloadLeadsCsv(req, res));
+
   // Get queue statistics
   router.get('/queue/stats', (req, res) => batchJobController.getQueueStats(req, res));
 

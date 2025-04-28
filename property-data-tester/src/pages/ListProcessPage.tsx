@@ -31,6 +31,13 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignOption, setCampaignOption] = useState<string>('existing');
   const [showCreateCampaign, setShowCreateCampaign] = useState<boolean>(false);
+
+  // --- Add to Campaign CSV Upload State ---
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{inserted: number, updated: number, errors: string[]} | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
   useEffect(() => {
     if (listId) {
@@ -395,7 +402,65 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
             <Button variant="outline-secondary" onClick={() => window.location.href = '#lists'}>
               Back to Lists
             </Button>
-            
+
+            {/* Add to Campaign (CSV Upload) Button */}
+            {campaignId && (
+              <Button
+                variant="warning"
+                onClick={() => {
+                  setShowUploadModal(true);
+                  setUploadFile(null);
+                  setUploadResult(null);
+                  setUploadError(null);
+                }}
+              >
+                Add to Campaign (Upload CSV)
+              </Button>
+            )}
+
+            {/* Download CSV Button - only enabled if campaign is completed */}
+            {(() => {
+              let downloadCsvButton = null;
+              if (campaignId) {
+                const selectedCampaign = campaigns.find(c => c.campaign_id === campaignId);
+                const isCompleted = selectedCampaign && selectedCampaign.status === 'COMPLETED';
+                downloadCsvButton = (
+                  <Button
+                    variant="info"
+                    disabled={!isCompleted}
+                    onClick={async () => {
+                      if (!campaignId) return;
+                      try {
+                        const response = await fetch(`/api/campaigns/${campaignId}/leads-csv`, {
+                          method: 'GET',
+                          headers: { 'Accept': 'text/csv' }
+                        });
+                        if (!response.ok) {
+                          alert('Failed to download CSV.');
+                          return;
+                        }
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `campaign_${campaignId}_leads.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                      } catch (err) {
+                        alert('Error downloading CSV.');
+                      }
+                    }}
+                    title={isCompleted ? "Download all leads as CSV" : "Batch must be completed to download CSV"}
+                  >
+                    Download CSV
+                  </Button>
+                );
+              }
+              return downloadCsvButton;
+            })()}
+
             {!checking && allDuplicates.length === 0 && (
               <Button
                 variant="primary"
@@ -405,7 +470,7 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
                 {checking ? 'Checking...' : 'Check Duplicates'}
               </Button>
             )}
-            
+
             {!checking && totalItems > 0 && (
               <Button
                 variant="success"
@@ -709,7 +774,92 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
           
         </>
       )}
-    </Container>
+    {/* Add to Campaign Upload Modal */}
+    <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)}>
+      <Modal.Header closeButton>
+        <Modal.Title>Add to Campaign - Upload USPS CSV</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form>
+          <Form.Group>
+            <Form.Label>Select CSV File</Form.Label>
+            <Form.Control
+              type="file"
+              accept=".csv"
+              onChange={e => {
+                const file = (e.target as HTMLInputElement).files?.[0] || null;
+                setUploadFile(file);
+              }}
+              disabled={uploading}
+            />
+          </Form.Group>
+        </Form>
+        {uploading && (
+          <div className="mt-3">
+            <Spinner animation="border" size="sm" /> Uploading...
+          </div>
+        )}
+        {uploadResult && (
+          <Alert variant="success" className="mt-3">
+            <div>Inserted: {uploadResult.inserted}</div>
+            <div>Updated: {uploadResult.updated}</div>
+            {uploadResult.errors.length > 0 && (
+              <details>
+                <summary>Errors ({uploadResult.errors.length})</summary>
+                <ul style={{ maxHeight: 150, overflowY: 'auto' }}>
+                  {uploadResult.errors.map((err, i) => (
+                    <li key={i} style={{ fontSize: 12 }}>{err}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </Alert>
+        )}
+        {uploadError && (
+          <Alert variant="danger" className="mt-3">{uploadError}</Alert>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={() => setShowUploadModal(false)} disabled={uploading}>
+          Close
+        </Button>
+        <Button
+          variant="primary"
+          disabled={!uploadFile || uploading}
+          onClick={async () => {
+            if (!uploadFile || !campaignId) return;
+            setUploading(true);
+            setUploadResult(null);
+            setUploadError(null);
+            try {
+              const formData = new FormData();
+              formData.append('file', uploadFile);
+              const res = await fetch(`/api/campaigns/${campaignId}/upload-recipients`, {
+                method: 'POST',
+                body: formData
+              });
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Upload failed');
+              }
+              const data = await res.json();
+              setUploadResult({
+                inserted: data.inserted,
+                updated: data.updated,
+                errors: data.errors || []
+              });
+            } catch (err: any) {
+              setUploadError(err.message || 'Upload failed');
+            } finally {
+              setUploading(false);
+            }
+          }}
+        >
+          Upload
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  </Container>
   );
 };
 

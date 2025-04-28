@@ -253,6 +253,12 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
     <div className="batch-job-details">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Batch Job Details</h2>
+        {/* DEBUG: Show job status and campaign_id for troubleshooting */}
+        {job && (
+          <div style={{ color: 'red', fontWeight: 'bold' }}>
+            Status: {job.status} | Campaign ID: {String(job.campaign_id)}
+          </div>
+        )}
         <div>
           <Button
             variant="outline-primary"
@@ -276,7 +282,41 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
               'Refresh'
             )}
           </Button>
-          
+
+          {/* Download CSV Button - only enabled if job is completed and has RadarIDs */}
+          {job && job.status === 'COMPLETED' && job.criteria && Array.isArray(job.criteria.RadarID) && job.criteria.RadarID.length > 0 && (
+            <Button
+              variant="info"
+              className="me-2"
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/batch-jobs/${job.job_id}/leads-csv`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'text/csv' }
+                  });
+                  if (!response.ok) {
+                    alert('Failed to download CSV.');
+                    return;
+                  }
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `batch_job_${job.job_id}_leads.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+                } catch (err) {
+                  alert('Error downloading CSV.');
+                }
+              }}
+              title="Download all leads as CSV for this batch job"
+            >
+              Download CSV
+            </Button>
+          )}
+
           <Button 
             variant="outline-secondary" 
             onClick={onBack}

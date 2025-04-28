@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button } from 'react-bootstrap'; // Removed unused Table
+import { Card, Badge, Button, Form, Alert, Spinner } from 'react-bootstrap';
 import { fetchCampaignById, fetchCampaignStats, Campaign, CampaignStats } from '../../services/api';
 
 interface CampaignDetailProps {
@@ -15,6 +15,12 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
   const [stats, setStats] = useState<CampaignStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // CSV upload state
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{inserted: number, updated: number, errors: string[]} | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
   // Load campaign data
   const loadCampaignData = async () => {
@@ -163,6 +169,83 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
               </Card.Body>
             </Card>
           )}
+
+          {/* CSV Upload Section */}
+          <Card className="mb-4">
+            <Card.Header>
+              <h4 className="mb-0">Upload Recipients CSV</h4>
+            </Card.Header>
+            <Card.Body>
+              <Form>
+                <Form.Group controlId="formFile" className="mb-3">
+                  <Form.Label>Select CSV file to upload recipients</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept=".csv"
+                    onChange={e => {
+                      const file = (e.target as HTMLInputElement).files?.[0] || null;
+                      setUploadFile(file);
+                    }}
+                    disabled={uploading}
+                  />
+                </Form.Group>
+                <Button
+                  variant="primary"
+                  disabled={!uploadFile || uploading}
+                  onClick={async () => {
+                    if (!uploadFile || !campaignId) return;
+                    setUploading(true);
+                    setUploadResult(null);
+                    setUploadError(null);
+                    try {
+                      const formData = new FormData();
+                      formData.append('file', uploadFile);
+                      const res = await fetch(`/api/campaigns/${campaignId}/upload-recipients`, {
+                        method: 'POST',
+                        body: formData,
+                      });
+                      if (!res.ok) {
+                        const errText = await res.text();
+                        throw new Error(errText || 'Upload failed');
+                      }
+                      const data = await res.json();
+                      setUploadResult(data);
+                    } catch (err: any) {
+                      setUploadError(err?.message || 'Upload failed');
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                >
+                  {uploading ? <Spinner animation="border" size="sm" /> : 'Upload CSV'}
+                </Button>
+              </Form>
+              {uploading && (
+                <div className="mt-3">
+                  <Spinner animation="border" size="sm" /> Uploading...
+                </div>
+              )}
+              {uploadResult && (
+                <Alert variant="success" className="mt-3">
+                  <div>Inserted: {uploadResult.inserted}</div>
+                  <div>Updated: {uploadResult.updated}</div>
+                  {uploadResult.errors.length > 0 && (
+                    <details>
+                      <summary>Errors ({uploadResult.errors.length})</summary>
+                      <ul style={{ maxHeight: 150, overflowY: 'auto' }}>
+                        {uploadResult.errors.map((err, i) => (
+                          <li key={i} style={{ fontSize: 12 }}>{err}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </Alert>
+              )}
+              {uploadError && (
+                <Alert variant="danger" className="mt-3">{uploadError}</Alert>
+              )}
+            </Card.Body>
+          </Card>
         </div>
       )}
     </div>

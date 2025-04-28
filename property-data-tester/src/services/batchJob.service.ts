@@ -5,6 +5,7 @@ import api from './api';
  */
 export interface BatchJob {
   job_id?: number;
+  campaign_id?: number;
   status: string;
   criteria: Record<string, any>;
   total_records?: number;
