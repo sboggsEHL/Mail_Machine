@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Form, Row, Tabs, Tab, Badge } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, Form, Row, Tabs, Tab, Badge, Alert } from 'react-bootstrap';
 import { PropertyRadarApiParams } from '../types/api';
-import { 
-  CriterionDefinition, 
-  AllCriteriaDefinitions
-} from '../../shared/types/criteria';
-import { criteriaDefinitions } from '../utils/criteriaDefinitions'; // Assuming this remains the source
-import { CRITERIA_CATEGORIES } from '../constants/formConstants';
+// Import provider context and types
+import { useProvider } from '../context/ProviderContext';
+import { PROVIDER_MODULES, ProviderId, CriteriaDefinition } from '../providers';
+// Removed unused imports: CriterionDefinition, AllCriteriaDefinitions from '../../shared/types/criteria'
+// CRITERIA_CATEGORIES import removed as categories are now derived dynamically.
 
 // Import New Components
 import BasicParamsForm from './form/BasicParamsForm';
@@ -20,26 +19,63 @@ interface ApiParamsFormProps {
   onSubmitQuery: () => void; // Add a prop for handling the final submission
 }
 
+// Type for grouped criteria definitions used internally
+type GroupedCriteriaDefinitions = Record<string, CriteriaDefinition[]>;
+
 function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsFormProps) {
-  // State Management (remains mostly the same)
-  const [activeTab, setActiveTab] = useState<string>(CRITERIA_CATEGORIES[0]?.key || ''); // Default to first category key
-  const [criteriaDefs] = useState<AllCriteriaDefinitions>(criteriaDefinitions); // Removed setCriteriaDefs if not used
-  const [selectedCriterion, setSelectedCriterion] = useState<CriterionDefinition | null>(null);
-  // Removed loading, showAdvanced, dateSelectionType states as they are handled within child components or not needed
+  const { selectedProvider } = useProvider();
+  const providerModule = PROVIDER_MODULES[selectedProvider as ProviderId];
+
+  // Get available criteria definitions from the provider module
+  const availableCriteria: CriteriaDefinition[] = useMemo(() => providerModule?.criteria || [], [providerModule]);
+
+  // Group criteria definitions by category
+  const groupedCriteriaDefs: GroupedCriteriaDefinitions = useMemo(() => {
+    return availableCriteria.reduce((acc, criterion) => {
+      const categoryKey = criterion.category || 'other'; // Use 'other' if no category
+      if (!acc[categoryKey]) {
+        acc[categoryKey] = [];
+      }
+      acc[categoryKey].push(criterion);
+      return acc;
+    }, {} as GroupedCriteriaDefinitions);
+  }, [availableCriteria]);
+
+  // State Management
+  // Derive categories dynamically from the grouped criteria
+  const dynamicCategories = useMemo(() => Object.keys(groupedCriteriaDefs).map(key => ({
+      key: key,
+      // Simple label generation (can be improved if needed)
+      label: key.charAt(0).toUpperCase() + key.slice(1).replace(/&/g, ' & ')
+  })), [groupedCriteriaDefs]);
+
+  const [activeTab, setActiveTab] = useState<string>(''); // Initialize empty
+  const [selectedCriterion, setSelectedCriterion] = useState<CriteriaDefinition | null>(null);
 
   // --- Effects ---
 
   // Log criteria definitions for debugging on mount (optional, can be removed)
+  // Optional: Log grouped criteria for debugging
+  // Set initial active tab once dynamic categories are available
   useEffect(() => {
-    console.log('Available criteria categories:', Object.keys(criteriaDefinitions));
-    Object.keys(criteriaDefinitions).forEach(category => {
-      console.log(`Category ${category} has ${criteriaDefinitions[category].length} criteria`);
-    });
-  }, []); // Removed criteriaDefs dependency if it's static
-  
+    if (!activeTab && dynamicCategories.length > 0) {
+      setActiveTab(dynamicCategories[0].key);
+    }
+  }, [dynamicCategories, activeTab]);
+
+
   // Select first criterion in active category by default when tab changes or definitions load
   useEffect(() => {
-    const currentCategoryCriteria = criteriaDefs[activeTab] || [];
+    console.log(`Provider ${selectedProvider} criteria categories:`, Object.keys(groupedCriteriaDefs));
+    Object.keys(groupedCriteriaDefs).forEach(category => {
+      console.log(`Category ${category} has ${groupedCriteriaDefs[category].length} criteria`);
+    });
+  }, [groupedCriteriaDefs, selectedProvider]);
+  
+  // Select first criterion in active category by default when tab changes or definitions load
+  // Select first criterion in active category by default when tab changes or definitions load
+  useEffect(() => {
+    const currentCategoryCriteria = groupedCriteriaDefs[activeTab] || [];
     if (currentCategoryCriteria.length > 0) {
       // Only set a default selection if:
       // 1. There's no currently selected criterion, or
@@ -64,7 +100,7 @@ function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsForm
       setSelectedCriterion(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [activeTab, criteriaDefs]); // Keep apiParams.criteria out to avoid loops when selecting existing
+  }, [activeTab, groupedCriteriaDefs, selectedCriterion, apiParams.criteria]); // Dependencies updated
 
   // --- Handlers ---
 
@@ -99,12 +135,12 @@ function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsForm
   };
 
   // Handles selecting a criterion from the list
-  const handleCriterionSelect = (criterion: CriterionDefinition) => {
+  const handleCriterionSelect = (criterion: CriteriaDefinition) => { // Use updated type
     setSelectedCriterion(criterion);
   };
 
   // Handles selecting a criterion by clicking its badge in the summary
-  const handleSelectCriterionFromBadge = (categoryKey: string, definition: CriterionDefinition) => {
+  const handleSelectCriterionFromBadge = (categoryKey: string, definition: CriteriaDefinition) => { // Use updated type
     setActiveTab(categoryKey);
     setSelectedCriterion(definition);
   };
@@ -119,7 +155,7 @@ function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsForm
 
   // --- Rendering ---
 
-  const currentCategoryCriteria = criteriaDefs[activeTab] || [];
+  const currentCategoryCriteria = groupedCriteriaDefs[activeTab] || [];
   const selectedCriterionValue = selectedCriterion ? (apiParams.criteria as any)?.[selectedCriterion.name] : undefined;
 
   return (
@@ -144,56 +180,67 @@ function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsForm
           {/* Search Criteria Section */}
           <h5 className="mb-3">Search Criteria</h5>
           
-          <Tabs
-            activeKey={activeTab}
-            onSelect={handleTabSelect}
-            className="mb-3"
-            variant="pills"
-            id="criteria-tabs" // Added ID for accessibility/testing
-          >
-            {CRITERIA_CATEGORIES.map((category) => {
-              const categoryHasActiveCriteria = Object.entries(apiParams.criteria || {}).some(
-                ([criteriaName, value]) => value !== undefined && criteriaDefs[category.key]?.some(def => def.name === criteriaName)
-              );
-              return (
-                <Tab
-                  key={category.key}
-                  eventKey={category.key}
-                  title={
-                    <span>
-                      {category.label}
-                      {categoryHasActiveCriteria && (
-                        <Badge bg="success" className="ms-2" pill>
-                          <small>✓</small>
-                        </Badge>
-                      )}
-                    </span>
-                  }
-                  className="pt-3" // Keep padding for content below tabs
-                >
-                  {/* Render Selector and Input side-by-side */}
-                  <Row>
-                    <CriteriaSelector
-                      categoryCriteria={currentCategoryCriteria}
-                      selectedCriterion={selectedCriterion}
-                      activeCriteria={apiParams.criteria}
-                      onCriterionSelect={handleCriterionSelect}
-                    />
-                    <CriteriaInputRenderer
-                      selectedCriterion={selectedCriterion}
-                      criterionValue={selectedCriterionValue}
-                      onCriteriaChange={handleCriteriaChange}
-                    />
-                  </Row>
-                </Tab>
-              );
-            })}
-          </Tabs>
+          {availableCriteria.length === 0 ? (
+            <Alert variant="warning">No criteria definitions available for the selected provider ({selectedProvider}).</Alert>
+          ) : (
+            <Tabs
+              activeKey={activeTab}
+              onSelect={handleTabSelect}
+              className="mb-3"
+              variant="pills"
+              id="criteria-tabs"
+            >
+              {dynamicCategories.map((category) => {
+                // Criteria for this category are already filtered in groupedCriteriaDefs
+                const criteriaForThisCategory = groupedCriteriaDefs[category.key];
+                // No need to check length again as dynamicCategories is derived from non-empty groups
+
+                const categoryHasActiveCriteria = Object.entries(apiParams.criteria || {}).some(
+                  ([criteriaName, value]) => value !== undefined && criteriaForThisCategory.some(def => def.name === criteriaName)
+                );
+
+                return (
+                  <Tab
+                    key={category.key}
+                    eventKey={category.key}
+                    title={
+                      <span>
+                        {category.label} {/* Use derived label */}
+                        {categoryHasActiveCriteria && (
+                          <Badge bg="success" className="ms-2" pill>
+                            <small>✓</small>
+                          </Badge>
+                        )}
+                      </span>
+                    }
+                    className="pt-3"
+                  >
+                    {/* Ensure activeTab matches current category before rendering content */}
+                    {activeTab === category.key && (
+                       <Row>
+                        <CriteriaSelector
+                          categoryCriteria={criteriaForThisCategory}
+                          selectedCriterion={selectedCriterion}
+                          activeCriteria={apiParams.criteria}
+                          onCriterionSelect={handleCriterionSelect}
+                        />
+                        <CriteriaInputRenderer
+                          selectedCriterion={selectedCriterion}
+                          criterionValue={selectedCriterionValue}
+                          onCriteriaChange={handleCriteriaChange}
+                        />
+                      </Row>
+                    )}
+                  </Tab>
+                );
+              })}
+            </Tabs>
+          )}
           
           {/* Active Criteria Display & Summary Section */}
           <ActiveCriteriaDisplay
             apiParams={apiParams}
-            criteriaDefs={criteriaDefs}
+            criteriaDefs={groupedCriteriaDefs} // Pass grouped definitions
             onRemoveCriterion={(name) => handleCriteriaChange(name, undefined)} // Reuse handler
             onSelectCriterion={handleSelectCriterionFromBadge}
             onSubmit={onSubmitQuery} // Pass the submit handler from props

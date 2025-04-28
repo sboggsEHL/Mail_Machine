@@ -43,6 +43,7 @@ router.post('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 error: 'List name cannot be empty'
             });
         }
+        // Criteria is already formatted from the frontend
         const listData = {
             Criteria: criteria,
             ListName: listName,

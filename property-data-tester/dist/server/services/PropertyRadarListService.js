@@ -153,10 +153,10 @@ class PropertyRadarListService {
      */
     createList(listData) {
         return __awaiter(this, void 0, void 0, function* () {
-            // Check if criteria might result in too many properties
             try {
                 // First, get an estimate of how many properties match the criteria
-                const previewResponse = yield axios_1.default.post(`${this.apiBaseUrl}/v1/properties`, { Criteria: listData.Criteria }, {
+                const previewResponse = yield axios_1.default.post(`${this.apiBaseUrl}/v1/properties`, { Criteria: listData.Criteria }, // Wrap criteria array in Criteria property
+                {
                     params: {
                         Fields: 'RadarID',
                         Limit: 1,
@@ -175,10 +175,32 @@ class PropertyRadarListService {
                     console.warn(`List name exceeds 50 characters, it will be truncated by PropertyRadar`);
                     // We don't truncate here as PropertyRadar will do it automatically
                 }
-                // Create the list
-                const response = yield this.executeWithRetry(() => axios_1.default.post(`${this.apiBaseUrl}/v1/lists`, listData, {
-                    headers: this.getAuthHeaders()
-                }));
+                // Create the list with proper error handling
+                const response = yield this.executeWithRetry(() => {
+                    // Send the complete object structure as per API spec
+                    const requestBody = {
+                        ListName: listData.ListName,
+                        ListType: listData.ListType,
+                        isMonitored: listData.isMonitored,
+                        Criteria: listData.Criteria
+                    };
+                    console.log('Creating PropertyRadar list with payload:', JSON.stringify(requestBody, null, 2));
+                    return axios_1.default.post(`${this.apiBaseUrl}/v1/lists`, requestBody, {
+                        headers: this.getAuthHeaders(),
+                        validateStatus: (status) => status < 500 // Don't throw for 4xx errors
+                    }).catch(error => {
+                        var _a, _b, _c;
+                        if (error.response) {
+                            console.error('PropertyRadar API error response:', {
+                                status: error.response.status,
+                                data: error.response.data,
+                                headers: error.response.headers
+                            });
+                            console.log('AXIOS ERROR', (_a = error.response) === null || _a === void 0 ? void 0 : _a.data, (_b = error.response) === null || _b === void 0 ? void 0 : _b.status, (_c = error.response) === null || _c === void 0 ? void 0 : _c.headers);
+                        }
+                        throw error;
+                    });
+                });
                 if (response.data && response.data.results && response.data.results.length > 0) {
                     return response.data.results[0];
                 }

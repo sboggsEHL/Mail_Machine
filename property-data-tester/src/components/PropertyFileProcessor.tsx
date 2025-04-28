@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { getProviderApi } from '../services/providerApiFactory';
+import { useProvider } from '../context/ProviderContext';
 
 interface ProcessingStats {
   processedCount: number;
@@ -14,18 +15,17 @@ const PropertyFileProcessor: React.FC = () => {
   const [stats, setStats] = useState<ProcessingStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const { selectedProvider } = useProvider();
+  const api = getProviderApi(selectedProvider);
+
   const handleProcessFiles = async () => {
     setIsProcessing(true);
     setError(null);
     setStats(null);
     
     try {
-      const response = await axios.post('/api/property-files/process', {
-        limit,
-        cleanup
-      });
-      
-      setStats(response.data);
+      const data = await api.processPropertyFiles?.({ limit, cleanup });
+      setStats(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while processing files');
       console.error('Error processing files:', err);

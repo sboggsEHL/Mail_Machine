@@ -1,4 +1,4 @@
-# Technical Context
+9# Technical Context
 
 ## Technologies Used
 - **PostgreSQL**: Primary database system for storing all property and mailing data
@@ -36,6 +36,19 @@
   - Batch job processing must be optimized for large datasets
 - **Data Validation**: Property data from lead providers must be validated and standardized before use
 - **Asynchronous Processing**: Long-running operations must be handled asynchronously to maintain API responsiveness
+
+
+## Frontend Architecture
+- **Modular Provider Configurations**: The `property-data-tester` frontend uses a modular structure under `src/providers/` to manage configurations specific to each data provider (e.g., PropertyRadar, FirstAmerican).
+  - Each provider has its own subdirectory (e.g., `src/providers/PropertyRadar/`).
+  - Within each provider directory:
+    - `fields.ts`: Defines the list of available data fields for selection.
+    - `criteria.ts`: Defines static criteria definitions used for building UI forms (Note: some criteria might still be fetched dynamically from the API for other components).
+    - `parameters.ts`: Defines basic static API parameters (e.g., limit, start).
+    - `index.ts`: Exports all configurations from the directory.
+  - `src/providers/types.ts`: Contains shared TypeScript interfaces (`FieldDefinition`, `CriteriaDefinition`, `ParameterDefinition`) for consistency.
+  - `src/providers/index.ts`: Acts as a central registry (`PROVIDER_MODULES`) mapping provider IDs to their respective configuration modules.
+- **Dynamic UI Loading**: Components like `FieldSelector.tsx` and `ApiParamsForm.tsx` use the `ProviderContext` to get the `selectedProvider` ID and then load the appropriate configurations dynamically from the `PROVIDER_MODULES` registry.
 
 ## Dependencies
 - **Node.js 14+**: Required for all server-side functionality

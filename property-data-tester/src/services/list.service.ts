@@ -1,4 +1,5 @@
 import api from './api';
+import { PropertyRadarCriteria } from '../types/api'; // Import the type
 
 class ListService {
   /**
@@ -82,15 +83,58 @@ class ListService {
    * @param isMonitored Whether the list is monitored (default: 0)
    * @returns API response
    */
-  async createList(criteria: any[], listName: string, listType = 'static', isMonitored = 0) {
+  async createList(criteria: PropertyRadarCriteria, listName: string, listType = 'static', isMonitored = 0) {
     try {
-      const response = await api.post('/lists', {
-        criteria,
-        listName,
-        listType,
-        isMonitored
-      });
-      
+      // Transform criteria to match PropertyRadar API requirements
+      const criteriaArray = Object.entries(criteria)
+        .filter(([_, value]) => value !== undefined && value !== null)
+        .map(([key, value]) => {
+          // Special handling for PropertyType
+          if (key === 'PropertyType' && Array.isArray(value)) {
+            return {
+              name: key,
+              value: [
+                {
+                  name: 'PType',
+                  value: value
+                }
+              ]
+            };
+          }
+          // Handle boolean values
+          if (typeof value === 'boolean') {
+            return {
+              name: key,
+              value: [value ? "1" : "0"]
+            };
+          }
+          // Handle arrays
+          if (Array.isArray(value)) {
+            return {
+              name: key,
+              value: value
+            };
+          }
+          // Handle other values
+          return {
+            name: key,
+            value: [value.toString()]
+          };
+        });
+
+      // Build request body according to PropertyRadar API docs
+      const requestBody: any = {
+        ListName: listName,
+        ListType: listType,
+        isMonitored: isMonitored
+      };
+      // Include Criteria for static and dynamic lists, omit for import lists
+      if (listType === 'static' || listType === 'dynamic') {
+        requestBody.Criteria = criteriaArray;
+      }
+      // For import lists, do NOT include Criteria
+
+      const response = await api.post('/lists', requestBody);
       return await response.data;
     } catch (error) {
       console.error('Error creating list:', error);
@@ -101,6 +145,26 @@ class ListService {
     }
   }
   
+
+  /**
+   * Preview property count
+   * @param criteria Search criteria
+   * @returns Preview result with count
+   */
+  async previewPropertyCount(criteria: PropertyRadarCriteria): Promise<{ success: boolean, count?: number, error?: string }> {
+    try {
+      // Send the raw criteria object (not transformed) in the 'criteria' property
+      const response = await api.post('/properties/preview', { criteria });
+      return response.data;
+    } catch (error) {
+      console.error('Error previewing property count:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to preview count'
+      };
+    }
+  }
+
   /**
    * Process multiple lists (excluding specified duplicates)
    */

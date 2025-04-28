@@ -1,10 +1,10 @@
 import React from 'react';
 import { Form } from 'react-bootstrap';
-import { CriterionDefinition } from '../../../../shared/types/criteria'; // Adjust path as needed
+import { CriteriaDefinition } from '../../../providers'; // Corrected import path
 
 interface MultiValueInputProps {
   value: string[] | undefined;
-  definition: CriterionDefinition; // Needed for example text
+  definition: CriteriaDefinition; // Corrected type name and needed for example text
   onChange: (value: string[] | undefined) => void;
 }
 

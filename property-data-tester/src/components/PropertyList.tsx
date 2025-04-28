@@ -3,6 +3,8 @@ import { Card, Table, Button, Pagination, Modal, Form, Alert } from 'react-boots
 import { PropertyListProps } from '../types/components';
 import { PropertyRadarProperty } from '../types/api';
 import { DnmForm } from '../types/api';
+import { getProviderApi } from '../services/providerApiFactory';
+import { useProvider } from '../context/ProviderContext';
 
 interface User {
   id: number;
@@ -62,16 +64,15 @@ function PropertyList({ properties, selectedFields }: PropertyListProps) {
     }
   };
   
+  const { selectedProvider } = useProvider();
+  const api = getProviderApi(selectedProvider);
+
   // Fetch current user on component mount
   useEffect(() => {
     const fetchCurrentUser = async (): Promise<void> => {
       try {
-        const response = await fetch('http://localhost:3001/api/current-user', {
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
+        const data = await api.getCurrentUser?.();
+        if (data && data.user) {
           setCurrentUser(data.user);
         }
       } catch (error) {
@@ -80,7 +81,7 @@ function PropertyList({ properties, selectedFields }: PropertyListProps) {
     };
     
     fetchCurrentUser();
-  }, []);
+  }, [api]);
   
   // Open DNM modal
   const openDnmModal = (property: PropertyRadarProperty): void => {
@@ -113,26 +114,16 @@ function PropertyList({ properties, selectedFields }: PropertyListProps) {
     setDnmStatus({ loading: true, error: null, success: false });
     
     try {
-      const response = await fetch('http://localhost:3001/api/add-to-dnm', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(dnmForm)
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
+      const data = await api.addToDnm?.(dnmForm);
+
+      if (data && data.success) {
         setDnmStatus({
           loading: false,
           error: null,
           success: true,
           message: data.message
         });
-        
-        // Reset form after successful submission
+
         setTimeout(() => {
           setShowDnmModal(false);
           setDnmStatus({ loading: false, error: null, success: false });
@@ -140,7 +131,7 @@ function PropertyList({ properties, selectedFields }: PropertyListProps) {
       } else {
         setDnmStatus({
           loading: false,
-          error: data.error || 'Failed to add to DNM registry',
+          error: data?.error || 'Failed to add to DNM registry',
           success: false
         });
       }

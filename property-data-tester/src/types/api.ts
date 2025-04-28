@@ -7,16 +7,16 @@ export interface ApiResponse<T> {
 }
 
 export interface PropertyRadarCriteria {
-  state?: string;
-  propertyTypes?: string[];
-  loanTypes?: string[];
+  State?: string[];
+  PropertyType?: string[];
+  FirstLoanType?: string[];
   isSameMailingOrExempt?: boolean;
   isMailVacant?: boolean;
   inForeclosure?: boolean;
   isListedForSale?: boolean;
-  equityPercent?: string;
-  totalLoanBalance?: string;
-  firstRate?: string;
+  EquityPercent?: string;
+  TotalLoanBalance?: string;
+  FirstRate?: string;
 }
 
 export interface PropertyRadarApiParams {

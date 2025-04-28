@@ -11,14 +11,12 @@ export function generateListName(apiParams: PropertyRadarApiParams, totalRecords
   const nameParts: string[] = [];
   
   // State criteria
-  if (criteria.state) {
-    nameParts.push(Array.isArray(criteria.state)
-      ? criteria.state.join(', ') + ' Properties'
-      : criteria.state + ' Properties');
+  if (criteria.State) {
+    nameParts.push(criteria.State.join(', ') + ' Properties');
   }
   
   // Property Type
-  if (criteria.propertyTypes && criteria.propertyTypes.length > 0) {
+  if (criteria.PropertyType && criteria.PropertyType.length > 0) {
     const propertyTypeMap: Record<string, string> = {
       'SFR': 'Single Family',
       'CND': 'Condo',
@@ -27,7 +25,7 @@ export function generateListName(apiParams: PropertyRadarApiParams, totalRecords
       'LND': 'Land'
     };
     
-    const types = criteria.propertyTypes
+    const types = criteria.PropertyType
       .map(type => propertyTypeMap[type] || type)
       .join(', ');
     
@@ -35,8 +33,8 @@ export function generateListName(apiParams: PropertyRadarApiParams, totalRecords
   }
   
   // Loan Types
-  if (criteria.loanTypes && criteria.loanTypes.length > 0) {
-    nameParts.push(criteria.loanTypes.join(', ') + ' Loans');
+  if (criteria.FirstLoanType && criteria.FirstLoanType.length > 0) {
+    nameParts.push(criteria.FirstLoanType.join(', ') + ' Loans');
   }
   
   // Add record count

@@ -24,7 +24,7 @@ class PropertyRadarCriteriaMapper {
         if (criteriaObj.state) {
             result.push({
                 name: "State",
-                value: [criteriaObj.state]
+                value: Array.isArray(criteriaObj.state) ? criteriaObj.state : [criteriaObj.state] // Ensure value is a flat array
             });
         }
         // Add property types if present
