@@ -1,13 +1,13 @@
 import React from 'react';
 import { ListGroup, Badge, Col } from 'react-bootstrap';
-import { CriterionDefinition } from '../../../shared/types/criteria';
+import { CriteriaDefinition } from '../../providers'; // Corrected import path
 import { PropertyRadarApiParams } from '../../types/api';
 
 interface CriteriaSelectorProps {
-  categoryCriteria: CriterionDefinition[];
-  selectedCriterion: CriterionDefinition | null;
+  categoryCriteria: CriteriaDefinition[]; // Corrected typo
+  selectedCriterion: CriteriaDefinition | null; // Corrected typo
   activeCriteria: PropertyRadarApiParams['criteria'];
-  onCriterionSelect: (criterion: CriterionDefinition) => void;
+  onCriterionSelect: (criterion: CriteriaDefinition) => void; // Corrected typo
 }
 
 const CriteriaSelector: React.FC<CriteriaSelectorProps> = ({

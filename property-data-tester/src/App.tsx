@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Button, Alert, Navbar, Nav, NavDropdown } from 'react-bootstrap';
+import { Container, Row, Col, Button, Alert, Navbar, Nav } from 'react-bootstrap'; // Removed unused NavDropdown
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import FieldSelector from './components/FieldSelector';
@@ -14,11 +14,15 @@ import PropertyFileProcessor from './components/PropertyFileProcessor';
 import ListsPage from './pages/ListsPage';
 import ListProcessPage from './pages/ListProcessPage';
 import { PropertyRadarProperty, PropertyRadarApiParams } from './types/api';
-import { createBatchJob } from './services/batchJob.service';
+// Removed unused import for createBatchJob
 import { DATA_PROVIDERS, DataProvider } from './constants/providers';
 import { useProvider } from './context/ProviderContext';
 import { getProviderApi } from './services/providerApiFactory';
 import authService from './services/auth.service';
+import { listService } from './services/list.service';
+import CreateListModal from './components/CreateListModal';
+import { generateListName } from './utils/listUtils';
+// Removed incorrect import of PropertyRadarCriteriaMapper from server code
 
 interface FetchStatus {
   loading: boolean;
@@ -66,8 +70,15 @@ function App() {
   const [properties, setProperties] = useState<PropertyRadarProperty[]>([]);
   const [fetchStatus, setFetchStatus] = useState<FetchStatus>({ loading: false, error: null });
   const [insertStatus, setInsertStatus] = useState<InsertStatus>({ loading: false, error: null });
+
+  // State for List Creation
+  const [showCreateListModal, setShowCreateListModal] = useState<boolean>(false);
+  const [listCreationTotalRecords, setListCreationTotalRecords] = useState<number>(0);
+  const [listCreationSuggestedName, setListCreationSuggestedName] = useState<string>('');
+  const [isCalculatingPreview, setIsCalculatingPreview] = useState<boolean>(false);
+  const [listCreationError, setListCreationError] = useState<string | null>(null);
   const [insertResults, setInsertResults] = useState<InsertResultsData | null>(null);
-  const [batchProcessing, setBatchProcessing] = useState<boolean>(false);
+  // Removed unused batchProcessing state
   const [showCampaignModal, setShowCampaignModal] = useState<boolean>(false);
 
   // Listen for URL hash changes
@@ -226,41 +237,84 @@ if (user) {
     }
   };
 
-  const handleCreateBatchJob = async (): Promise<void> => {
-    if (selectedFields.length === 0) {
-      setFetchStatus({ loading: false, error: 'Please select at least one field' });
+  // Removed unused handleCreateBatchJob function
+
+
+  // --- List Creation Handlers ---
+  const handleCreateListClick = async () => {
+    console.log('Entering handleCreateListClick. Provider:', selectedProvider);
+
+    // Check 1: Correct Provider
+    if (selectedProvider !== 'PropertyRadar') { // Use correct ID
+      console.log('Exiting: Provider is not PropertyRadar');
       return;
     }
+    console.log('Provider check passed.');
+
+    // Check 2: Criteria Exist
+    console.log('Checking criteria:', apiParams.criteria);
+    if (!apiParams.criteria || Object.keys(apiParams.criteria).length === 0) {
+      console.log('Exiting: Criteria are empty');
+      setListCreationError('Please select at least one search criterion.');
+      alert('Please select at least one search criterion.');
+      return;
+    }
+    console.log('Criteria check passed.');
+
+    console.log('Criteria check passed. Setting loading state and initiating preview call...'); // Log before API call
+    setIsCalculatingPreview(true);
+    setListCreationError(null);
 
     try {
-      setBatchProcessing(true);
-      
-      // Create a batch job with the current criteria
-      const job = await createBatchJob({
-        fields: selectedFields,
-        limit: apiParams.limit,
-        start: apiParams.start,
-        purchase: apiParams.purchase,
-        criteria: apiParams.criteria
-      });
-      
-      if (job) {
-        // Show success message and navigate to batch jobs page
-        alert(`Batch job created successfully! Navigating to Batch Jobs tab to view progress.`);
-        setCurrentPage('batch-jobs');
-        window.location.hash = 'batch-jobs'; // Update hash
+      // Call the preview function (ensure it exists in listService or similar)
+      const previewData = await listService.previewPropertyCount(apiParams.criteria);
+
+      if (previewData.success && previewData.count !== undefined) {
+        setListCreationTotalRecords(previewData.count);
+        const suggestedName = generateListName(apiParams, previewData.count);
+        setListCreationSuggestedName(suggestedName);
+        console.log(`Preview successful, count: ${previewData.count}. Showing modal.`); // Add log
+        setShowCreateListModal(true);
       } else {
-        throw new Error('Failed to create batch job');
+        throw new Error(previewData.error || 'Failed to calculate matching records.');
       }
     } catch (error) {
-      setFetchStatus({
-        loading: false,
-        error: error instanceof Error ? error.message : 'An unknown error occurred creating batch job'
-      });
+      console.error('Error calculating records:', error);
+      const errorMsg = error instanceof Error ? error.message : 'An unknown error occurred during preview.';
+      console.error('Error during preview API call:', error); // Log the full error
+      setListCreationError(errorMsg);
+      alert(`Error getting preview count: ${errorMsg}`); // Show alert to user
     } finally {
-      setBatchProcessing(false);
+      setIsCalculatingPreview(false);
     }
   };
+
+  const handleCreateList = async (finalListName: string) => {
+    // This function is passed to the modal's onCreateList prop
+    try {
+      // Pass the criteria object directly; transformation happens on the backend
+      const response = await listService.createList(
+        apiParams.criteria,
+        finalListName,
+        'static',
+        0
+      );
+
+      if (response.success) {
+        alert(`List "${finalListName}" created successfully!`);
+        // Optionally: Navigate to lists page or refresh list data
+      } else {
+        throw new Error(response.error || 'Failed to create list');
+      }
+    } catch (error) {
+      console.error('Error creating list:', error);
+      // Re-throw error so the modal can display it
+      throw error;
+    }
+  };
+
+
+// Removed duplicate handler function declarations that were incorrectly nested
 
   // Loading state
   if (isLoading) {
@@ -407,17 +461,28 @@ if (user) {
                 />
                 {/* The submit button is now rendered within ApiParamsForm */}
                 {/* The div below contains the "Force Background Processing" button */}
-                <div className="d-flex gap-2 mt-3"> 
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    onClick={handleCreateBatchJob}
-                    disabled={fetchStatus.loading || batchProcessing}
-                    title="Process this request in the background even if it's small"
-                  >
-                    {batchProcessing ? 'Processing...' : 'Force Background Processing'}
-                  </Button>
+                {/* --- Replace 'Force Background Processing' Button --- */}
+                <div className="d-flex gap-2 mt-3">
+                  {selectedProvider === 'PropertyRadar' && ( // Conditionally render for PropertyRadar
+                    <Button
+                      variant="success" // Or another appropriate variant
+                      size="lg"
+                      onClick={() => { console.log(`Create List button clicked! Provider: ${selectedProvider}`); handleCreateListClick(); }}
+                      disabled={isCalculatingPreview || Object.keys(apiParams.criteria || {}).length === 0}
+                      title="Create a PropertyRadar list from the current criteria"
+                    >
+                      {isCalculatingPreview ? 'Calculating...' : 'Create List'}
+                    </Button>
+                  )}
+                  {/* Removed the old 'Force Background Processing' button */}
                 </div>
+
+                {/* Display Preview/Creation Errors */}
+                {listCreationError && (
+                  <Alert variant="danger" className="mt-3">
+                    {listCreationError}
+                  </Alert>
+                )}
                 
                 {fetchStatus.error && (
                   <Alert variant="danger" className="mt-3">
@@ -515,6 +580,14 @@ if (user) {
           <ListProcessPage listId={currentPage.split('/')[1]} />
         )}
       </Container>
+      {/* --- Render Modal (outside specific page views) --- */}
+      <CreateListModal
+        show={showCreateListModal}
+        onHide={() => setShowCreateListModal(false)}
+        suggestedName={listCreationSuggestedName}
+        totalRecords={listCreationTotalRecords}
+        onCreateList={handleCreateList}
+      />
     </>
   );
 }

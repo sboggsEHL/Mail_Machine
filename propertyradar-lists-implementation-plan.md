@@ -124,12 +124,12 @@ app.use('/api/lists', listRoutes);
 
 #### 2.1 List Creation Service
 
-Create a service to handle list creation API calls:
+Ensure the service handles list creation API calls and includes a method for previewing counts:
 
 ```typescript
 // property-data-tester/src/services/list.service.ts
 
-// Add this method to the existing list service
+// Ensure this method exists in the list service
 /**
  * Create a new list
  * @param criteria Search criteria
@@ -140,25 +140,38 @@ Create a service to handle list creation API calls:
  */
 async createList(criteria: any[], listName: string, listType = 'static', isMonitored = 0) {
   try {
-    const response = await fetch('/api/lists', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        criteria,
-        listName,
-        listType,
-        isMonitored
-      })
+    // Use the configured api instance (e.g., Axios)
+    const response = await api.post('/lists', {
+      criteria,
+      listName,
+      listType,
+      isMonitored
     });
     
-    return await response.json();
+    return await response.data; // Assuming Axios response structure
   } catch (error) {
     console.error('Error creating list:', error);
     return {
       success: false,
-      error: 'Failed to create list'
+      error: error instanceof Error ? error.message : 'Failed to create list'
+    };
+  }
+}
+
+/**
+ * Preview property count (Add if not already present in a suitable service)
+ * @param criteria Search criteria
+ * @returns Preview result with count
+ */
+async previewPropertyCount(criteria: any): Promise<{ success: boolean, count?: number, error?: string }> {
+  try {
+    const response = await api.post('/properties/preview', { criteria });
+    return response.data; // Assuming backend returns { success: true, count: number }
+  } catch (error) {
+    console.error('Error previewing property count:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to preview count'
     };
   }
 }
@@ -327,101 +340,149 @@ export function generateListName(apiParams: PropertyRadarApiParams, totalRecords
 }
 ```
 
-#### 2.4 Enhance ApiParamsForm Component
+#### 2.4 Enhance App Component for UI Integration
 
-Modify the ApiParamsForm component to include list creation functionality:
+Modify the main `App.tsx` component to include list creation functionality:
 
 ```tsx
-// property-data-tester/src/components/ApiParamsForm.tsx
+// property-data-tester/src/App.tsx
 
-// Add these imports
+// --- Add necessary imports ---
 import { useState } from 'react';
-import { listService } from '../services/list.service';
-import CreateListModal from './CreateListModal';
-import { generateListName } from '../utils/listUtils';
+import { listService } from './services/list.service'; // Assuming preview function is here too
+import CreateListModal from './components/CreateListModal';
+import { generateListName } from './utils/listUtils';
+import { Button, Alert } from 'react-bootstrap'; // Ensure Button/Alert are imported
 
-// Add these state variables inside the component
-const [showCreateListModal, setShowCreateListModal] = useState<boolean>(false);
-const [totalRecords, setTotalRecords] = useState<number>(0);
-const [isCalculating, setIsCalculating] = useState<boolean>(false);
+function App() {
+  // --- existing state ---
+  const { selectedProvider, setSelectedProvider } = useProvider(); // Get provider state
+  const [apiParams, setApiParams] = useState<PropertyRadarApiParams>(/* initial state */);
 
-// Add this function inside the component
-const handleCreateListClick = async () => {
-  if (Object.keys(apiParams.criteria).length === 0) {
-    alert('Please select at least one search criterion');
-    return;
-  }
-  
-  setIsCalculating(true);
-  
-  try {
-    // Calculate total matching records
-    const previewResponse = await fetch('/api/properties/preview', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        criteria: apiParams.criteria
-      })
-    });
-    
-    const previewData = await previewResponse.json();
-    
-    if (previewData.success) {
-      setTotalRecords(previewData.count || 0);
-      setShowCreateListModal(true);
-    } else {
-      alert('Failed to calculate matching records. Please try again.');
+  // --- Add state for list creation ---
+  const [showCreateListModal, setShowCreateListModal] = useState<boolean>(false);
+  const [listCreationTotalRecords, setListCreationTotalRecords] = useState<number>(0);
+  const [listCreationSuggestedName, setListCreationSuggestedName] = useState<string>('');
+  const [isCalculatingPreview, setIsCalculatingPreview] = useState<boolean>(false);
+  const [listCreationError, setListCreationError] = useState<string | null>(null);
+
+  // --- Add handler functions ---
+
+  const handleCreateListClick = async () => {
+    if (selectedProvider !== 'PR') return; // Only for PropertyRadar
+
+    if (!apiParams.criteria || Object.keys(apiParams.criteria).length === 0) {
+      setListCreationError('Please select at least one search criterion.');
+      return;
     }
-  } catch (error) {
-    console.error('Error calculating records:', error);
-    alert('An error occurred. Please try again.');
-  } finally {
-    setIsCalculating(false);
-  }
-};
 
-// Add this function inside the component
-const handleCreateList = async (listName: string) => {
-  try {
-    const response = await listService.createList(
-      apiParams.criteria,
-      listName,
-      'static',
-      0
-    );
-    
-    if (response.success) {
-      alert(`List "${listName}" created successfully!`);
-    } else {
-      throw new Error(response.error || 'Failed to create list');
+    setIsCalculatingPreview(true);
+    setListCreationError(null);
+
+    try {
+      // Call the preview function (ensure it exists in listService or similar)
+      const previewData = await listService.previewPropertyCount(apiParams.criteria);
+
+      if (previewData.success && previewData.count !== undefined) {
+        setListCreationTotalRecords(previewData.count);
+        const suggestedName = generateListName(apiParams, previewData.count);
+        setListCreationSuggestedName(suggestedName);
+        setShowCreateListModal(true);
+      } else {
+        throw new Error(previewData.error || 'Failed to calculate matching records.');
+      }
+    } catch (error) {
+      console.error('Error calculating records:', error);
+      setListCreationError(error instanceof Error ? error.message : 'An error occurred during preview.');
+    } finally {
+      setIsCalculatingPreview(false);
     }
-  } catch (error) {
-    console.error('Error creating list:', error);
-    throw error;
-  }
-};
+  };
 
-// Add this JSX near the submit button in the render section
-<Button
-  variant="success"
-  size="lg"
-  className="mt-2"
-  disabled={Object.keys(apiParams.criteria).length === 0 || isCalculating}
-  onClick={handleCreateListClick}
->
-  {isCalculating ? 'Calculating...' : 'Create List'}
-</Button>
+  const handleCreateList = async (finalListName: string) => {
+    // This function is passed to the modal's onCreateList prop
+    try {
+      const response = await listService.createList(
+        apiParams.criteria, // Use current criteria
+        finalListName,
+        'static',
+        0
+      );
 
-// Add this JSX at the end of the component, before the closing tag
-<CreateListModal
-  show={showCreateListModal}
-  onHide={() => setShowCreateListModal(false)}
-  suggestedName={generateListName(apiParams, totalRecords)}
-  totalRecords={totalRecords}
-  onCreateList={handleCreateList}
-/>
+      if (response.success) {
+        alert(`List "${finalListName}" created successfully!`);
+        // Optionally: Navigate to lists page or refresh list data
+      } else {
+        throw new Error(response.error || 'Failed to create list');
+      }
+    } catch (error) {
+      console.error('Error creating list:', error);
+      // Re-throw error so the modal can display it
+      throw error;
+    }
+  };
+
+  // --- Modify JSX Rendering ---
+
+  return (
+    <>
+      {/* --- existing Navbar --- */}
+
+      <Container>
+        {currentPage === 'main' && (
+          <>
+            {/* --- existing main page content (FieldSelector, ApiParamsForm) --- */}
+            
+            <Row className="mb-4">
+              {/* --- Col for FieldSelector --- */}
+              <Col lg={6}>
+                {/* --- ApiParamsForm --- */}
+
+                {/* --- Replace 'Force Background Processing' Button --- */}
+                <div className="d-flex gap-2 mt-3">
+                  {selectedProvider === 'PR' && ( // Conditionally render for PropertyRadar
+                    <Button
+                      variant="success" // Or another appropriate variant
+                      size="lg"
+                      onClick={handleCreateListClick}
+                      disabled={isCalculatingPreview || Object.keys(apiParams.criteria || {}).length === 0}
+                      title="Create a PropertyRadar list from the current criteria"
+                    >
+                      {isCalculatingPreview ? 'Calculating...' : 'Create List'}
+                    </Button>
+                  )}
+                  {/* Removed the old 'Force Background Processing' button */}
+                </div>
+
+                {/* Display Preview/Creation Errors */}
+                {listCreationError && (
+                  <Alert variant="danger" className="mt-3">
+                    {listCreationError}
+                  </Alert>
+                )}
+
+                {/* --- existing fetchStatus error Alert --- */}
+              </Col>
+            </Row>
+
+            {/* --- existing PropertyList, InsertResults, etc. --- */}
+          </>
+        )}
+
+        {/* --- other page route rendering (Campaigns, Batch Jobs, etc.) --- */}
+      </Container>
+
+      {/* --- Render Modal (outside specific page views) --- */}
+      <CreateListModal
+        show={showCreateListModal}
+        onHide={() => setShowCreateListModal(false)}
+        suggestedName={listCreationSuggestedName}
+        totalRecords={listCreationTotalRecords}
+        onCreateList={handleCreateList}
+      />
+    </>
+  );
+}
 ```
 
 #### 2.5 Add Preview API Endpoint
@@ -514,17 +575,21 @@ async previewProperties(criteria: any): Promise<{ count: number }> {
 
 ## Implementation Steps
 
-1. **Backend Implementation**:
-   - Enhance PropertyRadarListService with createList method
-   - Create API endpoint for list creation
-   - Implement preview functionality in PropertyRadarProvider
-   - Add preview API endpoint
+1.  **Backend Implementation**:
+    *   Ensure `PropertyRadarListService` has `createList` method (with preview/validation).
+    *   Ensure `POST /api/lists` endpoint exists and functions.
+    *   Ensure `PropertyRadarProvider` has `previewProperties` method.
+    *   Ensure `POST /api/properties/preview` endpoint exists and uses the provider's method.
 
-2. **Frontend Implementation**:
-   - Create list name generation utility
-   - Implement CreateListModal component
-   - Enhance ApiParamsForm with list creation functionality
-   - Update list service with createList method
+2.  **Frontend Implementation**:
+    *   Ensure `listUtils.ts` has `generateListName` and `validateListName`.
+    *   Ensure `CreateListModal.tsx` component exists and functions.
+    *   Ensure `list.service.ts` has `createList` and `previewPropertyCount` methods.
+    *   **Modify `App.tsx`**:
+        *   Add state variables for modal control, preview data, and loading/error status.
+        *   Add `handleCreateListClick` and `handleCreateList` handler functions.
+        *   Replace the "Force Background Processing" button with the new "Create List" button (conditionally rendered for PropertyRadar).
+        *   Render the `CreateListModal` component.
 
 3. **Testing**:
    - Test list name generation with various criteria

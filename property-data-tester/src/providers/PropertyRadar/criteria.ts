@@ -110,7 +110,7 @@ export const criteria: CriteriaDefinition[] = [
   },
   // value&equity
   {
-    name: "equityPercent",
+    name: "EquityPercent",
     description: "Percentage of equity in the property",
     criteriaType: "Multiple Range",
     category: "value&equity",
@@ -204,7 +204,7 @@ export const criteria: CriteriaDefinition[] = [
     example: { value: [1, 3] }
   },
   {
-    name: "firstRate",
+    name: "FirstRate",
     description: "Interest rate on the first mortgage",
     criteriaType: "Multiple Range",
     category: "loans&liens",
@@ -216,13 +216,6 @@ export const criteria: CriteriaDefinition[] = [
     criteriaType: "Multiple Values",
     category: "loans&liens",
     example: { value: ["C", "F", "V"] }
-  },
-  {
-    name: "loanTypes",
-    description: "Types of loans to include",
-    criteriaType: "Multiple Values",
-    category: "loans&liens",
-    example: { value: ["C", "F", "V", "P"] }
   },
   // foreclosure
   {

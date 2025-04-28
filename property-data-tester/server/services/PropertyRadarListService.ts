@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { PropertyRadarCriteriaMapper } from './lead-providers/propertyradar/PropertyRadarCriteriaMapper'; // Import mapper
 
 // Load environment variables
 dotenv.config();
@@ -181,17 +182,16 @@ export class PropertyRadarListService {
    * @returns Created list information
    */
   async createList(listData: {
-    Criteria: any[];
+    Criteria: Array<{name: string, value: string[]}>;
     ListName: string;
     ListType: string;
     isMonitored: number;
   }): Promise<PropertyRadarList> {
-    // Check if criteria might result in too many properties
     try {
       // First, get an estimate of how many properties match the criteria
       const previewResponse = await axios.post(
         `${this.apiBaseUrl}/v1/properties`,
-        { Criteria: listData.Criteria },
+        { Criteria: listData.Criteria }, // Wrap criteria array in Criteria property
         {
           params: {
             Fields: 'RadarID',
@@ -216,16 +216,37 @@ export class PropertyRadarListService {
         // We don't truncate here as PropertyRadar will do it automatically
       }
       
-      // Create the list
-      const response = await this.executeWithRetry(() =>
-        axios.post(
+      // Create the list with proper error handling
+      const response = await this.executeWithRetry(() => {
+        // Send the complete object structure as per API spec
+        const requestBody = {
+          ListName: listData.ListName,
+          ListType: listData.ListType,
+          isMonitored: listData.isMonitored,
+          Criteria: listData.Criteria
+        };
+
+        console.log('Creating PropertyRadar list with payload:', JSON.stringify(requestBody, null, 2));
+
+        return axios.post(
           `${this.apiBaseUrl}/v1/lists`,
-          listData,
+          requestBody,
           {
-            headers: this.getAuthHeaders()
+            headers: this.getAuthHeaders(),
+            validateStatus: (status) => status < 500 // Don't throw for 4xx errors
           }
-        )
-      );
+        ).catch(error => {
+          if (error.response) {
+            console.error('PropertyRadar API error response:', {
+              status: error.response.status,
+              data: error.response.data,
+              headers: error.response.headers
+            });
+            console.log('AXIOS ERROR', error.response?.data, error.response?.status, error.response?.headers);
+          }
+          throw error;
+        });
+      });
       
       if (response.data && response.data.results && response.data.results.length > 0) {
         return response.data.results[0];

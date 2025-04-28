@@ -1,6 +1,6 @@
 import React from 'react';
 import { Col, Badge, Button } from 'react-bootstrap'; // Removed unused Form
-import { CriterionDefinition } from '../../../shared/types/criteria';
+import { CriteriaDefinition } from '../../providers'; // Corrected import path
 // Removed unused PropertyRadarApiParams import
 
 // Import Input Components
@@ -13,7 +13,7 @@ import SingleValueInput from './inputs/SingleValueInput';
 import PropertyTypeInput from './inputs/PropertyTypeInput';
 
 interface CriteriaInputRendererProps {
-  selectedCriterion: CriterionDefinition | null;
+  selectedCriterion: CriteriaDefinition | null; // Corrected typo
   // Value specific to the selected criterion
   criterionValue: any | undefined; 
   // Callback to update the value for a specific criterion name

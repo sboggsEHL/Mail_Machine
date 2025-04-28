@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Pool } from 'pg';
 import { PropertyRadarListService } from '../services/PropertyRadarListService';
+import { PropertyRadarCriteriaMapper } from '../services/lead-providers/propertyradar/PropertyRadarCriteriaMapper'; // Import the mapper
 
 // Create router
 const router = Router();
@@ -39,13 +40,14 @@ router.post('/', async (req, res) => {
         error: 'List name cannot be empty'
       });
     }
-    
+    // Criteria is already formatted from the frontend
     const listData = {
       Criteria: criteria,
       ListName: listName,
       ListType: listType,
       isMonitored: isMonitored
     };
+    
     
     const listService = getListService();
     const createdList = await listService.createList(listData);

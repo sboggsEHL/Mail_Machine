@@ -13,9 +13,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PropertyController = void 0;
-const LeadProviderFactory_1 = require("../services/lead-providers/LeadProviderFactory");
+const axios_1 = __importDefault(require("axios")); // Added axios
+const dotenv_1 = __importDefault(require("dotenv")); // Added dotenv
 const errors_1 = require("../utils/errors");
 const logger_1 = __importDefault(require("../utils/logger"));
+// Load environment variables for API token
+dotenv_1.default.config();
 /**
  * Controller for property-related endpoints
  */
@@ -212,36 +215,132 @@ class PropertyController {
          * Preview properties (get count without purchasing)
          */
         this.previewProperties = (req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d, _e, _f, _g, _h;
             try {
-                const { criteria } = req.body;
-                if (!criteria) {
+                // Accept criteria as an object, not a pre-formatted array
+                const criteriaObj = req.body.criteria;
+                if (!criteriaObj || typeof criteriaObj !== 'object') {
                     res.status(400).json({
                         success: false,
-                        error: 'Criteria is required'
+                        error: 'Criteria object is required in the request body'
                     });
                     return;
                 }
-                // Get the provider from the factory
-                const provider = LeadProviderFactory_1.leadProviderFactory.getProvider('PR');
-                if (!provider.previewProperties) {
+                // Transform criteria object to array with special handling (same as fetchProperties)
+                const formattedCriteria = Object.entries(criteriaObj).map(([name, value]) => {
+                    // Special handling for PropertyType
+                    if (name === 'PropertyType' && Array.isArray(value)) {
+                        return {
+                            name,
+                            value: [
+                                {
+                                    name: 'PType',
+                                    value: value
+                                }
+                            ]
+                        };
+                    }
+                    // Check if this is a range criteria (value is an array of two numbers)
+                    if (Array.isArray(value) &&
+                        value.length === 2 &&
+                        (typeof value[0] === 'number' || value[0] === null) &&
+                        (typeof value[1] === 'number' || value[1] === null)) {
+                        return {
+                            name,
+                            value: [value]
+                        };
+                    }
+                    // Check if this is a date range criteria (name ends with 'Date' and value is an array of two dates)
+                    if (name.endsWith('Date') &&
+                        Array.isArray(value) &&
+                        value.length === 2 &&
+                        typeof value[0] === 'string' &&
+                        typeof value[1] === 'string') {
+                        const fromDate = value[0] || '';
+                        const toDate = value[1] || '';
+                        if (fromDate && toDate) {
+                            return {
+                                name,
+                                value: [`from: ${fromDate} to: ${toDate}`]
+                            };
+                        }
+                        else if (fromDate) {
+                            return {
+                                name,
+                                value: [fromDate]
+                            };
+                        }
+                        else if (toDate) {
+                            return {
+                                name,
+                                value: [`from: to: ${toDate}`]
+                            };
+                        }
+                    }
+                    // Special handling for boolean values
+                    if (typeof value === 'boolean') {
+                        return {
+                            name,
+                            value: [value ? "1" : "0"]
+                        };
+                    }
+                    // Default handling for non-date, non-boolean criteria
+                    return {
+                        name,
+                        value: Array.isArray(value) ? value : [value]
+                    };
+                });
+                const apiBaseUrl = 'https://api.propertyradar.com';
+                const authToken = process.env.PROPERTY_RADAR_TOKEN || '';
+                if (!authToken) {
+                    console.error('PROPERTY_RADAR_TOKEN is not set in environment variables.');
                     res.status(500).json({
                         success: false,
-                        error: 'Provider does not support preview functionality'
+                        error: 'Server configuration error: Missing API token.'
                     });
                     return;
                 }
-                // Get preview count
-                const previewResult = yield provider.previewProperties(criteria);
+                // Call PropertyRadar Properties API directly for preview
+                const previewResponse = yield axios_1.default.post(`${apiBaseUrl}/v1/properties`, { Criteria: formattedCriteria }, {
+                    params: {
+                        Fields: 'RadarID',
+                        Limit: 1,
+                        Purchase: 0
+                    },
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    validateStatus: (status) => status < 500
+                });
+                if (previewResponse.status >= 400) {
+                    logger_1.default.error('PropertyRadar API error during preview:', {
+                        status: previewResponse.status,
+                        data: previewResponse.data
+                    });
+                    const apiError = ((_c = (_b = (_a = previewResponse.data) === null || _a === void 0 ? void 0 : _a.errors) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.detail) ||
+                        ((_d = previewResponse.data) === null || _d === void 0 ? void 0 : _d.message) ||
+                        `API request failed with status ${previewResponse.status}`;
+                    res.status(previewResponse.status).json({
+                        success: false,
+                        error: `Failed to preview properties: ${apiError}`
+                    });
+                    return;
+                }
+                const estimatedCount = (_f = (_e = previewResponse.data) === null || _e === void 0 ? void 0 : _e.resultCount) !== null && _f !== void 0 ? _f : 0;
                 res.json({
                     success: true,
-                    count: previewResult.count
+                    count: estimatedCount
                 });
             }
             catch (error) {
-                console.error('Error previewing properties:', error);
+                logger_1.default.error('Error previewing properties:', error);
+                const errorMessage = axios_1.default.isAxiosError(error)
+                    ? ((_h = (_g = error.response) === null || _g === void 0 ? void 0 : _g.data) === null || _h === void 0 ? void 0 : _h.message) || error.message
+                    : error instanceof Error ? error.message : 'An unknown error occurred';
                 res.status(500).json({
                     success: false,
-                    error: error instanceof Error ? error.message : 'Failed to preview properties'
+                    error: `Failed to preview properties: ${errorMessage}`
                 });
             }
         });
