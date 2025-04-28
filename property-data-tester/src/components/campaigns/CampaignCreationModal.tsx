@@ -29,7 +29,7 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   
   // Generate description from criteria
-  const generateDescription = (): string => {
+  const generateDescription = React.useCallback((): string => {
     const parts: string[] = [];
     
     // Extract state information
@@ -65,23 +65,23 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
     }
     
     return 'Custom criteria';
-  };
+  }, [criteria]);
   
   // Extract target states from criteria
-  const extractTargetStates = (): string[] => {
+  const extractTargetStates = React.useCallback((): string[] => {
     if (criteria.State && Array.isArray(criteria.State)) {
       return criteria.State;
     }
     return [];
-  };
+  }, [criteria]);
   
   // Extract target loan types from criteria
-  const extractTargetLoanTypes = (): string[] => {
+  const extractTargetLoanTypes = React.useCallback((): string[] => {
     if (criteria.FirstLoanType && Array.isArray(criteria.FirstLoanType)) {
       return criteria.FirstLoanType;
     }
     return [];
-  };
+  }, [criteria]);
   
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,13 +152,7 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
     
     // Set default target loan types
     setTargetLoanTypes(extractTargetLoanTypes().join(', '));
-  /* Note on dependencies:
-   * - criteria and show trigger the effect as they represent user input/visibility
-   * - Helper functions (extractTargetLoanTypes, extractTargetStates, generateDescription)
-   *   are stable and only depend on criteria which is already included
-   * - Consider moving helpers to useCallback if this pattern causes issues
-   */
-  }, [criteria, show]);
+  }, [criteria, show, generateDescription, extractTargetStates, extractTargetLoanTypes]);
   
   return (
     <Modal show={show} onHide={onHide} centered>

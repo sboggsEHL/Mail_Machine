@@ -23,24 +23,24 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
   const [uploadError, setUploadError] = useState<string | null>(null);
   
   // Load campaign data
-  const loadCampaignData = async () => {
+  const loadCampaignData = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Fetch campaign details
       const campaignResponse = await fetchCampaignById(campaignId);
-      
+
       if (!campaignResponse.success) {
         setError(campaignResponse.error || `Failed to fetch campaign ${campaignId}`);
         return;
       }
-      
+
       setCampaign(campaignResponse.campaign);
-      
+
       // Fetch campaign stats
       const statsResponse = await fetchCampaignStats(campaignId);
-      
+
       if (statsResponse.success) {
         setStats(statsResponse.stats);
       }
@@ -49,15 +49,12 @@ export const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaignId, onBa
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Load campaign data on component mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    // loadCampaignData depends on campaignId which is already included.
-    // Adding loadCampaignData itself might cause infinite loops without useCallback.
-    loadCampaignData();
   }, [campaignId]);
+
+  // Load campaign data on component mount
+  useEffect(() => {
+    loadCampaignData();
+  }, [loadCampaignData]);
   
   // Format date
   const formatDate = (dateString?: string): string => {

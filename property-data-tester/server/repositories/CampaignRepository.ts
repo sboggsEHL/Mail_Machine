@@ -206,32 +206,42 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     const columns = Object.keys(recipients[0]).filter(
       col => col !== 'recipient_id' && col !== 'created_at' // Exclude recipient_id and created_at from update
     );
-    const updates = [];
+    // Explicitly type updates as string[]
+    const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
 
     for (const rec of recipients) {
+      // Build SET clauses for this recipient
       const setClauses = columns
         .map(col => `"${col}" = $${paramIndex++}`)
         .join(', ');
       
       // Add updated_at separately
       const finalSetClause = `${setClauses}, "updated_at" = NOW()`;
+      
+      // Add recipient_id placeholder for the WHERE clause
+      const whereClause = `"recipient_id" = $${paramIndex++}`;
 
-      const currentParams = columns.map(col => rec[col]);
-      currentParams.push(rec.recipient_id); // Add recipient_id for WHERE clause
-      params.push(...currentParams);
+      // Construct the full UPDATE statement for this recipient
+      const updateStatement = `UPDATE mail_recipients SET ${finalSetClause} WHERE ${whereClause};`;
+      updates.push(updateStatement);
 
-      // Adjust paramIndex for the recipient_id used in WHERE
-      paramIndex--; 
+      // Add parameters for this recipient's SET clauses
+      params.push(...columns.map(col => rec[col]));
+      // Add the recipient_id parameter for the WHERE clause
+      params.push(rec.recipient_id);
     }
 
-    // Note: This executes multiple UPDATE statements in one go.
-    // For very large batches, consider alternative bulk update strategies if performance is critical.
+    // Join all individual UPDATE statements into one multi-statement query
     const query = updates.join('\n');
+    
+    // Execute the multi-statement query with all parameters
     const result = await queryExecutor.query(query, params);
     
     // Sum up row counts from potentially multiple result objects if the driver returns them
+    // (pg driver usually returns a single result object for multi-statement queries,
+    // but handling array just in case)
     let totalRowsAffected = 0;
     if (Array.isArray(result)) {
         totalRowsAffected = result.reduce((sum, res) => sum + (res.rowCount ?? 0), 0);

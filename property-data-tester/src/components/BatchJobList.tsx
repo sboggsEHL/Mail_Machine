@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
+import React, { useState, useEffect, ChangeEvent, useCallback } from 'react';
 import { Table, Badge, Button, Spinner, Alert, Form, InputGroup } from 'react-bootstrap';
 import { getBatchJobs, BatchJob } from '../services/batchJob.service';
 
@@ -17,16 +17,26 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
   const [radarIdSearch, setRadarIdSearch] = useState<string>('');
   const [filteredJobs, setFilteredJobs] = useState<BatchJob[]>([]);
 
-  /* Load jobs on component mount and when status filter changes
-   * Note on dependencies:
-   * - statusFilter triggers a reload when the user changes the filter
-   * - loadJobs is defined in component but only uses statusFilter
-   * - Adding loadJobs to deps would cause unnecessary reruns
-   * - Consider moving to useCallback if this pattern causes issues
-   */
+  // Load jobs on component mount and when status filter changes
+  // loadJobs is now memoized with useCallback to satisfy ESLint
+  const loadJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const jobsData = await getBatchJobs(statusFilter);
+      setJobs(jobsData);
+    } catch (err) {
+      setError('Error loading batch jobs. Please try again.');
+      console.error('Error loading batch jobs:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
   useEffect(() => {
     loadJobs();
-  }, [statusFilter]);
+  }, [loadJobs]);
 
   // Filter jobs when radarIdSearch or jobs change
   useEffect(() => {
@@ -49,23 +59,6 @@ const BatchJobList: React.FC<BatchJobListProps> = ({ onSelectJob }) => {
     setFilteredJobs(filtered);
   }, [jobs, radarIdSearch]);
 
-  /**
-   * Load jobs from the API
-   */
-  const loadJobs = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const jobsData = await getBatchJobs(statusFilter);
-      setJobs(jobsData);
-    } catch (err) {
-      setError('Error loading batch jobs. Please try again.');
-      console.error('Error loading batch jobs:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   /**
    * Get status badge variant

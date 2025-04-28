@@ -10,8 +10,8 @@ import { fetchCampaigns, Campaign } from '../services/api'; // Removed unused de
 const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [list, setList] = useState<any>(null);
   // These state variables might appear unused, but their setters are used in response handlers
-  const [duplicates, setDuplicates] = useState<any[]>([]); // Used via setDuplicates in checkDuplicates response
-  const [allProperties, setAllProperties] = useState<any[]>([]); // Used via setAllProperties to track property updates
+  const [, setDuplicates] = useState<any[]>([]); // Used via setDuplicates in checkDuplicates response
+  const [, setAllProperties] = useState<any[]>([]); // Used via setAllProperties to track property updates
   const [totalItems, setTotalItems] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [checking, setChecking] = useState<boolean>(false);
@@ -39,34 +39,7 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [uploadResult, setUploadResult] = useState<{inserted: number, updated: number, errors: string[]} | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   
-  useEffect(() => {
-    if (listId) {
-      fetchListDetails();
-      loadCampaigns();
-    }
-  /* Note on dependencies:
-   * - fetchListDetails and loadCampaigns are stable and only use listId
-   * - Adding them to deps would trigger unnecessary reruns
-   * - Consider moving to useCallback if this pattern causes issues
-   */
-  }, [listId]);
-  
-  // Load campaigns from API
-  const loadCampaigns = async () => {
-    try {
-      const response = await fetchCampaigns();
-      if (response.success) {
-        setCampaigns(response.campaigns || []);
-        if (response.campaigns && response.campaigns.length > 0 && response.campaigns[0].campaign_id) {
-          setCampaignId(response.campaigns[0].campaign_id);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading campaigns:', error);
-    }
-  };
-  
-  const fetchListDetails = async () => {
+  const fetchListDetails = React.useCallback(async () => {
     try {
       setLoading(true);
       // Get list details
@@ -93,6 +66,28 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
       console.error('Exception in fetchListDetails:', err);
     } finally {
       setLoading(false);
+    }
+  }, [listId]);
+
+  useEffect(() => {
+    if (listId) {
+      fetchListDetails();
+      loadCampaigns();
+    }
+  }, [listId, fetchListDetails]);
+  
+  // Load campaigns from API
+  const loadCampaigns = async () => {
+    try {
+      const response = await fetchCampaigns();
+      if (response.success) {
+        setCampaigns(response.campaigns || []);
+        if (response.campaigns && response.campaigns.length > 0 && response.campaigns[0].campaign_id) {
+          setCampaignId(response.campaigns[0].campaign_id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading campaigns:', error);
     }
   };
   

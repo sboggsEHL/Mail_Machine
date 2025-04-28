@@ -75,14 +75,15 @@ function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsForm
   // Select first criterion in active category by default when tab changes or definitions load
   // Select first criterion in active category by default when tab changes or definitions load
   useEffect(() => {
-    const currentCategoryCriteria = groupedCriteriaDefs[activeTab] || [];
-    if (currentCategoryCriteria.length > 0) {
+    // Removed unused currentCategoryCriteria variable
+    const criteria = groupedCriteriaDefs[activeTab] || [];
+    if (criteria.length > 0) {
       // Only set a default selection if:
       // 1. There's no currently selected criterion, or
       // 2. The currently selected criterion is not from this category
-      if (!selectedCriterion || !currentCategoryCriteria.some(c => c.name === selectedCriterion.name)) {
+      if (!selectedCriterion || !criteria.some(c => c.name === selectedCriterion.name)) {
         // First, check if any criterion from this category is already in use
-        const activeCriterionInCurrentCategory = currentCategoryCriteria.find(
+        const activeCriterionInCurrentCategory = criteria.find(
           criterion => (apiParams.criteria as any)?.[criterion.name] !== undefined
         );
         
@@ -91,7 +92,7 @@ function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsForm
           setSelectedCriterion(activeCriterionInCurrentCategory);
         } else {
           // Otherwise, select the first one in the category
-          setSelectedCriterion(currentCategoryCriteria[0]);
+          setSelectedCriterion(criteria[0]);
         }
       }
       // If the user has already selected a criterion in this category, we don't change it
@@ -155,7 +156,6 @@ function ApiParamsForm({ apiParams, setApiParams, onSubmitQuery }: ApiParamsForm
 
   // --- Rendering ---
 
-  const currentCategoryCriteria = groupedCriteriaDefs[activeTab] || [];
   const selectedCriterionValue = selectedCriterion ? (apiParams.criteria as any)?.[selectedCriterion.name] : undefined;
 
   return (

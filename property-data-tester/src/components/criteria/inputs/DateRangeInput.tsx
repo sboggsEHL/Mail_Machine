@@ -18,23 +18,20 @@ const DATE_PRESETS = [
 
 const DateRangeInput: React.FC<DateRangeInputProps> = ({ value, onChange }) => {
   // Determine initial selection type based on the value prop
-  const getInitialSelectionType = (): 'preset' | 'range' => {
+  const getInitialSelectionType = React.useCallback((): 'preset' | 'range' => {
     if (Array.isArray(value) && value.length === 1 && typeof value[0] === 'string' && DATE_PRESETS.includes(value[0])) {
       return 'preset';
     }
     // Default to 'range' if value is undefined, not a preset, or already a range
     return 'range';
-  };
+  }, [value]);
 
   const [dateSelectionType, setDateSelectionType] = useState<'preset' | 'range'>(getInitialSelectionType);
 
   // Update selection type if the value prop changes externally to be incompatible
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // getInitialSelectionType only depends on `value` (already in deps) and DATE_PRESETS (constant),
-    // so we disable the warning here to avoid potential infinite loops if it were included.
     setDateSelectionType(getInitialSelectionType());
-  }, [value]);
+  }, [value, getInitialSelectionType]);
 
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const preset = e.target.value;
