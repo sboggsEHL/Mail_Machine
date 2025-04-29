@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Pagination, Button, Spinner, Alert, Form, InputGroup, Row, Col, Dropdown } from 'react-bootstrap';
 import { fetchRecipients, getRecipientsDownloadUrl, Recipient, Pagination as PaginationType } from '../../services/api';
 import { Search } from 'react-bootstrap-icons';
@@ -35,8 +35,8 @@ export const Recipients: React.FC<RecipientsProps> = ({ campaignId }) => {
     };
   }, [searchTerm]);
 
-  // Load recipients data
-  const loadRecipients = async (page: number = 1) => {
+  // Load recipients data - memoized to prevent infinite loops in useEffect
+  const loadRecipients = useCallback(async (page: number = 1) => {
     try {
       setLoading(true);
       setError(null);
@@ -61,7 +61,7 @@ export const Recipients: React.FC<RecipientsProps> = ({ campaignId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [campaignId, pagination.limit, debouncedSearchTerm, searchType]);
 
   // Load recipients on component mount, when page changes, or when search changes
   useEffect(() => {
@@ -71,12 +71,12 @@ export const Recipients: React.FC<RecipientsProps> = ({ campaignId }) => {
     } else {
       loadRecipients(1);
     }
-  }, [campaignId, debouncedSearchTerm, searchType]);
+  }, [campaignId, debouncedSearchTerm, searchType, loadRecipients, pagination.page]);
 
   // Load recipients when page changes
   useEffect(() => {
     loadRecipients(pagination.page);
-  }, [campaignId, pagination.page]);
+  }, [campaignId, pagination.page, loadRecipients]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -231,6 +231,7 @@ export const Recipients: React.FC<RecipientsProps> = ({ campaignId }) => {
                   <th>City</th>
                   <th>State</th>
                   <th>Zip</th>
+                  <th>Presort Tray</th>
                   <th>Status</th>
                   <th>Mailed Date</th>
                 </tr>
@@ -247,6 +248,7 @@ export const Recipients: React.FC<RecipientsProps> = ({ campaignId }) => {
                     <td>{recipient.city || 'N/A'}</td>
                     <td>{recipient.state || 'N/A'}</td>
                     <td>{recipient.zip_code || 'N/A'}</td>
+                    <td>{recipient.presort_tray || 'N/A'}</td>
                     <td>{recipient.status}</td>
                     <td>{formatDate(recipient.mailed_date)}</td>
                   </tr>
