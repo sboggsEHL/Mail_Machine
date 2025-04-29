@@ -193,27 +193,38 @@ export class PropertyOwnerRepository extends BaseRepository<PropertyOwner> {
     if (updates.length === 0) return 0;
     const queryExecutor = client || this.pool;
     
-    // Build parameterized query for multiple updates
-    const params: any[] = [];
-    const cases: string[] = [];
+    // Process in batches to avoid PostgreSQL parameter limit (max 65535)
+    const BATCH_SIZE = 1000; // Each update uses 2 parameters, so 1000 updates = 2000 parameters
+    let totalRowsAffected = 0;
     
-    updates.forEach((update, i) => {
-      params.push(update.owner_id, update.first_name);
-      cases.push(`WHEN owner_id = $${i*2+1} THEN $${i*2+2}`);
-    });
+    // Process updates in batches
+    for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+      const batch = updates.slice(i, i + BATCH_SIZE);
+      
+      // Build parameterized query for this batch
+      const params: any[] = [];
+      const cases: string[] = [];
+      
+      batch.forEach((update, j) => {
+        params.push(update.owner_id, update.first_name);
+        cases.push(`WHEN owner_id = $${j*2+1} THEN $${j*2+2}`);
+      });
+      
+      const ownerIds = batch.map((_, j) => `$${j*2+1}`).join(',');
+      
+      const query = `
+        UPDATE ${this.tableName}
+        SET first_name = CASE ${cases.join(' ')} END,
+            updated_at = NOW()
+        WHERE owner_id IN (${ownerIds})
+        RETURNING owner_id
+      `;
+      
+      const result = await queryExecutor.query(query, params);
+      totalRowsAffected += result.rowCount ?? 0;
+    }
     
-    const ownerIds = updates.map((u, i) => `$${i*2+1}`).join(',');
-    
-    const query = `
-      UPDATE ${this.tableName}
-      SET first_name = CASE ${cases.join(' ')} END,
-          updated_at = NOW()
-      WHERE owner_id IN (${ownerIds})
-      RETURNING owner_id
-    `;
-    
-    const result = await queryExecutor.query(query, params);
-    return result.rowCount ?? 0;
+    return totalRowsAffected;
   }
 
   /**

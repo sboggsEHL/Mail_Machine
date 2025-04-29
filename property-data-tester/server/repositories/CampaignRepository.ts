@@ -164,29 +164,41 @@ export class CampaignRepository extends BaseRepository<Campaign> {
 
     // Get all columns from the first recipient
     const columns = Object.keys(recipients[0]);
-    const values = recipients.map(rec =>
-      columns.map(col => rec[col])
-    );
     const colNames = columns.map(col => `"${col}"`).join(', ');
+    
+    // Process in batches to avoid PostgreSQL parameter limit (max 65535)
+    const BATCH_SIZE = 1000; // Adjust based on number of columns to stay well under the limit
+    let totalRowsInserted = 0;
+    
+    // Process recipients in batches
+    for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+      const batch = recipients.slice(i, i + BATCH_SIZE);
+      
+      const values = batch.map(rec =>
+        columns.map(col => rec[col])
+      );
+      
+      // Build parameterized values string for this batch
+      const valuePlaceholders = values
+        .map(
+          (row, batchIndex) =>
+            `(${row.map((_, j) => `$${batchIndex * columns.length + j + 1}`).join(', ')})`
+        )
+        .join(', ');
 
-    // Build parameterized values string
-    const valuePlaceholders = values
-      .map(
-        (row, i) =>
-          `(${row.map((_, j) => `$${i * columns.length + j + 1}`).join(', ')})`
-      )
-      .join(', ');
+      const flatValues = values.flat();
 
-    const flatValues = values.flat();
+      const query = `
+        INSERT INTO mail_recipients (${colNames})
+        VALUES ${valuePlaceholders}
+        RETURNING recipient_id
+      `;
 
-    const query = `
-      INSERT INTO mail_recipients (${colNames})
-      VALUES ${valuePlaceholders}
-      RETURNING recipient_id
-    `;
-
-    const result = await queryExecutor.query(query, flatValues);
-    return result.rowCount ?? 0;
+      const result = await queryExecutor.query(query, flatValues);
+      totalRowsInserted += result.rowCount ?? 0;
+    }
+    
+    return totalRowsInserted;
   }
 
   /**
@@ -206,48 +218,56 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     const columns = Object.keys(recipients[0]).filter(
       col => col !== 'recipient_id' && col !== 'created_at' // Exclude recipient_id and created_at from update
     );
-    // Explicitly type updates as string[]
-    const updates: string[] = [];
-    const params: any[] = [];
-    let paramIndex = 1;
-
-    for (const rec of recipients) {
-      // Build SET clauses for this recipient
-      const setClauses = columns
-        .map(col => `"${col}" = $${paramIndex++}`)
-        .join(', ');
-      
-      // Add updated_at separately
-      const finalSetClause = `${setClauses}, "updated_at" = NOW()`;
-      
-      // Add recipient_id placeholder for the WHERE clause
-      const whereClause = `"recipient_id" = $${paramIndex++}`;
-
-      // Construct the full UPDATE statement for this recipient
-      const updateStatement = `UPDATE mail_recipients SET ${finalSetClause} WHERE ${whereClause};`;
-      updates.push(updateStatement);
-
-      // Add parameters for this recipient's SET clauses
-      params.push(...columns.map(col => rec[col]));
-      // Add the recipient_id parameter for the WHERE clause
-      params.push(rec.recipient_id);
-    }
-
-    // Join all individual UPDATE statements into one multi-statement query
-    const query = updates.join('\n');
     
-    // Execute the multi-statement query with all parameters
-    const result = await queryExecutor.query(query, params);
-    
-    // Sum up row counts from potentially multiple result objects if the driver returns them
-    // (pg driver usually returns a single result object for multi-statement queries,
-    // but handling array just in case)
+    // Process in batches to avoid PostgreSQL parameter limit (max 65535)
+    const BATCH_SIZE = 500; // Smaller batch size for updates since they use more parameters per record
     let totalRowsAffected = 0;
-    if (Array.isArray(result)) {
-        totalRowsAffected = result.reduce((sum, res) => sum + (res.rowCount ?? 0), 0);
-    } else {
-        totalRowsAffected = result.rowCount ?? 0;
+    
+    // Process recipients in batches
+    for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+      const batch = recipients.slice(i, i + BATCH_SIZE);
+      
+      // Explicitly type updates as string[]
+      const updates: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      for (const rec of batch) {
+        // Build SET clauses for this recipient
+        const setClauses = columns
+          .map(col => `"${col}" = $${paramIndex++}`)
+          .join(', ');
+        
+        // Add updated_at separately
+        const finalSetClause = `${setClauses}, "updated_at" = NOW()`;
+        
+        // Add recipient_id placeholder for the WHERE clause
+        const whereClause = `"recipient_id" = $${paramIndex++}`;
+
+        // Construct the full UPDATE statement for this recipient
+        const updateStatement = `UPDATE mail_recipients SET ${finalSetClause} WHERE ${whereClause};`;
+        updates.push(updateStatement);
+
+        // Add parameters for this recipient's SET clauses
+        params.push(...columns.map(col => rec[col]));
+        // Add the recipient_id parameter for the WHERE clause
+        params.push(rec.recipient_id);
+      }
+
+      // Join all individual UPDATE statements into one multi-statement query for this batch
+      const query = updates.join('\n');
+      
+      // Execute the multi-statement query with all parameters for this batch
+      const result = await queryExecutor.query(query, params);
+      
+      // Sum up row counts from potentially multiple result objects
+      if (Array.isArray(result)) {
+        totalRowsAffected += result.reduce((sum, res) => sum + (res.rowCount ?? 0), 0);
+      } else {
+        totalRowsAffected += result.rowCount ?? 0;
+      }
     }
+    
     return totalRowsAffected;
   }
 
