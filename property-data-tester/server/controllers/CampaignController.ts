@@ -38,11 +38,11 @@ export class CampaignController {
       }
 
       // Parse CSV using csv-parse
-      const csvParse = require('csv-parse');
+      const { parse } = require('csv-parse');
       const csvBuffer = reqWithFile.file.buffer;
       const csvString = csvBuffer.toString('utf-8');
 
-      csvParse(csvString, { columns: true, skip_empty_lines: true }, async (err: any, records: any[]) => {
+      parse(csvString, { columns: true, skip_empty_lines: true }, async (err: any, records: any[]) => {
         if (err) {
           res.status(400).json({ success: false, error: 'Failed to parse CSV: ' + err.message });
           return;
