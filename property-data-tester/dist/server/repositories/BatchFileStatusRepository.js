@@ -101,8 +101,8 @@ class BatchFileStatusRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of pending batch files
      */
-    findPendingFiles() {
-        return __awaiter(this, arguments, void 0, function* (limit = 10, client) {
+    findPendingFiles(limit = 10, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`
       SELECT * FROM ${this.tableName}
@@ -120,8 +120,8 @@ class BatchFileStatusRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of stuck batch files
      */
-    findStuckFiles() {
-        return __awaiter(this, arguments, void 0, function* (pendingMinutes = 60, processingMinutes = 180, client) {
+    findStuckFiles(pendingMinutes = 60, processingMinutes = 180, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`
       SELECT *, 

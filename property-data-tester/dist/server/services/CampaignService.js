@@ -8,9 +8,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CampaignService = void 0;
 const errors_1 = require("../utils/errors");
+const logger_1 = __importDefault(require("../utils/logger"));
 /**
  * Service for managing campaigns
  */
@@ -18,9 +22,11 @@ class CampaignService {
     /**
      * Create a new CampaignService
      * @param campaignRepository Repository for campaign operations
+     * @param propertyOwnerRepository Repository for property owner operations
      */
-    constructor(campaignRepository) {
+    constructor(campaignRepository, propertyOwnerRepository) {
         this.campaignRepository = campaignRepository;
+        this.propertyOwnerRepository = propertyOwnerRepository;
     }
     /**
      * Get all campaigns
@@ -160,11 +166,12 @@ class CampaignService {
      * @param records Parsed CSV records
      */
     uploadRecipientsFromCsv(campaignId, records) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             const errors = [];
             let inserted = 0;
             let updated = 0;
+            let ownersUpdated = 0;
             // Get all existing loan_ids for this campaign
             const loanIdMap = yield this.campaignRepository.getRecipientLoanIdsByCampaignId(campaignId);
             // Date calculations (mimic Python logic)
@@ -186,6 +193,7 @@ class CampaignService {
             const qrBaseUrl = 'https://elevated.loans/my-loan/';
             const toInsert = [];
             const toUpdate = [];
+            const ownerUpdates = [];
             for (const row of records) {
                 try {
                     const loan_id = (_a = row['loan_id']) === null || _a === void 0 ? void 0 : _a.trim();
@@ -224,6 +232,13 @@ class CampaignService {
                         // Ensure created_at is not included in the update object
                         delete recipient.created_at;
                         toUpdate.push(recipient);
+                        // If first_name is provided and owner_id exists, queue owner update
+                        if (recipient.first_name && recipient.owner_id) {
+                            ownerUpdates.push({
+                                owner_id: recipient.owner_id,
+                                first_name: recipient.first_name
+                            });
+                        }
                     }
                     else {
                         // Insert new
@@ -240,7 +255,12 @@ class CampaignService {
             if (toUpdate.length > 0) {
                 updated = yield this.campaignRepository.updateRecipientsBulk(toUpdate);
             }
-            return { inserted, updated, errors };
+            // Update property_owners first_name field
+            if (ownerUpdates.length > 0) {
+                ownersUpdated = yield this.propertyOwnerRepository.updateFirstNameBulk(ownerUpdates);
+                logger_1.default.info(`Updated ${ownersUpdated} property owners with new first_name values`);
+            }
+            return { inserted, updated, ownersUpdated, errors };
         });
     }
 }

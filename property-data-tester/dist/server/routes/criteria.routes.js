@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createCriteriaRoutes = createCriteriaRoutes;
+exports.createCriteriaRoutes = void 0;
 const express_1 = require("express");
 const CriteriaController_1 = require("../controllers/CriteriaController");
 const CriteriaService_1 = require("../services/CriteriaService");
@@ -33,3 +33,4 @@ function createCriteriaRoutes() {
     router.get('/:category', criteriaController.getCriteriaByCategory);
     return router;
 }
+exports.createCriteriaRoutes = createCriteriaRoutes;

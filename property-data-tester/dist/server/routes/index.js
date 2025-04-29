@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.configureRoutes = configureRoutes;
+exports.configureRoutes = void 0;
 const express_1 = require("express");
 const auth_routes_1 = require("./auth.routes");
 const property_routes_1 = require("./property.routes");
@@ -43,3 +43,4 @@ function configureRoutes(pool) {
     });
     return router;
 }
+exports.configureRoutes = configureRoutes;

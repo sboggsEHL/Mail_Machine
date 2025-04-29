@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.initListsRouter = initListsRouter;
+exports.initListsRouter = void 0;
 const express_1 = require("express");
 const PropertyRadarListService_1 = require("../services/PropertyRadarListService");
 // Create router
@@ -21,6 +21,7 @@ function initListsRouter(dbPool) {
     pool = dbPool;
     return router;
 }
+exports.initListsRouter = initListsRouter;
 // Create list service instance
 const getListService = () => new PropertyRadarListService_1.PropertyRadarListService(pool);
 /**

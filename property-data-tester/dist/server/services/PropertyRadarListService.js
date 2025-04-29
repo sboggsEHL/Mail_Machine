@@ -43,8 +43,8 @@ class PropertyRadarListService {
     /**
      * Get items (RadarIDs) from a specific list with pagination
      */
-    getListItems(listId_1) {
-        return __awaiter(this, arguments, void 0, function* (listId, start = 0, limit = 1000) {
+    getListItems(listId, start = 0, limit = 1000) {
+        return __awaiter(this, void 0, void 0, function* () {
             try {
                 const response = yield axios_1.default.get(`${this.apiBaseUrl}/v1/lists/${listId}/items`, {
                     params: {
@@ -220,9 +220,9 @@ class PropertyRadarListService {
      * @param backoffFactor Factor to increase delay on each retry
      * @returns Promise with the function result
      */
-    executeWithRetry(fn_1) {
-        return __awaiter(this, arguments, void 0, function* (fn, maxRetries = 3, initialDelay = 1000, backoffFactor = 2) {
-            var _a, _b;
+    executeWithRetry(fn, maxRetries = 3, initialDelay = 1000, backoffFactor = 2) {
+        var _a, _b;
+        return __awaiter(this, void 0, void 0, function* () {
             let lastError;
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
                 try {

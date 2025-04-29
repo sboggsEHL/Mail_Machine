@@ -3,11 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateAccessToken = generateAccessToken;
-exports.generateRefreshToken = generateRefreshToken;
-exports.generateTokens = generateTokens;
-exports.verifyToken = verifyToken;
-exports.extractTokenFromHeader = extractTokenFromHeader;
+exports.extractTokenFromHeader = exports.verifyToken = exports.generateTokens = exports.generateRefreshToken = exports.generateAccessToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 // Environment variables with defaults for development
 const JWT_SECRET = process.env.JWT_SECRET || 'property-data-tester-jwt-secret-key';
@@ -26,6 +22,7 @@ function generateAccessToken(user) {
         expiresIn: JWT_ACCESS_EXPIRY
     });
 }
+exports.generateAccessToken = generateAccessToken;
 /**
  * Generate JWT refresh token for a user
  */
@@ -39,6 +36,7 @@ function generateRefreshToken(user) {
         expiresIn: JWT_REFRESH_EXPIRY
     });
 }
+exports.generateRefreshToken = generateRefreshToken;
 /**
  * Generate both access and refresh tokens
  */
@@ -53,6 +51,7 @@ function generateTokens(user) {
         expiresIn
     };
 }
+exports.generateTokens = generateTokens;
 /**
  * Verify JWT token and return payload
  */
@@ -65,6 +64,7 @@ function verifyToken(token) {
         return null;
     }
 }
+exports.verifyToken = verifyToken;
 /**
  * Extract JWT token from Authorization header
  */
@@ -74,3 +74,4 @@ function extractTokenFromHeader(authHeader) {
     }
     return authHeader.substring(7); // Remove 'Bearer ' prefix
 }
+exports.extractTokenFromHeader = extractTokenFromHeader;

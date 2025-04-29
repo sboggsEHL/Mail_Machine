@@ -71,8 +71,8 @@ class LoanRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of loans matching criteria
      */
-    findByCriteria(criteria_1) {
-        return __awaiter(this, arguments, void 0, function* (criteria, limit = 100, offset = 0, client) {
+    findByCriteria(criteria, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             // Filter out undefined values and build WHERE clauses
             const entries = Object.entries(criteria).filter(([_, value]) => value !== undefined);
@@ -178,8 +178,8 @@ class LoanRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of loans
      */
-    findByLender(lenderName_1) {
-        return __awaiter(this, arguments, void 0, function* (lenderName, limit = 100, offset = 0, client) {
+    findByLender(lenderName, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`SELECT * FROM ${this.tableName} 
        WHERE lender_name ILIKE $1 

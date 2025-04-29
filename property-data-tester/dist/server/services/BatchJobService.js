@@ -49,8 +49,8 @@ class BatchJobService {
      * @param offset Offset for pagination
      * @returns Array of batch jobs
      */
-    getJobs(status_1) {
-        return __awaiter(this, arguments, void 0, function* (status, limit = 100, offset = 0) {
+    getJobs(status, limit = 100, offset = 0) {
+        return __awaiter(this, void 0, void 0, function* () {
             return this.batchJobRepository.getJobs(status, limit, offset);
         });
     }
@@ -97,8 +97,8 @@ class BatchJobService {
      * @param offset Offset for pagination
      * @returns Array of log entries
      */
-    getJobLogs(jobId_1) {
-        return __awaiter(this, arguments, void 0, function* (jobId, limit = 100, offset = 0) {
+    getJobLogs(jobId, limit = 100, offset = 0) {
+        return __awaiter(this, void 0, void 0, function* () {
             return this.batchJobRepository.getJobLogs(jobId, limit, offset);
         });
     }
@@ -151,8 +151,8 @@ class BatchJobService {
      * @param level The log level
      * @returns The created log entry
      */
-    logJobProgress(jobId_1, message_1) {
-        return __awaiter(this, arguments, void 0, function* (jobId, message, level = 'INFO') {
+    logJobProgress(jobId, message, level = 'INFO') {
+        return __awaiter(this, void 0, void 0, function* () {
             return this.addJobLog({
                 job_id: jobId,
                 message,

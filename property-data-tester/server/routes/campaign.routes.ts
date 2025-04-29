@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { CampaignController } from '../controllers/CampaignController';
 import { CampaignService } from '../services/CampaignService';
 import { CampaignRepository } from '../repositories/CampaignRepository';
+import { PropertyOwnerRepository } from '../repositories/PropertyOwnerRepository';
 import { Pool } from 'pg';
 import multer from 'multer';
 
@@ -15,7 +16,8 @@ export function createCampaignRoutes(pool: Pool): Router {
 
   // Create dependencies
   const campaignRepository = new CampaignRepository(pool);
-  const campaignService = new CampaignService(campaignRepository);
+  const propertyOwnerRepository = new PropertyOwnerRepository(pool);
+  const campaignService = new CampaignService(campaignRepository, propertyOwnerRepository);
   const campaignController = new CampaignController(campaignService);
 
   // Multer setup for file upload (memory storage)

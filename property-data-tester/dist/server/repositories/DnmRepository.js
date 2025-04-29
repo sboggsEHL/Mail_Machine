@@ -106,8 +106,8 @@ class DnmRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of DNM registry entries
      */
-    findBySource(source_1) {
-        return __awaiter(this, arguments, void 0, function* (source, limit = 100, offset = 0, client) {
+    findBySource(source, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`SELECT * FROM ${this.tableName} 
        WHERE source = $1 AND is_active = TRUE
@@ -124,8 +124,8 @@ class DnmRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of DNM registry entries
      */
-    findByBlockedBy(blockedBy_1) {
-        return __awaiter(this, arguments, void 0, function* (blockedBy, limit = 100, offset = 0, client) {
+    findByBlockedBy(blockedBy, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`SELECT * FROM ${this.tableName} 
        WHERE blocked_by = $1 AND is_active = TRUE

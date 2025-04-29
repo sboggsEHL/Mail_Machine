@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createAuthRoutes = createAuthRoutes;
+exports.createAuthRoutes = void 0;
 const express_1 = require("express");
 const AuthController_1 = require("../controllers/AuthController");
 const auth_middleware_1 = require("../middleware/auth.middleware");
@@ -44,3 +44,4 @@ function createAuthRoutes(pool) {
     router.post('/logout', authController.logout);
     return router;
 }
+exports.createAuthRoutes = createAuthRoutes;

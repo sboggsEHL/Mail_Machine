@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createApp = createApp;
+exports.createApp = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const routes_1 = require("./routes");
@@ -63,7 +63,7 @@ function createApp() {
         const JWT_SECRET = process.env.JWT_SECRET || 'property-data-tester-jwt-secret-key';
         console.log(`JWT auth configured with secret: ${JWT_SECRET.substring(0, 3)}...`);
         // Configure API routes
-        app.use('/api', (0, routes_1.configureRoutes)(database_1.dbPool));
+        app.use('/', (0, routes_1.configureRoutes)(database_1.dbPool));
         // Add basic route for health check
         app.get('/', (req, res) => {
             res.json({
@@ -100,3 +100,4 @@ function createApp() {
         return app;
     });
 }
+exports.createApp = createApp;

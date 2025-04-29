@@ -1,5 +1,6 @@
 import { Campaign, CampaignStats } from '../models';
 import { CampaignRepository } from '../repositories/CampaignRepository';
+import { PropertyOwnerRepository } from '../repositories/PropertyOwnerRepository';
 import { AppError, ERROR_CODES } from '../utils/errors';
 import logger from '../utils/logger';
 
@@ -8,13 +9,19 @@ import logger from '../utils/logger';
  */
 export class CampaignService {
   private campaignRepository: CampaignRepository;
+  private propertyOwnerRepository: PropertyOwnerRepository;
 
   /**
    * Create a new CampaignService
    * @param campaignRepository Repository for campaign operations
+   * @param propertyOwnerRepository Repository for property owner operations
    */
-  constructor(campaignRepository: CampaignRepository) {
+  constructor(
+    campaignRepository: CampaignRepository,
+    propertyOwnerRepository: PropertyOwnerRepository
+  ) {
     this.campaignRepository = campaignRepository;
+    this.propertyOwnerRepository = propertyOwnerRepository;
   }
 
   /**
@@ -174,6 +181,7 @@ export class CampaignService {
     const errors: string[] = [];
     let inserted = 0;
     let updated = 0;
+    let ownersUpdated = 0;
 
     // Get all existing loan_ids for this campaign
     const loanIdMap = await this.campaignRepository.getRecipientLoanIdsByCampaignId(campaignId);
@@ -201,6 +209,7 @@ export class CampaignService {
 
     const toInsert: any[] = [];
     const toUpdate: any[] = [];
+    const ownerUpdates: {owner_id: number, first_name: string}[] = [];
 
     for (const row of records) {
       try {
@@ -243,6 +252,14 @@ export class CampaignService {
           // Ensure created_at is not included in the update object
           delete recipient.created_at; 
           toUpdate.push(recipient);
+          
+          // If first_name is provided and owner_id exists, queue owner update
+          if (recipient.first_name && recipient.owner_id) {
+            ownerUpdates.push({
+              owner_id: recipient.owner_id,
+              first_name: recipient.first_name
+            });
+          }
         } else {
           // Insert new
           toInsert.push(recipient);
@@ -259,6 +276,12 @@ export class CampaignService {
       updated = await this.campaignRepository.updateRecipientsBulk(toUpdate);
     }
 
-    return { inserted, updated, errors };
+    // Update property_owners first_name field
+    if (ownerUpdates.length > 0) {
+      ownersUpdated = await this.propertyOwnerRepository.updateFirstNameBulk(ownerUpdates);
+      logger.info(`Updated ${ownersUpdated} property owners with new first_name values`);
+    }
+
+    return { inserted, updated, ownersUpdated, errors };
   }
 }

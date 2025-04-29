@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createBatchJobRoutes = createBatchJobRoutes;
+exports.createBatchJobRoutes = void 0;
 const express_1 = require("express");
 const BatchJobController_1 = require("../controllers/BatchJobController");
 const BatchJobService_1 = require("../services/BatchJobService");
@@ -36,3 +36,4 @@ function createBatchJobRoutes(pool) {
     router.get('/queue/stats', (req, res) => batchJobController.getQueueStats(req, res));
     return router;
 }
+exports.createBatchJobRoutes = createBatchJobRoutes;

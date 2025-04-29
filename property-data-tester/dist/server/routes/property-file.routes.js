@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPropertyFileRoutes = createPropertyFileRoutes;
+exports.createPropertyFileRoutes = void 0;
 const express_1 = require("express");
 const PropertyFileController_1 = require("../controllers/PropertyFileController");
 /**
@@ -15,3 +15,4 @@ function createPropertyFileRoutes(pool) {
     router.post('/process', (req, res) => propertyFileController.processFiles(req, res));
     return router;
 }
+exports.createPropertyFileRoutes = createPropertyFileRoutes;

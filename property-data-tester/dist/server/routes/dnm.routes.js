@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createDnmRoutes = createDnmRoutes;
+exports.createDnmRoutes = void 0;
 const express_1 = require("express");
 const DnmController_1 = require("../controllers/DnmController");
 const DnmRepository_1 = require("../repositories/DnmRepository");
@@ -45,3 +45,4 @@ function createDnmRoutes() {
     router.get('/dnm/blocked-by/:blockedBy', dnmController.getDnmByBlockedBy);
     return router;
 }
+exports.createDnmRoutes = createDnmRoutes;

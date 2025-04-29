@@ -15,13 +15,15 @@ const BatchJobService_1 = require("../services/BatchJobService");
 const BatchJobRepository_1 = require("../repositories/BatchJobRepository");
 const CampaignService_1 = require("../services/CampaignService");
 const CampaignRepository_1 = require("../repositories/CampaignRepository");
+const PropertyOwnerRepository_1 = require("../repositories/PropertyOwnerRepository");
 class ListController {
     constructor(pool) {
         this.listService = new PropertyRadarListService_1.PropertyRadarListService(pool);
         const batchJobRepository = new BatchJobRepository_1.BatchJobRepository(pool);
         this.batchJobService = new BatchJobService_1.BatchJobService(batchJobRepository);
         const campaignRepository = new CampaignRepository_1.CampaignRepository(pool);
-        this.campaignService = new CampaignService_1.CampaignService(campaignRepository);
+        const propertyOwnerRepository = new PropertyOwnerRepository_1.PropertyOwnerRepository(pool);
+        this.campaignService = new CampaignService_1.CampaignService(campaignRepository, propertyOwnerRepository);
     }
     /**
      * Get all PropertyRadar lists

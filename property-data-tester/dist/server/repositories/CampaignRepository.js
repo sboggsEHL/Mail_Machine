@@ -93,8 +93,8 @@ class CampaignRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of recipients
      */
-    getRecipientsByCampaignId(campaignId_1) {
-        return __awaiter(this, arguments, void 0, function* (campaignId, limit = 100, offset = 0, client) {
+    getRecipientsByCampaignId(campaignId, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`
       SELECT * FROM mail_recipients
@@ -147,8 +147,8 @@ class CampaignRepository extends BaseRepository_1.BaseRepository {
      * @returns Number of inserted rows
      */
     insertRecipientsBulk(recipients, client) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             if (recipients.length === 0)
                 return 0;
             const queryExecutor = client || this.pool;
@@ -177,35 +177,42 @@ class CampaignRepository extends BaseRepository_1.BaseRepository {
      * @returns Number of updated rows
      */
     updateRecipientsBulk(recipients, client) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             if (recipients.length === 0)
                 return 0;
             const queryExecutor = client || this.pool;
             // Assume all recipients have the same fields
             const columns = Object.keys(recipients[0]).filter(col => col !== 'recipient_id' && col !== 'created_at' // Exclude recipient_id and created_at from update
             );
+            // Explicitly type updates as string[]
             const updates = [];
             const params = [];
             let paramIndex = 1;
             for (const rec of recipients) {
+                // Build SET clauses for this recipient
                 const setClauses = columns
                     .map(col => `"${col}" = $${paramIndex++}`)
                     .join(', ');
                 // Add updated_at separately
                 const finalSetClause = `${setClauses}, "updated_at" = NOW()`;
-                const currentParams = columns.map(col => rec[col]);
-                currentParams.push(rec.recipient_id); // Add recipient_id for WHERE clause
-                params.push(...currentParams);
-                updates.push(`UPDATE mail_recipients SET ${finalSetClause} WHERE recipient_id = $${paramIndex++};`);
-                // Adjust paramIndex for the recipient_id used in WHERE
-                paramIndex--;
+                // Add recipient_id placeholder for the WHERE clause
+                const whereClause = `"recipient_id" = $${paramIndex++}`;
+                // Construct the full UPDATE statement for this recipient
+                const updateStatement = `UPDATE mail_recipients SET ${finalSetClause} WHERE ${whereClause};`;
+                updates.push(updateStatement);
+                // Add parameters for this recipient's SET clauses
+                params.push(...columns.map(col => rec[col]));
+                // Add the recipient_id parameter for the WHERE clause
+                params.push(rec.recipient_id);
             }
-            // Note: This executes multiple UPDATE statements in one go.
-            // For very large batches, consider alternative bulk update strategies if performance is critical.
+            // Join all individual UPDATE statements into one multi-statement query
             const query = updates.join('\n');
+            // Execute the multi-statement query with all parameters
             const result = yield queryExecutor.query(query, params);
             // Sum up row counts from potentially multiple result objects if the driver returns them
+            // (pg driver usually returns a single result object for multi-statement queries,
+            // but handling array just in case)
             let totalRowsAffected = 0;
             if (Array.isArray(result)) {
                 totalRowsAffected = result.reduce((sum, res) => { var _a; return sum + ((_a = res.rowCount) !== null && _a !== void 0 ? _a : 0); }, 0);
@@ -243,8 +250,8 @@ class CampaignRepository extends BaseRepository_1.BaseRepository {
      * @returns True if the campaign was deleted, false otherwise
      */
     softDelete(id, client) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             const queryExecutor = client || this.pool;
             const idField = this.getIdFieldName();
             // Instead of setting is_active to false, we'll set status to 'CANCELLED'

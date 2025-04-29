@@ -39,8 +39,8 @@ class PropertyService {
      * @param fields Fields to retrieve
      * @returns Array of properties
      */
-    fetchPropertiesFromProvider(providerCode_1, criteria_1, fields_1) {
-        return __awaiter(this, arguments, void 0, function* (providerCode, criteria, fields, campaignId = 'individual-request') {
+    fetchPropertiesFromProvider(providerCode, criteria, fields, campaignId = 'individual-request') {
+        return __awaiter(this, void 0, void 0, function* () {
             const provider = LeadProviderFactory_1.leadProviderFactory.getProvider(providerCode);
             if (!provider.isConfigured()) {
                 throw new errors_1.AppError(errors_1.ERROR_CODES.SYSTEM_CONFIGURATION_ERROR, `Provider ${providerCode} is not properly configured.`, 500);
@@ -78,8 +78,8 @@ class PropertyService {
      * @param fields Fields to retrieve
      * @returns Property data
      */
-    fetchPropertyByRadarId(providerCode_1, radarId_1, fields_1) {
-        return __awaiter(this, arguments, void 0, function* (providerCode, radarId, fields, campaignId = 'individual-request') {
+    fetchPropertyByRadarId(providerCode, radarId, fields, campaignId = 'individual-request') {
+        return __awaiter(this, void 0, void 0, function* () {
             const provider = LeadProviderFactory_1.leadProviderFactory.getProvider(providerCode);
             if (!provider.isConfigured()) {
                 throw new Error(`Provider ${providerCode} is not properly configured.`);
@@ -247,8 +247,8 @@ class PropertyService {
      * @param offset Offset for pagination
      * @returns Properties matching criteria
      */
-    searchProperties(criteria_1) {
-        return __awaiter(this, arguments, void 0, function* (criteria, limit = 100, offset = 0) {
+    searchProperties(criteria, limit = 100, offset = 0) {
+        return __awaiter(this, void 0, void 0, function* () {
             return this.propertyRepo.findByCriteria(criteria, limit, offset);
         });
     }
