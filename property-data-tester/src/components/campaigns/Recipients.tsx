@@ -63,20 +63,16 @@ export const Recipients: React.FC<RecipientsProps> = ({ campaignId }) => {
     }
   }, [campaignId, pagination.limit, debouncedSearchTerm, searchType]);
 
-  // Load recipients on component mount, when page changes, or when search changes
+  // Reset to page 1 when search parameters change
   useEffect(() => {
-    // Reset to page 1 when search changes
-    if (pagination.page !== 1) {
-      setPagination(prev => ({ ...prev, page: 1 }));
-    } else {
-      loadRecipients(1);
-    }
-  }, [campaignId, debouncedSearchTerm, searchType, loadRecipients, pagination.page]);
+    setPagination(prev => ({ ...prev, page: 1 }));
+    // loadRecipients will be called by the other useEffect when page changes
+  }, [campaignId, debouncedSearchTerm, searchType]);
 
-  // Load recipients when page changes
+  // Load recipients when page changes or when search parameters change
   useEffect(() => {
     loadRecipients(pagination.page);
-  }, [campaignId, pagination.page, loadRecipients]);
+  }, [pagination.page, loadRecipients]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
