@@ -12,11 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dbPool = void 0;
-exports.getDatabaseConfig = getDatabaseConfig;
-exports.createDatabasePool = createDatabasePool;
-exports.logDatabaseConfig = logDatabaseConfig;
-exports.testDatabaseConnection = testDatabaseConnection;
+exports.dbPool = exports.testDatabaseConnection = exports.logDatabaseConfig = exports.createDatabasePool = exports.getDatabaseConfig = void 0;
 const pg_1 = require("pg");
 const dotenv_1 = __importDefault(require("dotenv"));
 // Load environment variables
@@ -46,6 +42,7 @@ function getDatabaseConfig() {
         ssl
     };
 }
+exports.getDatabaseConfig = getDatabaseConfig;
 /**
  * Create a database pool from configuration
  */
@@ -58,6 +55,7 @@ function createDatabasePool() {
     });
     return pool;
 }
+exports.createDatabasePool = createDatabasePool;
 /**
  * Log database connection details for debugging
  */
@@ -69,6 +67,7 @@ function logDatabaseConfig() {
     console.log('User:', process.env.PR_PG_USER);
     console.log('SSL Config:', process.env.PR_PG_SSL);
 }
+exports.logDatabaseConfig = logDatabaseConfig;
 /**
  * Test database connection
  * @param pool Database pool
@@ -107,6 +106,7 @@ function testDatabaseConnection(pool) {
         }
     });
 }
+exports.testDatabaseConnection = testDatabaseConnection;
 /**
  * Default database pool singleton
  */

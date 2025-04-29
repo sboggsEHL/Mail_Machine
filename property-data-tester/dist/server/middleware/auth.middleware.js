@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authMiddleware = authMiddleware;
-exports.adminMiddleware = adminMiddleware;
+exports.adminMiddleware = exports.authMiddleware = void 0;
 const jwt_1 = require("../utils/jwt");
 /**
  * Authentication middleware
@@ -46,6 +45,7 @@ function authMiddleware(req, res, next) {
         });
     }
 }
+exports.authMiddleware = authMiddleware;
 /**
  * Admin middleware
  * Requires a valid JWT token AND admin privileges
@@ -71,3 +71,4 @@ function adminMiddleware(req, res, next) {
     }
     next();
 }
+exports.adminMiddleware = adminMiddleware;

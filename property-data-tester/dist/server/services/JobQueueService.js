@@ -38,8 +38,8 @@ class JobQueueService {
      * @param priority The job priority
      * @returns The created job
      */
-    addJob(jobData_1) {
-        return __awaiter(this, arguments, void 0, function* (jobData, priority = 0) {
+    addJob(jobData, priority = 0) {
+        return __awaiter(this, void 0, void 0, function* () {
             // Create or update job in database
             const job = yield this.batchJobService.getJobById(jobData.jobId);
             if (job) {
@@ -232,8 +232,8 @@ class JobQueueService {
      * @param job The job to process
      */
     processJob(job) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             try {
                 const { criteria, job_id: jobId } = job;
                 const batchSize = 400; // Default batch size

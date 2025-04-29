@@ -107,8 +107,8 @@ class BaseRepository {
      * @returns True if the entity was deleted, false otherwise
      */
     softDelete(id, client) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             const queryExecutor = client || this.pool;
             const idField = this.getIdFieldName();
             const result = yield queryExecutor.query(`UPDATE ${this.tableName}
@@ -125,8 +125,8 @@ class BaseRepository {
      * @returns True if the entity was deleted, false otherwise
      */
     hardDelete(id, client) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             const queryExecutor = client || this.pool;
             const idField = this.getIdFieldName();
             const result = yield queryExecutor.query(`DELETE FROM ${this.tableName}
@@ -148,8 +148,8 @@ class BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Query result
      */
-    query(sql_1) {
-        return __awaiter(this, arguments, void 0, function* (sql, params = [], client) {
+    query(sql, params = [], client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             return queryExecutor.query(sql, params);
         });

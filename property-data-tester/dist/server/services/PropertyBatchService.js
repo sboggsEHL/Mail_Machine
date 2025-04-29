@@ -69,8 +69,8 @@ class PropertyBatchService extends PropertyService_1.PropertyService {
      * @param offset Offset for pagination
      * @returns Batch of properties
      */
-    getProperties(criteria_1) {
-        return __awaiter(this, arguments, void 0, function* (criteria, campaignId = 'default', limit = 400, offset = 0) {
+    getProperties(criteria, campaignId = 'default', limit = 400, offset = 0) {
+        return __awaiter(this, void 0, void 0, function* () {
             try {
                 // Get list of RadarIDs from criteria
                 let radarIds = [];
@@ -201,8 +201,8 @@ class PropertyBatchService extends PropertyService_1.PropertyService {
      * @param limit Maximum number of files to process
      * @returns Number of files processed
      */
-    processPendingFiles() {
-        return __awaiter(this, arguments, void 0, function* (limit = 10) {
+    processPendingFiles(limit = 10) {
+        return __awaiter(this, void 0, void 0, function* () {
             const pendingFiles = yield this.propertyPayloadService.getPendingFiles(limit);
             let processedCount = 0;
             for (const { fileStatus, originalPath } of pendingFiles) {

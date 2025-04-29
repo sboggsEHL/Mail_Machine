@@ -58,8 +58,8 @@ class PropertyOwnerRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of property owners
      */
-    findByName(name_1) {
-        return __awaiter(this, arguments, void 0, function* (name, limit = 100, offset = 0, client) {
+    findByName(name, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`SELECT * FROM ${this.tableName} 
        WHERE (
@@ -81,8 +81,8 @@ class PropertyOwnerRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of property owners
      */
-    findWithContactInfo(type_1) {
-        return __awaiter(this, arguments, void 0, function* (type, limit = 100, offset = 0, client) {
+    findWithContactInfo(type, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             let whereClause = '';
             switch (type) {
@@ -152,6 +152,55 @@ class PropertyOwnerRepository extends BaseRepository_1.BaseRepository {
                     queryExecutor.release();
                 }
             }
+        });
+    }
+    /**
+     * Update first_name for multiple property owners in bulk
+     * @param updates Array of objects containing owner_id and first_name
+     * @param client Optional client for transaction handling
+     * @returns Number of updated rows
+     */
+    updateFirstNameBulk(updates, client) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (updates.length === 0)
+                return 0;
+            const queryExecutor = client || this.pool;
+            // Build parameterized query for multiple updates
+            const params = [];
+            const cases = [];
+            updates.forEach((update, i) => {
+                params.push(update.owner_id, update.first_name);
+                cases.push(`WHEN owner_id = $${i * 2 + 1} THEN $${i * 2 + 2}`);
+            });
+            const ownerIds = updates.map((u, i) => `$${i * 2 + 1}`).join(',');
+            const query = `
+      UPDATE ${this.tableName}
+      SET first_name = CASE ${cases.join(' ')} END,
+          updated_at = NOW()
+      WHERE owner_id IN (${ownerIds})
+      RETURNING owner_id
+    `;
+            const result = yield queryExecutor.query(query, params);
+            return (_a = result.rowCount) !== null && _a !== void 0 ? _a : 0;
+        });
+    }
+    /**
+     * Update first_name for a single property owner
+     * @param ownerId Owner ID
+     * @param firstName New first name
+     * @param client Optional client for transaction handling
+     * @returns True if updated, false otherwise
+     */
+    updateFirstNameById(ownerId, firstName, client) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            const queryExecutor = client || this.pool;
+            const result = yield queryExecutor.query(`UPDATE ${this.tableName} 
+       SET first_name = $1, updated_at = NOW()
+       WHERE owner_id = $2
+       RETURNING owner_id`, [firstName, ownerId]);
+            return ((_a = result.rowCount) !== null && _a !== void 0 ? _a : 0) > 0;
         });
     }
 }

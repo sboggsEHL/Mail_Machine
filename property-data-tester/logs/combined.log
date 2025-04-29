@@ -256,3 +256,8 @@
 {"level":"info","message":"Job queue service initialized with worker ID: worker-ljs33ar3","timestamp":"2025-04-28T18:09:26.377Z"}
 {"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-28T18:09:27.997Z"}
 {"level":"info","message":"Job queue service initialized with worker ID: worker-takavf7b","timestamp":"2025-04-28T18:09:27.998Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-29T17:07:45.544Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-55a3xopj","timestamp":"2025-04-29T17:07:45.546Z"}
+{"level":"info","message":"Started polling for jobs every 5000ms","timestamp":"2025-04-29T17:07:46.957Z"}
+{"level":"info","message":"Job queue service initialized with worker ID: worker-2lfw4gxy","timestamp":"2025-04-29T17:07:46.959Z"}
+{"level":"info","message":"Stopped polling for jobs","timestamp":"2025-04-29T17:10:45.445Z"}
