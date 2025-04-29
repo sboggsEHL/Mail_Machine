@@ -47,14 +47,10 @@ export function createDatabasePool(): Pool {
 
 /**
  * Log database connection details for debugging
+ * This function is kept for backward compatibility but no longer logs sensitive information
  */
 export function logDatabaseConfig(): void {
-  console.log('Database connection details:');
-  console.log('Host:', process.env.PR_PG_HOST);
-  console.log('Port:', process.env.PR_PG_PORT);
-  console.log('Database:', process.env.PR_PG_DATABASE);
-  console.log('User:', process.env.PR_PG_USER);
-  console.log('SSL Config:', process.env.PR_PG_SSL);
+  // No longer logging sensitive database connection details
 }
 
 /**
@@ -65,11 +61,7 @@ export function logDatabaseConfig(): void {
 export async function testDatabaseConnection(pool: Pool): Promise<void> {
   const client = await pool.connect();
   try {
-    console.log('Successfully connected to database on startup');
-    
-    // Check search_path
-    const searchPathResult = await client.query('SHOW search_path');
-    console.log('Search path:', searchPathResult.rows[0].search_path);
+    // Verify database connection without logging sensitive details
     
     // Check if lead_providers exists
     const tableResult = await client.query(`
@@ -78,15 +70,12 @@ export async function testDatabaseConnection(pool: Pool): Promise<void> {
         WHERE table_schema = 'public' AND table_name = 'lead_providers'
       )
     `);
-    console.log('Lead providers table exists on startup:', tableResult.rows[0].exists);
     
-    // List all tables in public schema
+    // Verify tables exist without logging them
     const allTablesResult = await client.query(`
-      SELECT table_name FROM information_schema.tables 
+      SELECT COUNT(*) as table_count FROM information_schema.tables 
       WHERE table_schema = 'public'
-      ORDER BY table_name
     `);
-    console.log('Available tables on startup:', allTablesResult.rows.map(r => r.table_name).join(', '));
   } catch (err) {
     console.error('Error testing database connection on startup:', err);
     throw err;

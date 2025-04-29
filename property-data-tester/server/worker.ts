@@ -17,18 +17,16 @@ async function startWorker() {
   try {
     console.log('Starting batch processing worker...');
     
-    // Log configuration
-    logDatabaseConfig();
-    
-    // Test database connection
+    // Test database connection without logging sensitive details
     await testDatabaseConnection(dbPool);
+    console.log("🏠 📬 Lick Those Envelopes Boys, She's Ready! 📬 🏠");
     
     // Register PropertyRadar provider
     const propertyRadarToken = process.env.PROPERTY_RADAR_TOKEN;
     if (propertyRadarToken) {
       const propertyRadarProvider = createPropertyRadarProvider(propertyRadarToken);
       leadProviderFactory.registerProvider(propertyRadarProvider);
-      console.log(`Registered PropertyRadar provider with token: ${propertyRadarToken.substring(0, 5)}...`);
+      console.log(`PropertyRadar provider registered successfully`);
     } else {
       console.warn('No PropertyRadar token found in environment variables');
     }

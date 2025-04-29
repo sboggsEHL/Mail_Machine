@@ -17,14 +17,12 @@ dotenv.config();
 export async function createApp(): Promise<Express> {
   const app = express();
   
-  // Log database connection details
-  logDatabaseConfig();
-  
-  // Test database connection
+  // Test database connection without logging sensitive details
   try {
     await testDatabaseConnection(dbPool);
+    console.log("🏠 📬 Lick Those Envelopes Boys, She's Ready! 📬 🏠");
   } catch (error) {
-    console.error('Database connection test failed:', error);
+    console.error('Database connection test failed');
     // Continue anyway, the app might still work with some features disabled
   }
   
@@ -33,7 +31,7 @@ export async function createApp(): Promise<Express> {
   if (propertyRadarToken) {
     const propertyRadarProvider = createPropertyRadarProvider(propertyRadarToken);
     leadProviderFactory.registerProvider(propertyRadarProvider);
-    console.log(`Registered PropertyRadar provider with token: ${propertyRadarToken.substring(0, 5)}...`);
+    console.log(`PropertyRadar provider registered successfully`);
   } else {
     console.warn('No PropertyRadar token found in environment variables');
   }
@@ -52,7 +50,7 @@ export async function createApp(): Promise<Express> {
   
   // JWT auth setup
   const JWT_SECRET = process.env.JWT_SECRET || 'property-data-tester-jwt-secret-key';
-  console.log(`JWT auth configured with secret: ${JWT_SECRET.substring(0, 3)}...`);
+  console.log(`JWT authentication configured successfully`);
   
   // Configure API routes
   app.use('/', configureRoutes(dbPool));
