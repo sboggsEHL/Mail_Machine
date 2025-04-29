@@ -64,8 +64,8 @@ class BatchJobRepository {
      * @param offset Offset for pagination
      * @returns Array of batch jobs
      */
-    getJobs(status_1) {
-        return __awaiter(this, arguments, void 0, function* (status, limit = 100, offset = 0) {
+    getJobs(status, limit = 100, offset = 0) {
+        return __awaiter(this, void 0, void 0, function* () {
             let query = `
       SELECT * FROM batch_jobs
       ORDER BY created_at DESC
@@ -165,8 +165,8 @@ class BatchJobRepository {
      * @param offset Offset for pagination
      * @returns Array of log entries
      */
-    getJobLogs(jobId_1) {
-        return __awaiter(this, arguments, void 0, function* (jobId, limit = 100, offset = 0) {
+    getJobLogs(jobId, limit = 100, offset = 0) {
+        return __awaiter(this, void 0, void 0, function* () {
             const result = yield this.pool.query(`
       SELECT * FROM batch_job_logs
       WHERE job_id = $1

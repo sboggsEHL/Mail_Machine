@@ -79,8 +79,8 @@ class PropertyPayloadService {
      * @param limit Maximum number of files to return
      * @returns Array of pending batch files with absolute paths
      */
-    getPendingFiles() {
-        return __awaiter(this, arguments, void 0, function* (limit = 10) {
+    getPendingFiles(limit = 10) {
+        return __awaiter(this, void 0, void 0, function* () {
             try {
                 // Get pending files from database
                 const pendingStatuses = yield this.batchFileStatusRepo.findPendingFiles(limit);
@@ -187,8 +187,8 @@ class PropertyPayloadService {
      * @param processingMinutes Minutes threshold for processing files
      * @returns Array of stuck batch files
      */
-    findStuckFiles() {
-        return __awaiter(this, arguments, void 0, function* (pendingMinutes = 60, processingMinutes = 180) {
+    findStuckFiles(pendingMinutes = 60, processingMinutes = 180) {
+        return __awaiter(this, void 0, void 0, function* () {
             return this.batchFileStatusRepo.findStuckFiles(pendingMinutes, processingMinutes);
         });
     }
@@ -197,8 +197,8 @@ class PropertyPayloadService {
      * @param monthsToKeep Number of months to keep files
      * @returns Number of directories removed
      */
-    cleanupOldFiles() {
-        return __awaiter(this, arguments, void 0, function* (monthsToKeep = 1) {
+    cleanupOldFiles(monthsToKeep = 1) {
+        return __awaiter(this, void 0, void 0, function* () {
             try {
                 const dirs = yield fs_1.default.promises.readdir(this.baseDir);
                 const now = new Date();

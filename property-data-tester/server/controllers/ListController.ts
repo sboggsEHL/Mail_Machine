@@ -4,6 +4,7 @@ import { BatchJobService } from '../services/BatchJobService';
 import { BatchJobRepository } from '../repositories/BatchJobRepository';
 import { CampaignService } from '../services/CampaignService';
 import { CampaignRepository } from '../repositories/CampaignRepository';
+import { PropertyOwnerRepository } from '../repositories/PropertyOwnerRepository';
 import { Pool } from 'pg';
 
 export class ListController {
@@ -16,7 +17,8 @@ export class ListController {
     const batchJobRepository = new BatchJobRepository(pool);
     this.batchJobService = new BatchJobService(batchJobRepository);
     const campaignRepository = new CampaignRepository(pool);
-    this.campaignService = new CampaignService(campaignRepository);
+    const propertyOwnerRepository = new PropertyOwnerRepository(pool);
+    this.campaignService = new CampaignService(campaignRepository, propertyOwnerRepository);
   }
   
   /**

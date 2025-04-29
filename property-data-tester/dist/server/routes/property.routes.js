@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPropertyRoutes = createPropertyRoutes;
+exports.createPropertyRoutes = void 0;
 const express_1 = require("express");
 const PropertyController_1 = require("../controllers/PropertyController");
 const PropertyService_1 = require("../services/PropertyService");
@@ -47,3 +47,4 @@ function createPropertyRoutes() {
     router.get('/properties/:id', propertyController.getProperty);
     return router;
 }
+exports.createPropertyRoutes = createPropertyRoutes;

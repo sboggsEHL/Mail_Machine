@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createListRoutes = createListRoutes;
+exports.createListRoutes = void 0;
 const express_1 = require("express");
 const ListController_1 = require("../controllers/ListController");
 function createListRoutes(pool) {
@@ -22,3 +22,4 @@ function createListRoutes(pool) {
     router.post('/lists/process-multiple', (req, res) => listController.processMultipleLists(req, res));
     return router;
 }
+exports.createListRoutes = createListRoutes;

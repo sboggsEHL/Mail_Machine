@@ -64,8 +64,8 @@ class PropertyRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of properties
      */
-    findByProviderId(providerId_1) {
-        return __awaiter(this, arguments, void 0, function* (providerId, limit = 100, offset = 0, client) {
+    findByProviderId(providerId, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             const result = yield queryExecutor.query(`SELECT * FROM ${this.tableName} 
        WHERE provider_id = $1 AND is_active = true
@@ -82,8 +82,8 @@ class PropertyRepository extends BaseRepository_1.BaseRepository {
      * @param client Optional client for transaction handling
      * @returns Array of properties matching criteria
      */
-    findByCriteria(criteria_1) {
-        return __awaiter(this, arguments, void 0, function* (criteria, limit = 100, offset = 0, client) {
+    findByCriteria(criteria, limit = 100, offset = 0, client) {
+        return __awaiter(this, void 0, void 0, function* () {
             const queryExecutor = client || this.pool;
             // Filter out undefined values and build WHERE clauses
             const entries = Object.entries(criteria).filter(([_, value]) => value !== undefined);
