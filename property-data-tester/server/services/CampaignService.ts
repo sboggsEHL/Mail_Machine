@@ -183,8 +183,12 @@ export class CampaignService {
     let updated = 0;
     let ownersUpdated = 0;
 
-    // Get all existing loan_ids for this campaign
-    const loanIdMap = await this.campaignRepository.getRecipientLoanIdsByCampaignId(campaignId);
+    try {
+      logger.info(`Starting CSV upload for campaign ${campaignId} with ${records.length} records`);
+
+      // Get all existing loan_ids for this campaign
+      const loanIdMap = await this.campaignRepository.getRecipientLoanIdsByCampaignId(campaignId);
+      logger.info(`Found ${loanIdMap.size} existing recipients for campaign ${campaignId}`);
 
     // Date calculations (mimic Python logic)
     const now = new Date();
@@ -278,10 +282,21 @@ export class CampaignService {
 
     // Update property_owners first_name field
     if (ownerUpdates.length > 0) {
-      ownersUpdated = await this.propertyOwnerRepository.updateFirstNameBulk(ownerUpdates);
-      logger.info(`Updated ${ownersUpdated} property owners with new first_name values`);
+      logger.info(`Updating ${ownerUpdates.length} property owners with new first_name values`);
+      try {
+        ownersUpdated = await this.propertyOwnerRepository.updateFirstNameBulk(ownerUpdates);
+        logger.info(`Successfully updated ${ownersUpdated} property owners with new first_name values`);
+      } catch (ownerUpdateError) {
+        logger.error(`Error updating property owners: ${ownerUpdateError instanceof Error ? ownerUpdateError.message : 'Unknown error'}`);
+        errors.push(`Failed to update property owners: ${ownerUpdateError instanceof Error ? ownerUpdateError.message : 'Unknown error'}`);
+      }
     }
 
+    logger.info(`CSV upload complete: ${inserted} inserted, ${updated} updated, ${ownersUpdated} owners updated, ${errors.length} errors`);
     return { inserted, updated, ownersUpdated, errors };
+    } catch (error) {
+      logger.error(`Unexpected error in uploadRecipientsFromCsv: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
+    }
   }
 }

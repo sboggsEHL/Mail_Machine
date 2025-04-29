@@ -3,6 +3,7 @@ import { CampaignService } from '../services/CampaignService';
 import { Campaign } from '../models';
 import { AppError, ERROR_CODES } from '../utils/errors';
 import logger from '../utils/logger';
+import { parse } from 'csv-parse';
 
 /**
  * Controller for handling campaign-related HTTP requests
@@ -38,26 +39,39 @@ export class CampaignController {
       }
 
       // Parse CSV using csv-parse
-      const { parse } = require('csv-parse');
       const csvBuffer = reqWithFile.file.buffer;
       const csvString = csvBuffer.toString('utf-8');
 
-      parse(csvString, { columns: true, skip_empty_lines: true }, async (err: any, records: any[]) => {
-        if (err) {
-          res.status(400).json({ success: false, error: 'Failed to parse CSV: ' + err.message });
-          return;
-        }
-        try {
-          // Call service to process records
-          const result = await this.campaignService.uploadRecipientsFromCsv(id, records);
-          res.json({
-            success: true,
-            ...result
-          });
-        } catch (serviceErr) {
-          res.status(500).json({ success: false, error: serviceErr instanceof Error ? serviceErr.message : 'Failed to process recipients' });
-        }
-      });
+      try {
+        // Log CSV parsing attempt
+        logger.info(`Attempting to parse CSV for campaign ${id}, CSV length: ${csvString.length} bytes`);
+        
+        parse(csvString, { columns: true, skip_empty_lines: true }, async (err: any, records: any[]) => {
+          if (err) {
+            logger.error(`CSV parsing error: ${err.message}`);
+            res.status(400).json({ success: false, error: 'Failed to parse CSV: ' + err.message });
+            return;
+          }
+          
+          try {
+            // Log successful parsing
+            logger.info(`Successfully parsed CSV with ${records.length} records`);
+            
+            // Call service to process records
+            const result = await this.campaignService.uploadRecipientsFromCsv(id, records);
+            res.json({
+              success: true,
+              ...result
+            });
+          } catch (serviceErr) {
+            logger.error(`Error processing CSV records: ${serviceErr instanceof Error ? serviceErr.message : 'Unknown error'}`);
+            res.status(500).json({ success: false, error: serviceErr instanceof Error ? serviceErr.message : 'Failed to process recipients' });
+          }
+        });
+      } catch (parseErr) {
+        logger.error(`Error in CSV parse function: ${parseErr instanceof Error ? parseErr.message : 'Unknown error'}`);
+        res.status(500).json({ success: false, error: parseErr instanceof Error ? parseErr.message : 'Failed to parse CSV' });
+      }
     } catch (error) {
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Failed to upload recipients' });
     }
