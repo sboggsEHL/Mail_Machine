@@ -44,6 +44,12 @@ export function createCampaignRoutes(pool: Pool): Router {
   // GET /campaigns/:id/leads-csv - Download leads as CSV
   router.get('/:id/leads-csv', (req, res) => campaignController.downloadLeadsCsv(req, res));
 
+  // GET /campaigns/:id/recipients - Get recipients with pagination
+  router.get('/:id/recipients', (req, res) => campaignController.getRecipients(req, res));
+
+  // GET /campaigns/:id/recipients-csv - Download all recipients as CSV
+  router.get('/:id/recipients-csv', (req, res) => campaignController.downloadRecipientsCsv(req, res));
+
   // POST /campaigns/:id/upload-recipients - Upload recipients via CSV
   router.post('/:id/upload-recipients', upload.single('file'), (req, res) => campaignController.uploadRecipientsCsv(req, res));
 

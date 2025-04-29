@@ -173,6 +173,171 @@ export class CampaignService {
   }
 
   /**
+   * Get recipients for a campaign with pagination
+   * @param campaignId Campaign ID
+   * @param limit Maximum number of recipients to return
+   * @param offset Offset for pagination
+   * @returns Array of recipients
+   */
+  async getRecipientsByCampaignId(campaignId: number, limit: number = 10, offset: number = 0): Promise<any[]> {
+    return this.campaignRepository.getRecipientsByCampaignId(campaignId, limit, offset);
+  }
+
+  /**
+   * Count recipients for a campaign
+   * @param campaignId Campaign ID
+   * @returns Number of recipients
+   */
+  async countRecipientsByCampaignId(campaignId: number): Promise<number> {
+    return this.campaignRepository.countRecipientsByCampaignId(campaignId);
+  }
+
+  /**
+   * Get all recipients for a campaign
+   * @param campaignId Campaign ID
+   * @returns Array of all recipients
+   */
+  async getAllRecipientsByCampaignId(campaignId: number): Promise<any[]> {
+    // Get total count first
+    const count = await this.campaignRepository.countRecipientsByCampaignId(campaignId);
+    
+    // If there are no recipients, return empty array
+    if (count === 0) {
+      return [];
+    }
+    
+    // Fetch all recipients at once
+    return this.campaignRepository.getRecipientsByCampaignId(campaignId, count, 0);
+  }
+
+  /**
+   * Search recipients for a campaign with pagination
+   * @param campaignId Campaign ID
+   * @param searchTerm Search term
+   * @param searchType Type of search (loan_id, name, address, all)
+   * @param limit Maximum number of recipients to return
+   * @param offset Offset for pagination
+   * @returns Array of matching recipients
+   */
+  async searchRecipients(
+    campaignId: number,
+    searchTerm: string,
+    searchType: string = 'all',
+    limit: number = 10,
+    offset: number = 0
+  ): Promise<any[]> {
+    // If no search term, just return regular paginated results
+    if (!searchTerm) {
+      return this.campaignRepository.getRecipientsByCampaignId(campaignId, limit, offset);
+    }
+
+    // Build search query based on search type
+    let searchQuery = '';
+    let searchParams: any[] = [campaignId];
+    
+    // Add search term to params
+    searchParams.push(`%${searchTerm}%`);
+    
+    switch (searchType) {
+      case 'loan_id':
+        // Exact match for loan_id
+        searchQuery = 'AND loan_id ILIKE $2';
+        break;
+      case 'name':
+        // Fuzzy match for first_name or last_name
+        searchQuery = 'AND (first_name ILIKE $2 OR last_name ILIKE $2)';
+        break;
+      case 'address':
+        // Parse address to get street number and street name
+        const match = searchTerm.match(/^(\d+)\s+(.+)$/);
+        if (match) {
+          const [_, streetNumber, streetName] = match;
+          // Exact match for street number, fuzzy match for street name
+          searchQuery = 'AND address ILIKE $2';
+          // Replace the search term with a pattern that matches the street number exactly
+          searchParams[1] = `${streetNumber}%${streetName}%`;
+        } else {
+          // If no street number found, do a regular fuzzy search
+          searchQuery = 'AND address ILIKE $2';
+        }
+        break;
+      default:
+        // Search all fields
+        searchQuery = 'AND (loan_id ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2 OR address ILIKE $2)';
+        break;
+    }
+    
+    // Add pagination parameters
+    searchParams.push(limit, offset);
+    
+    // Execute search query
+    return this.campaignRepository.searchRecipients(
+      searchQuery,
+      searchParams
+    );
+  }
+
+  /**
+   * Count recipients matching search criteria
+   * @param campaignId Campaign ID
+   * @param searchTerm Search term
+   * @param searchType Type of search (loan_id, name, address, all)
+   * @returns Number of matching recipients
+   */
+  async countSearchRecipients(
+    campaignId: number,
+    searchTerm: string,
+    searchType: string = 'all'
+  ): Promise<number> {
+    // If no search term, just return total count
+    if (!searchTerm) {
+      return this.campaignRepository.countRecipientsByCampaignId(campaignId);
+    }
+
+    // Build search query based on search type
+    let searchQuery = '';
+    let searchParams: any[] = [campaignId];
+    
+    // Add search term to params
+    searchParams.push(`%${searchTerm}%`);
+    
+    switch (searchType) {
+      case 'loan_id':
+        // Exact match for loan_id
+        searchQuery = 'AND loan_id ILIKE $2';
+        break;
+      case 'name':
+        // Fuzzy match for first_name or last_name
+        searchQuery = 'AND (first_name ILIKE $2 OR last_name ILIKE $2)';
+        break;
+      case 'address':
+        // Parse address to get street number and street name
+        const match = searchTerm.match(/^(\d+)\s+(.+)$/);
+        if (match) {
+          const [_, streetNumber, streetName] = match;
+          // Exact match for street number, fuzzy match for street name
+          searchQuery = 'AND address ILIKE $2';
+          // Replace the search term with a pattern that matches the street number exactly
+          searchParams[1] = `${streetNumber}%${streetName}%`;
+        } else {
+          // If no street number found, do a regular fuzzy search
+          searchQuery = 'AND address ILIKE $2';
+        }
+        break;
+      default:
+        // Search all fields
+        searchQuery = 'AND (loan_id ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2 OR address ILIKE $2)';
+        break;
+    }
+    
+    // Execute count query
+    return this.campaignRepository.countSearchRecipients(
+      searchQuery,
+      searchParams
+    );
+  }
+
+  /**
    * Upload recipients from CSV and upsert into mail_recipients
    * @param campaignId Campaign ID
    * @param records Parsed CSV records

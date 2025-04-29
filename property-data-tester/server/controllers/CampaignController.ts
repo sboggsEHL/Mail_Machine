@@ -329,6 +329,64 @@ export class CampaignController {
   }
 
   /**
+   * Get recipients for a campaign with pagination and search
+   * @param req Express request
+   * @param res Express response
+   */
+  async getRecipients(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        res.status(400).json({ success: false, error: 'Invalid campaign ID' });
+        return;
+      }
+
+      // Get pagination parameters
+      const limit = parseInt(req.query.limit as string) || 10;
+      const page = parseInt(req.query.page as string) || 1;
+      const offset = (page - 1) * limit;
+      
+      // Get search parameters
+      const searchTerm = req.query.search as string || '';
+      const searchType = req.query.searchType as string || 'all';
+
+      // Fetch recipients with pagination and search
+      const recipients = await this.campaignService.searchRecipients(
+        id, 
+        searchTerm, 
+        searchType, 
+        limit, 
+        offset
+      );
+      
+      // Get total count for pagination with search applied
+      const totalCount = await this.campaignService.countSearchRecipients(
+        id, 
+        searchTerm, 
+        searchType
+      );
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.json({
+        success: true,
+        recipients,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages
+        }
+      });
+    } catch (error) {
+      logger.error('Error getting recipients:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get recipients'
+      });
+    }
+  }
+
+  /**
    * Download leads for a campaign as CSV
    * @param req Express request
    * @param res Express response
@@ -374,6 +432,106 @@ export class CampaignController {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to download leads CSV'
+      });
+    }
+  }
+
+  /**
+   * Download all recipients for a campaign as CSV
+   * @param req Express request
+   * @param res Express response
+   */
+  async downloadRecipientsCsv(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        res.status(400).json({ success: false, error: 'Invalid campaign ID' });
+        return;
+      }
+
+      // Fetch all recipients
+      const recipients = await this.campaignService.getAllRecipientsByCampaignId(id);
+
+      // If no recipients, return 404
+      if (!recipients || recipients.length === 0) {
+        res.status(404).json({ success: false, error: 'No recipients found for this campaign' });
+        return;
+      }
+
+      // Helper function to capitalize first letter of each word (like Excel's PROPER function)
+      const proper = (str: string | null | undefined): string => {
+        if (!str) return '';
+        return str.toLowerCase().replace(/(?:^|\s)\S/g, match => match.toUpperCase());
+      };
+
+      // Helper function to get first word (for first_name)
+      const getFirstWord = (str: string | null | undefined): string => {
+        if (!str) return '';
+        const firstSpace = str.indexOf(' ');
+        return firstSpace > 0 ? str.substring(0, firstSpace) : str;
+      };
+
+      // Format currency without decimals and ensure Excel treats it as text
+      const formatCurrency = (value: number | null | undefined): string => {
+        if (value === null || value === undefined) return '';
+        // Format as text with dollar sign but no decimals
+        // The ="$123,456" format tells Excel to treat it as text while preserving the formatting
+        return `="$${Math.round(value).toLocaleString('en-US')}"`;
+      };
+
+      // Specify the columns to include in the CSV
+      const columns = [
+        'loan_id', 'owner_id', 'first_name', 'last_name', 'address', 'city', 'state', 'zip_code',
+        'city_state_zip', 'close_month', 'skip_month', 'next_pay_month', 'mail_date', 'phone_number',
+        'presort_tray', 'barcode', 'status', 'mailed_date', '#qrLink', 'loan_type', 'loan_balance', 'lender_name'
+      ];
+      
+      const header = columns.join(',');
+      
+      // Create CSV rows with normalized data
+      const rows = recipients.map(row => {
+        // Apply normalization to specific fields
+        if (row.first_name) {
+          row.first_name = proper(getFirstWord(row.first_name));
+        }
+        
+        if (row.last_name) {
+          row.last_name = proper(row.last_name);
+        }
+        
+        if (row.city) {
+          row.city = proper(row.city);
+        }
+        
+        return columns.map(col => {
+          let value: string;
+          
+          // Special handling for loan_balance
+          if (col === 'loan_balance' && row[col] !== undefined && row[col] !== null) {
+            value = formatCurrency(row[col]);
+          } else {
+            value = row[col] !== undefined && row[col] !== null ? String(row[col]) : '';
+          }
+          
+          // Escape double quotes and wrap in quotes if needed
+          if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        }).join(',');
+      });
+      
+      const csv = [header, ...rows].join('\r\n');
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="campaign_${id}_recipients.csv"`);
+      res.status(200).send(csv);
+    } catch (error) {
+      logger.error('Error downloading recipients CSV:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to download recipients CSV'
       });
     }
   }

@@ -150,6 +150,54 @@ export class CampaignRepository extends BaseRepository<Campaign> {
   }
 
   /**
+   * Search recipients with custom search query
+   * @param searchQuery Additional WHERE clause for search
+   * @param params Query parameters (campaignId, searchTerm, limit, offset)
+   * @param client Optional client for transaction handling
+   * @returns Array of matching recipients
+   */
+  async searchRecipients(
+    searchQuery: string,
+    params: any[],
+    client?: PoolClient
+  ): Promise<any[]> {
+    const queryExecutor = client || this.pool;
+    
+    const result = await queryExecutor.query<any>(`
+      SELECT * FROM mail_recipients
+      WHERE campaign_id = $1
+      ${searchQuery}
+      ORDER BY recipient_id
+      LIMIT $3 OFFSET $4
+    `, params);
+    
+    return result.rows;
+  }
+
+  /**
+   * Count recipients matching search criteria
+   * @param searchQuery Additional WHERE clause for search
+   * @param params Query parameters (campaignId, searchTerm)
+   * @param client Optional client for transaction handling
+   * @returns Number of matching recipients
+   */
+  async countSearchRecipients(
+    searchQuery: string,
+    params: any[],
+    client?: PoolClient
+  ): Promise<number> {
+    const queryExecutor = client || this.pool;
+    
+    const result = await queryExecutor.query<{ count: string }>(`
+      SELECT COUNT(*) as count FROM mail_recipients
+      WHERE campaign_id = $1
+      ${searchQuery}
+    `, params.slice(0, 2)); // Only need campaignId and searchTerm
+    
+    return parseInt(result.rows[0].count);
+  }
+
+  /**
    * Bulk insert recipients into mail_recipients
    * @param recipients Array of recipient objects
    * @param client Optional client for transaction handling

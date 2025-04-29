@@ -367,4 +367,93 @@ export const fetchCampaignStats = async (id: number): Promise<CampaignStatsRespo
   }
 };
 
+/**
+ * Interface for recipient
+ */
+export interface Recipient {
+  recipient_id: number;
+  campaign_id: number;
+  loan_id: string;
+  first_name?: string;
+  last_name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  city_state_zip?: string;
+  status: string;
+  mailed_date?: string;
+  response_date?: string;
+  [key: string]: any; // For other properties
+}
+
+/**
+ * Interface for pagination
+ */
+export interface Pagination {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+/**
+ * Interface for recipients response
+ */
+interface RecipientsResponse extends ApiResponse<Recipient[]> {
+  recipients: Recipient[];
+  pagination: Pagination;
+}
+
+/**
+ * Fetch recipients for a campaign with pagination and search
+ * @param id The campaign ID
+ * @param page The page number
+ * @param limit The number of recipients per page
+ * @param searchTerm Optional search term
+ * @param searchType Optional search type (loan_id, name, address, all)
+ * @returns Promise with recipients response
+ */
+export const fetchRecipients = async (
+  id: number, 
+  page: number = 1, 
+  limit: number = 10,
+  searchTerm: string = '',
+  searchType: string = 'all'
+): Promise<RecipientsResponse> => {
+  try {
+    const response = await api.get<RecipientsResponse>(`/campaigns/${id}/recipients`, {
+      params: { 
+        page, 
+        limit,
+        search: searchTerm,
+        searchType
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching recipients for campaign ${id}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : `Failed to fetch recipients for campaign ${id}`,
+      recipients: [],
+      pagination: {
+        page,
+        limit,
+        totalCount: 0,
+        totalPages: 0
+      }
+    };
+  }
+};
+
+/**
+ * Get download URL for recipients CSV
+ * @param id The campaign ID
+ * @returns URL for downloading recipients CSV
+ */
+export const getRecipientsDownloadUrl = (id: number): string => {
+  return `${API_BASE_URL}/campaigns/${id}/recipients-csv`;
+};
+
 export default api;

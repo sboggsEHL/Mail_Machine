@@ -19,7 +19,7 @@ async function startWorker() {
     
     // Test database connection without logging sensitive details
     await testDatabaseConnection(dbPool);
-    console.log("🏠 📬 Lick Those Envelopes Boys, She's Ready! 📬 🏠");
+    console.log("🏠 📬 I'll do the lickin, Workers Ready! 📬 🏠");
     
     // Register PropertyRadar provider
     const propertyRadarToken = process.env.PROPERTY_RADAR_TOKEN;
