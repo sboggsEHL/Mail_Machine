@@ -232,7 +232,7 @@ export class CampaignService {
           address: row['address'] || null,
           city: row['city'] || null,
           state: row['state'] || null,
-          zip_code: row['zip'] || row['zip_code'] || null,
+          zip_code: row['zip'] ? row['zip'].trim().substring(0, 10) : (row['zip_code'] ? row['zip_code'].trim().substring(0, 10) : null),
           city_state_zip: row['city-state-zip'] || row['city_state_zip'] || null,
           presort_tray: row['presorttrayid'] || row['presort_tray'] || null,
           barcode: row['encodedimbno'] || row['barcode'] || null,
