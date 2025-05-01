@@ -1,3 +1,4 @@
+import 'express'; // Import express types to help resolve namespace augmentation
 import { Request, Response } from 'express';
 import { CampaignService } from '../services/CampaignService';
 import { Campaign } from '../models';
@@ -471,13 +472,12 @@ export class CampaignController {
         return firstSpace > 0 ? str.substring(0, firstSpace) : str;
       };
 
-      // Format currency without decimals and ensure Excel treats it as text
-      const formatCurrency = (value: number | null | undefined): string => {
-        if (value === null || value === undefined) return '';
-        // Format as text with dollar sign but no decimals
-        // The ="$123,456" format tells Excel to treat it as text while preserving the formatting
-        return `="$${Math.round(value).toLocaleString('en-US')}"`;
-      };
+  // Format currency without decimals
+  const formatCurrency = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return '';
+    // Format with dollar sign but no decimals
+    return `$${Math.round(value).toLocaleString('en-US')}`;
+  };
 
       // Specify the columns to include in the CSV
       const columns = [

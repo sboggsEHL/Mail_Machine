@@ -154,6 +154,8 @@ export class JobQueueService {
       await client.query('BEGIN');
       
       // Get the next available job
+      // IMPORTANT: We only select jobs with status 'PENDING' to prevent failed jobs from being automatically reprocessed
+      // Failed jobs must be manually reset to 'PENDING' status if they need to be retried
       const result = await client.query(`
         UPDATE batch_jobs
         SET 
@@ -241,6 +243,30 @@ export class JobQueueService {
   }
 
   /**
+   * Check for existing batches for a job
+   * @param campaignId The campaign ID (job ID as string)
+   * @returns Array of batch file statuses
+   */
+  private async checkExistingBatches(campaignId: string): Promise<any[]> {
+    if (!this.pool) {
+      return [];
+    }
+    
+    try {
+      const result = await this.pool.query(`
+        SELECT * FROM batch_file_status
+        WHERE campaign_id = $1
+        ORDER BY batch_number ASC
+      `, [campaignId]);
+      
+      return result.rows;
+    } catch (error) {
+      logger.error(`Error checking existing batches for campaign ${campaignId}:`, error);
+      return [];
+    }
+  }
+
+  /**
    * Process a job
    * @param job The job to process
    */
@@ -260,6 +286,19 @@ export class JobQueueService {
       // Update job with total count
       await this.batchJobService.updateJobProgress(jobId!, 0, totalCount, 0, 0);
       await this.batchJobService.logJobProgress(jobId!, `Estimated total records: ${totalCount}`);
+      
+      // Check if this job has already processed batches
+      // This prevents duplicate processing if a job is restarted
+      const existingBatches = await this.checkExistingBatches(jobId!.toString());
+      const processedBatchNumbers = existingBatches.map(b => b.batch_number);
+      
+      if (existingBatches.length > 0) {
+        await this.batchJobService.logJobProgress(
+          jobId!,
+          `Found ${existingBatches.length} existing batches (${processedBatchNumbers.join(', ')}). Will not reprocess these batches.`,
+          'WARNING'
+        );
+      }
       
       // Process in batches
       let processedCount = 0;

@@ -134,6 +134,14 @@ export class PropertyBatchService extends PropertyService {
         'DefaultAmount', 'inTaxDelinquency', 'DelinquentAmount', 'DelinquentYear'
       ];
       
+      // Check for existing batches to avoid duplicate processing
+      const existingBatches = await this.getExistingBatches(campaignId);
+      const existingBatchNumbers = existingBatches.map(b => b.batch_number);
+      
+      if (existingBatches.length > 0) {
+        console.log(`Found ${existingBatches.length} existing batches for campaign ${campaignId}. Will not reprocess these batches.`);
+      }
+      
       // Process properties in batches of 400
       const batchSize = 400;
       const allProperties: any[] = [];
@@ -146,8 +154,20 @@ export class PropertyBatchService extends PropertyService {
       
       logger.info(`Processing ${radarIds.length} properties in ${batches.length} batches of up to ${batchSize} properties each`);
       
+      // Calculate which batch we should start from based on offset
+      const startBatchIndex = Math.floor(offset / batchSize);
+      
       // Process each batch
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      for (let batchIndex = startBatchIndex; batchIndex < batches.length; batchIndex++) {
+        // Calculate the expected batch number for this batch
+        const expectedBatchNumber = batchIndex + 1;
+        
+        // Skip this batch if it's already been processed
+        if (existingBatchNumbers.includes(expectedBatchNumber)) {
+          console.log(`Skipping batch ${expectedBatchNumber} as it has already been processed`);
+          continue;
+        }
+        
         const batchRadarIds = batches[batchIndex];
         const batchProperties: any[] = [];
         
@@ -168,21 +188,21 @@ export class PropertyBatchService extends PropertyService {
               batchProperties.push(property);
               allProperties.push(property);
             } else {
-            logger.error(`Property ${radarId} missing RadarID in response`);
+              logger.error(`Property ${radarId} missing RadarID in response`);
+            }
+          } catch (error) {
+            logger.error(`Error fetching property ${radarId}:`, error);
+            // Continue with next property
           }
-        } catch (error) {
-          logger.error(`Error fetching property ${radarId}:`, error);
-          // Continue with next property
         }
-      }
         
         // Only save batch if it has properties
         if (batchProperties.length > 0) {
-          // Get batch number for this campaign
-          const batchNumber = this.getNextBatchNumber(campaignId);
+          // Use the expected batch number instead of getting a new one
+          const batchNumber = expectedBatchNumber;
           
           // Save batch properties to file
-          console.log(`Saving batch ${batchIndex + 1} with ${batchProperties.length} properties`);
+          console.log(`Saving batch ${batchNumber} with ${batchProperties.length} properties`);
           await this.propertyPayloadService.savePropertyPayload(
             batchProperties,
             campaignId,
@@ -240,6 +260,30 @@ export class PropertyBatchService extends PropertyService {
     const nextBatchNumber = currentBatchNumber + 1;
     this.batchCounter.set(campaignId, nextBatchNumber);
     return nextBatchNumber;
+  }
+  
+  /**
+   * Get existing batches for a campaign
+   * @param campaignId Campaign ID
+   * @returns Array of batch file statuses
+   */
+  protected async getExistingBatches(campaignId: string): Promise<any[]> {
+    if (!this.dbPool) {
+      return [];
+    }
+    
+    try {
+      const result = await this.dbPool.query(`
+        SELECT * FROM batch_file_status
+        WHERE campaign_id = $1
+        ORDER BY batch_number ASC
+      `, [campaignId]);
+      
+      return result.rows;
+    } catch (error) {
+      logger.error(`Error checking existing batches for campaign ${campaignId}:`, error);
+      return [];
+    }
   }
   
   /**
