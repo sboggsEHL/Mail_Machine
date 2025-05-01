@@ -267,10 +267,17 @@ export class JobQueueService {
       let errorCount = 0;
       let hasMoreRecords = true;
       let startIndex = 0;
+      let batchCount = 0;
       
       while (hasMoreRecords) {
+        batchCount++;
+        // Only log every 5 batches to reduce logging
+        const shouldLog = batchCount % 5 === 0;
+        
         // Fetch batch from PropertyRadar
-        await this.batchJobService.logJobProgress(jobId!, `Fetching batch starting at index ${startIndex}`);
+        if (shouldLog) {
+          await this.batchJobService.logJobProgress(jobId!, `Fetching batch ${batchCount} starting at index ${startIndex}`);
+        }
         
         const batchResult = await this.propertyService.getProperties(
           criteria,
@@ -281,47 +288,36 @@ export class JobQueueService {
         
         // Process and store the batch
         const batchRecords = batchResult.properties || [];
-        await this.batchJobService.logJobProgress(
-          jobId!,
-          `Processing batch with ${batchRecords.length} records`
-        );
         
-          // Process and store the records in the database
-          let batchSuccessCount = 0;
-          let batchErrorCount = 0;
+        // Process and store the records in the database
+        let batchSuccessCount = 0;
+        let batchErrorCount = 0;
+        
+        try {
+          // Add batch job criteria to each property
+          const propertiesWithCriteria = batchRecords.map(property => ({
+            ...property,
+            batchJobCriteria: criteria
+          }));
           
-          try {
-            // Save properties to database
-            await this.batchJobService.logJobProgress(
-              jobId!,
-              `Saving ${batchRecords.length} properties to database`
-            );
-            
-            // Add batch job criteria to each property
-            const propertiesWithCriteria = batchRecords.map(property => ({
-              ...property,
-              batchJobCriteria: criteria
-            }));
-            
-            // Check if provider_id is in the criteria
-            let providerCode = this.propertyService.getProviderCode();
-            
-            // Log the criteria for debugging
-            logger.info('Job criteria:', JSON.stringify(criteria, null, 2));
-            
-            // Use the saveProperties method to save to database
-            const savedProperties = await this.propertyService.saveProperties(
-              providerCode,
-              propertiesWithCriteria
-            );
+          // Check if provider_id is in the criteria
+          let providerCode = this.propertyService.getProviderCode();
           
+          // Use the saveProperties method to save to database
+          const savedProperties = await this.propertyService.saveProperties(
+            providerCode,
+            propertiesWithCriteria
+          );
+        
           batchSuccessCount = savedProperties.length;
           batchErrorCount = batchRecords.length - savedProperties.length;
           
-          await this.batchJobService.logJobProgress(
-            jobId!,
-            `Successfully saved ${batchSuccessCount} properties to database (${batchErrorCount} errors)`
-          );
+          if (shouldLog) {
+            await this.batchJobService.logJobProgress(
+              jobId!,
+              `Batch ${batchCount}: Saved ${batchSuccessCount} properties (${batchErrorCount} errors)`
+            );
+          }
         } catch (error) {
           logger.error('Error saving batch to database:', error);
           batchSuccessCount = 0;
@@ -329,7 +325,7 @@ export class JobQueueService {
           
           await this.batchJobService.logJobProgress(
             jobId!,
-            `Failed to save batch to database: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to save batch ${batchCount} to database: ${error instanceof Error ? error.message : String(error)}`,
             'ERROR'
           );
         }
@@ -348,12 +344,14 @@ export class JobQueueService {
           errorCount
         );
         
-        // Report progress
+        // Report progress only every 5 batches or at the end
         const percentComplete = Math.floor((processedCount / totalCount) * 100);
-        await this.batchJobService.logJobProgress(
-          jobId!,
-          `Processed ${processedCount} of ${totalCount} records (${percentComplete}%)`
-        );
+        if (shouldLog || !batchResult.hasMore) {
+          await this.batchJobService.logJobProgress(
+            jobId!,
+            `Processed ${processedCount} of ${totalCount} records (${percentComplete}%)`
+          );
+        }
         
         // Check if we need to continue
         hasMoreRecords = batchResult.hasMore || false;

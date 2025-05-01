@@ -172,13 +172,15 @@ class ListService {
     listIds: number[],
     excludeRadarIds: string[] = [],
     campaignId?: number,
-    newCampaign?: any
+    newCampaign?: any,
+    leadCount?: number
   ) {
     const response = await api.post(`/lists/process-multiple`, {
       listIds,
       excludeRadarIds,
       campaignId,
       newCampaign,
+      leadCount,
       userId: localStorage.getItem('userId') || 'system'
     });
     return response.data;

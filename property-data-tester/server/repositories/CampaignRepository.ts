@@ -215,7 +215,7 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     const colNames = columns.map(col => `"${col}"`).join(', ');
     
     // Process in batches to avoid PostgreSQL parameter limit (max 65535)
-    const BATCH_SIZE = 1000; // Adjust based on number of columns to stay well under the limit
+    const BATCH_SIZE = 500; // Reduced from 1000 to avoid parameter limit issues
     let totalRowsInserted = 0;
     
     // Process recipients in batches

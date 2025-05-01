@@ -490,7 +490,7 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Number of leads to process</Form.Label>
+              <Form.Label><strong>Number of leads to process</strong></Form.Label>
               <Form.Control 
                 type="number" 
                 value={leadCount} 
@@ -501,6 +501,12 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
               <Form.Text className="text-muted">
                 Maximum available: {totalItems - excludedRadarIds.length}
               </Form.Text>
+              <Alert variant="info" className="mt-2">
+                <small>
+                  <strong>Note:</strong> This limits the number of records that will be processed from this list.
+                  Use this to control batch size for testing or to split large lists into smaller batches.
+                </small>
+              </Alert>
             </Form.Group>
             
             <Form.Group className="mb-4">
@@ -590,6 +596,7 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
         onHide={() => setShowCreateCampaign(false)}
         criteria={extractCriteriaFromList()}
         onSuccess={handleCampaignCreated}
+        listName={list?.ListName}
       />
       
       {checking && (

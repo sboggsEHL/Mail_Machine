@@ -234,7 +234,7 @@ export class ListController {
   async processMultipleLists(req: Request, res: Response): Promise<void> {
     console.log('ListController.processMultipleLists called');
     try {
-      const { listIds, excludeRadarIds = [], campaignId, newCampaign } = req.body;
+      const { listIds, excludeRadarIds = [], campaignId, newCampaign, leadCount } = req.body;
       
       if (!listIds || !Array.isArray(listIds) || listIds.length === 0) {
         res.status(400).json({
@@ -244,7 +244,7 @@ export class ListController {
         return;
       }
       
-      console.log(`Processing ${listIds.length} lists with ${excludeRadarIds.length} excluded RadarIDs`);
+      console.log(`Processing ${listIds.length} lists with ${excludeRadarIds.length} excluded RadarIDs, leadCount: ${leadCount || 'all'}`);
       
       // Get all items from all lists
       let allItems: any[] = [];
@@ -289,7 +289,9 @@ export class ListController {
         criteria: {
           RadarID: filteredRadarIds,
           sourceListIds: listIds,
-          campaignId: finalCampaignId
+          campaignId: finalCampaignId,
+          // Apply lead count limit if specified
+          ...(leadCount && leadCount > 0 && leadCount < filteredRadarIds.length ? { leadCount } : {})
         },
         created_by: req.body.userId || 'system',
         priority: 1

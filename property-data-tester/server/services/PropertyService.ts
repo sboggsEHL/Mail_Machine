@@ -171,11 +171,9 @@ export class PropertyService {
       if (rawPropertyData.batchJobCriteria && rawPropertyData.batchJobCriteria.provider_id) {
         // Use the provider_id from the batch job criteria
         providerId = rawPropertyData.batchJobCriteria.provider_id;
-        console.log(`Using provider_id ${providerId} from batch job criteria`);
       } else if (rawPropertyData.criteria && rawPropertyData.criteria.provider_id) {
         // Use the provider_id from the property criteria
         providerId = rawPropertyData.criteria.provider_id;
-        console.log(`Using provider_id ${providerId} from property criteria`);
       } else {
         // Get provider_id from the database
         const leadProviderResult = await client.query<{ provider_id: number }>(
@@ -259,16 +257,112 @@ export class PropertyService {
     providerCode: string,
     rawPropertiesData: any[]
   ): Promise<InsertedProperty[]> {
+    if (rawPropertiesData.length === 0) {
+      return [];
+    }
+
     const results: InsertedProperty[] = [];
+    const BATCH_SIZE = 50; // Process 50 properties at a time
+    const provider = leadProviderFactory.getProvider(providerCode);
     
-    // Process each property
-    for (const rawPropertyData of rawPropertiesData) {
+    // Process in batches to improve performance
+    for (let i = 0; i < rawPropertiesData.length; i += BATCH_SIZE) {
+      const batch = rawPropertiesData.slice(i, i + BATCH_SIZE);
+      const client = await this.pool.connect();
+      
       try {
-        const result = await this.saveProperty(providerCode, rawPropertyData);
-        results.push(result);
+        // Begin transaction for the batch
+        await client.query('BEGIN');
+        
+        // Get provider_id (same for all properties in the batch)
+        let providerId: number;
+        
+        // Check if provider_id is in the batch job criteria
+        if (batch[0].batchJobCriteria && batch[0].batchJobCriteria.provider_id) {
+          providerId = batch[0].batchJobCriteria.provider_id;
+        } else if (batch[0].criteria && batch[0].criteria.provider_id) {
+          providerId = batch[0].criteria.provider_id;
+        } else {
+          // Get provider_id from the database
+          const leadProviderResult = await client.query<{ provider_id: number }>(
+            `SELECT provider_id FROM lead_providers WHERE provider_code = $1`,
+            [providerCode]
+          );
+          
+          if (leadProviderResult.rows.length > 0) {
+            providerId = leadProviderResult.rows[0].provider_id;
+          } else {
+            // Create the provider if it doesn't exist
+            const insertResult = await client.query<{ provider_id: number }>(
+              `INSERT INTO lead_providers (provider_name, provider_code)
+               VALUES ($1, $2)
+               RETURNING provider_id`,
+              [provider.getName(), providerCode]
+            );
+            providerId = insertResult.rows[0].provider_id;
+          }
+        }
+        
+        // Process each property in the batch
+        for (const rawPropertyData of batch) {
+          try {
+            // Transform the property data
+            const { property: propertyData, owners, loans } = provider.transformProperty(rawPropertyData);
+            
+            // Check if property already exists by radar_id
+            const existingProperty = await this.propertyRepo.findByRadarId(propertyData.radar_id!, client);
+            
+            let property: Property;
+            
+            if (existingProperty) {
+              // Update existing property
+              const updatedProperty = await this.propertyRepo.update(
+                existingProperty.property_id,
+                { ...propertyData, provider_id: providerId, updated_at: new Date() },
+                client
+              );
+              property = updatedProperty!;
+            } else {
+              // Create new property
+              property = await this.propertyRepo.create(
+                { ...propertyData, provider_id: providerId, created_at: new Date(), is_active: true },
+                client
+              );
+            }
+            
+            // Process owners if they exist
+            if (owners && owners.length > 0) {
+              await this.ownerRepo.bulkUpsert(property.property_id, owners, client);
+            }
+            
+            // Process loans if they exist
+            if (loans && loans.length > 0) {
+              await this.loanRepo.bulkUpsert(property.property_id, loans, client);
+            }
+            
+            // Add to results
+            results.push({
+              propertyId: property.property_id,
+              radarId: property.radar_id,
+              address: property.property_address,
+              city: property.property_city,
+              state: property.property_state
+            });
+          } catch (error) {
+            // Log error but continue with next property in the batch
+            console.error(`Error processing property with radar ID ${rawPropertyData.RadarID}:`, error);
+          }
+        }
+        
+        // Commit transaction for the batch
+        await client.query('COMMIT');
       } catch (error) {
-        console.error(`Error saving property with radar ID ${rawPropertyData.RadarID}:`, error);
-        // Continue with next property
+        // Rollback transaction on error
+        await client.query('ROLLBACK');
+        console.error(`Error processing batch of ${batch.length} properties:`, error);
+      } finally {
+        // Release client back to pool
+        client.release();
       }
     }
     

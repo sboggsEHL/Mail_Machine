@@ -335,59 +335,10 @@ export class PropertyBatchService extends PropertyService {
     // Call the parent class's saveProperties method
     const savedProperties = await super.saveProperties(providerCode, rawPropertiesData);
     
-    // If campaign ID is available, assign properties to campaign
-    if (campaignId) {
-      for (const property of savedProperties) {
-        if (property.propertyId) {
-          try {
-            await this.assignPropertyToCampaign(property.propertyId, campaignId);
-          } catch (error) {
-            console.error(`Error assigning property ${property.propertyId} to campaign ${campaignId}:`, error);
-            // Continue with next property
-          }
-        }
-      }
-    }
+    // We intentionally do not assign properties to campaigns here
+    // This prevents premature insertion into mail_recipients table
     
     return savedProperties;
-  }
-  
-  /**
-   * Assign a property to a campaign
-   * @param propertyId Property ID
-   * @param campaignId Campaign ID
-   */
-  async assignPropertyToCampaign(propertyId: number, campaignId: number): Promise<void> {
-    try {
-      // Check if the property is already assigned to this campaign
-      const checkResult = await this.dbPool.query(
-        `SELECT recipient_id FROM mail_recipients
-         WHERE property_id = $1 AND campaign_id = $2`,
-        [propertyId, campaignId]
-      );
-      
-      if (checkResult.rowCount && checkResult.rowCount > 0) {
-        console.log(`Property ${propertyId} is already assigned to campaign ${campaignId}`);
-        return;
-      }
-      
-      // Insert into mail_recipients table
-      await this.dbPool.query(
-        `INSERT INTO mail_recipients (
-           campaign_id,
-           property_id,
-           status,
-           created_at,
-           updated_at
-         ) VALUES ($1, $2, 'PENDING', NOW(), NOW())`,
-        [campaignId, propertyId]
-      );
-      
-      console.log(`Assigned property ${propertyId} to campaign ${campaignId}`);
-    } catch (error) {
-      console.error(`Error assigning property ${propertyId} to campaign ${campaignId}:`, error);
-      throw error;
-    }
   }
 }
 

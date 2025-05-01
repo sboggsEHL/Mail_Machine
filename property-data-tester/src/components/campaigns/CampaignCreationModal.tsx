@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { createCampaign, Campaign } from '../../services/api';
+import authService from '../../services/auth.service';
 
 interface CampaignCreationModalProps {
   show: boolean;
@@ -8,6 +9,7 @@ interface CampaignCreationModalProps {
   criteria: Record<string, any>;
   onSuccess: (campaignId: number) => void;
   username?: string;
+  listName?: string;
 }
 
 /**
@@ -18,9 +20,30 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
   onHide,
   criteria,
   onSuccess,
-  username = 'current_user'
+  username,
+  listName
 }) => {
-  const [campaignName, setCampaignName] = useState<string>('');
+  // Get the current username from localStorage or auth service
+  const [currentUsername, setCurrentUsername] = useState<string>(username || localStorage.getItem('username') || '');
+  
+  // Fetch current user on component mount
+  useEffect(() => {
+    const fetchUsername = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        if (user && user.username) {
+          setCurrentUsername(user.username);
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+    
+    if (!currentUsername) {
+      fetchUsername();
+    }
+  }, [currentUsername]);
+  const [campaignName, setCampaignName] = useState<string>(listName || '');
   const [campaignDate, setCampaignDate] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [targetStates, setTargetStates] = useState<string>('');
@@ -119,7 +142,7 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
         status: 'DRAFT',
         target_loan_types: parsedTargetLoanTypes,
         target_states: parsedTargetStates,
-        created_by: username
+        created_by: currentUsername || 'unknown'
       };
       
       const response = await createCampaign(campaignData);
@@ -152,7 +175,12 @@ export const CampaignCreationModal: React.FC<CampaignCreationModalProps> = ({
     
     // Set default target loan types
     setTargetLoanTypes(extractTargetLoanTypes().join(', '));
-  }, [criteria, show, generateDescription, extractTargetStates, extractTargetLoanTypes]);
+    
+    // Set default campaign name from list name if provided
+    if (listName) {
+      setCampaignName(listName);
+    }
+  }, [criteria, show, generateDescription, extractTargetStates, extractTargetLoanTypes, listName]);
   
   return (
     <Modal show={show} onHide={onHide} centered>

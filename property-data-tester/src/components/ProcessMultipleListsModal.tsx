@@ -37,6 +37,7 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
   const [processing, setProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [leadCount, setLeadCount] = useState<number>(0);
   
   // Load campaigns on component mount
   useEffect(() => {
@@ -314,7 +315,8 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
         selectedLists,
         excludedRadarIds,
         campaignId,
-        newCampaign
+        newCampaign,
+        leadCount > 0 ? leadCount : undefined
       );
       
       if (result.success) {
@@ -519,6 +521,32 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
               </div>
               
               <div className="mb-4">
+                <h5>Processing Options</h5>
+                <Form>
+                  <Form.Group className="mb-3">
+                    <Form.Label><strong>Number of leads to process</strong></Form.Label>
+                    <Form.Control 
+                      type="number" 
+                      value={leadCount} 
+                      onChange={(e) => setLeadCount(parseInt(e.target.value) || 0)}
+                      min={1}
+                      max={totalItems - excludedRadarIds.length}
+                    />
+                    <Form.Text className="text-muted">
+                      Maximum available: {totalItems - excludedRadarIds.length}
+                    </Form.Text>
+                    <Alert variant="info" className="mt-2">
+                      <small>
+                        <strong>Note:</strong> This limits the number of records that will be processed from these lists.
+                        Use this to control batch size for testing or to split large lists into smaller batches.
+                        Leave at 0 to process all available records.
+                      </small>
+                    </Alert>
+                  </Form.Group>
+                </Form>
+              </div>
+              
+              <div className="mb-4">
                 <h5>Campaign Selection</h5>
                 <Form>
                   <Form.Group className="mb-3">
@@ -599,6 +627,9 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
         onHide={() => setShowCreateCampaign(false)}
         criteria={extractCriteriaFromLists()}
         onSuccess={handleCampaignCreated}
+        listName={selectedLists.length === 1 
+          ? listData.find((l: any) => l.ListID === selectedLists[0])?.ListName 
+          : `Multiple Lists (${selectedLists.length})`}
       />
     </>
   );
