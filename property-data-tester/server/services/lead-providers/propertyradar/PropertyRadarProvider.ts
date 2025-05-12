@@ -143,9 +143,20 @@ export class PropertyRadarProvider implements LeadProvider {
       return !isNaN(num) ? num : undefined;
     };
     
+    // Check if we have results array (from batch API response)
+    let propertyData = rawProperty;
+    if (rawProperty.results && Array.isArray(rawProperty.results) && rawProperty.results.length > 0) {
+      propertyData = rawProperty.results[0];
+    }
+    
+    // Log warning if RadarID is missing
+    if (!propertyData.RadarID) {
+      console.warn('WARNING: Property missing RadarID in transformProperty:', JSON.stringify(propertyData).substring(0, 200) + '...');
+    }
+    
     // Create property object
     const property: Partial<Property> = {
-      radar_id: rawProperty.RadarID,
+      radar_id: propertyData.RadarID,
       property_address: rawProperty.Address,
       property_city: rawProperty.City,
       property_state: rawProperty.State,

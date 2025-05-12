@@ -309,36 +309,55 @@ export class PropertyService {
             // Transform the property data
             const { property: propertyData, owners, loans } = provider.transformProperty(rawPropertyData);
             
+            // Validate that radar_id exists
+            if (!propertyData.radar_id) {
+              console.error('Error: Property missing radar_id, skipping:', 
+                JSON.stringify(rawPropertyData).substring(0, 200) + '...');
+              continue; // Skip this property
+            }
+            
             // Check if property already exists by radar_id
-            const existingProperty = await this.propertyRepo.findByRadarId(propertyData.radar_id!, client);
+            const existingProperty = await this.propertyRepo.findByRadarId(propertyData.radar_id, client);
             
             let property: Property;
             
             try {
-              // Ensure string fields are explicitly cast to varchar to avoid text vs character varying issues
-              const propertyToSave = Object.entries(propertyData).reduce((acc, [key, value]) => {
-                // Only process string values to ensure proper type casting
-                if (typeof value === 'string') {
-                  // Add explicit cast to varchar for string values
-                  acc[key] = value;
-                } else {
-                  acc[key] = value;
+              // Create a sanitized property object with proper type handling
+              const propertyToSave: Record<string, any> = {};
+              
+              // Process each property field with proper type handling
+              for (const [key, value] of Object.entries(propertyData)) {
+                // Skip null or undefined values
+                if (value === null || value === undefined) {
+                  continue;
                 }
-                return acc;
-              }, {} as Record<string, any>);
+                
+                // Ensure radar_id is always a string
+                if (key === 'radar_id') {
+                  propertyToSave[key] = String(value);
+                } else {
+                  propertyToSave[key] = value;
+                }
+              }
+              
+              // Add provider_id and timestamps
+              propertyToSave.provider_id = providerId;
               
               if (existingProperty) {
                 // Update existing property
+                propertyToSave.updated_at = new Date();
                 const updatedProperty = await this.propertyRepo.update(
                   existingProperty.property_id,
-                  { ...propertyToSave, provider_id: providerId, updated_at: new Date() },
+                  propertyToSave,
                   client
                 );
                 property = updatedProperty!;
               } else {
                 // Create new property
+                propertyToSave.created_at = new Date();
+                propertyToSave.is_active = true;
                 property = await this.propertyRepo.create(
-                  { ...propertyToSave, provider_id: providerId, created_at: new Date(), is_active: true },
+                  propertyToSave,
                   client
                 );
               }

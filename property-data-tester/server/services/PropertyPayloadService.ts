@@ -54,22 +54,34 @@ export class PropertyPayloadService {
     const filename = `${campaignId}_batch${batchNumber}_${timestamp}.json`;
     const filePath = path.join(monthDir, filename);
     
-    // Calculate checksum of the data
-    const dataString = JSON.stringify(rawPayload, null, 2);
-    const checksum = this.calculateChecksum(dataString);
-
-    // Determine properties count (try to use .results or .properties, fallback to 0)
-    let propertiesCount = 0;
+    // Extract the array of property objects (main branch behavior)
+    let propertiesArray: any[] = [];
     if (rawPayload && Array.isArray(rawPayload.results)) {
-      propertiesCount = rawPayload.results.length;
+      propertiesArray = rawPayload.results;
     } else if (rawPayload && Array.isArray(rawPayload.properties)) {
-      propertiesCount = rawPayload.properties.length;
+      propertiesArray = rawPayload.properties;
     } else if (Array.isArray(rawPayload)) {
-      propertiesCount = rawPayload.length;
+      propertiesArray = rawPayload;
     }
 
-    // Write raw payload to file
-    await this.writeJsonToFile(filePath, rawPayload);
+    // Ensure all properties have a RadarID
+    const validProperties = propertiesArray.filter(prop => {
+      if (!prop.RadarID) {
+        console.warn('WARNING: Filtering out property missing RadarID in payload');
+        return false;
+      }
+      return true;
+    });
+
+    // Calculate checksum of the data (array only)
+    const dataString = JSON.stringify(validProperties, null, 2);
+    const checksum = this.calculateChecksum(dataString);
+
+    // Determine properties count
+    const propertiesCount = validProperties.length;
+
+    // Write only the array to file (main branch behavior)
+    await this.writeJsonToFile(filePath, validProperties);
     
     // Create batch file status record
     const fileStatus: BatchFileStatus = {

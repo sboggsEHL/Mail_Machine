@@ -183,18 +183,26 @@ export class PropertyBatchService extends PropertyService {
               throw new Error(`Provider ${this.providerCode} does not support fetching by ID.`);
             }
             const rawResponse = await provider.fetchPropertyById(radarId, fields);
+            
+            // Check if the response has a RadarID
+            if (!rawResponse || !rawResponse.RadarID) {
+              logger.error(`Property ${radarId} missing RadarID in response:`, 
+                JSON.stringify(rawResponse).substring(0, 200) + '...');
+              continue; // Skip this property
+            }
+            
             // Save the raw response for payload logging
             batchRawPayloads.push(rawResponse);
 
             // Transform the property for processing
             let property = provider.transformProperty(rawResponse);
 
-            // Ensure the property has a RadarID
-            if (rawResponse && rawResponse.RadarID) {
+            // Double-check the transformed property has a RadarID
+            if (property.property && property.property.radar_id) {
               batchProperties.push(property.property);
               allProperties.push(property.property);
             } else {
-              logger.error(`Property ${radarId} missing RadarID in response`);
+              logger.error(`Property ${radarId} missing radar_id after transformation`);
             }
           } catch (error) {
             logger.error(`Error fetching property ${radarId}:`, error);

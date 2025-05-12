@@ -65,10 +65,25 @@ export abstract class BaseRepository<T extends QueryResultRow> {
     // Filter out undefined values and create columns and values arrays
     const entries = Object.entries(entity).filter(([_, value]) => value !== undefined);
     const columns = entries.map(([key]) => key);
-    const values = entries.map(([_, value]) => value);
     
-    // Create the SQL placeholders ($1, $2, etc.)
-    const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
+    // Process values to ensure consistent types
+    const values = entries.map(([key, value]) => {
+      // Ensure string values for specific fields
+      if (typeof value === 'string') {
+        // Explicitly cast string values to VARCHAR to avoid text vs varchar issues
+        return value;
+      }
+      return value;
+    });
+    
+    // Create the SQL placeholders with explicit type casting for strings
+    const placeholders = entries.map(([key, value], index) => {
+      if (typeof value === 'string') {
+        // Use explicit type casting for string values
+        return `$${index + 1}::VARCHAR`;
+      }
+      return `$${index + 1}`;
+    }).join(', ');
     
     const result = await queryExecutor.query<T>(
       `INSERT INTO ${this.tableName} (${columns.join(', ')})

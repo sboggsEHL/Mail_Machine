@@ -366,46 +366,86 @@ export class JobQueueService {
       let errorCount = 0;
       
       try {
-        // Add batch job criteria to each property
-        const propertiesWithCriteria = batchRadarIds.map(radarId => ({
-          RadarID: radarId,
-          batchJobCriteria: criteria
-        }));
-        
-        // First save the raw property payload to disk for record-keeping
+        // Fetch full raw property data for each RadarID (main branch behavior)
+        const providerCode = criteria.provider_code || this.propertyService.getProviderCode();
+        const leadProviderFactory = require('./lead-providers/LeadProviderFactory').leadProviderFactory;
+        const provider = leadProviderFactory.getProvider(providerCode);
+
+        // Define fields to fetch (should match PropertyBatchService)
+        const fields = [
+          'RadarID', 'PType', 'Address', 'City', 'State', 'ZipFive', 'County', 'APN',
+          'Owner', 'OwnerFirstName', 'OwnerLastName', 'OwnerSpouseFirstName', 'OwnershipType',
+          'isSameMailingOrExempt', 'isMailVacant', 'PhoneAvailability', 'EmailAvailability',
+          'AVM', 'AvailableEquity', 'EquityPercent', 'CLTV', 'TotalLoanBalance', 'NumberLoans',
+          'FirstDate', 'FirstAmount', 'FirstRate', 'FirstRateType', 'FirstTermInYears',
+          'FirstLoanType', 'FirstPurpose', 'FirstLenderOriginal', 'SecondDate', 'SecondAmount', 'SecondLoanType',
+          'AnnualTaxes', 'EstimatedTaxRate',
+          'LastTransferRecDate', 'LastTransferValue', 'LastTransferDownPaymentPercent', 'LastTransferSeller',
+          'isListedForSale', 'ListingPrice', 'DaysOnMarket', 'inForeclosure', 'ForeclosureStage',
+          'DefaultAmount', 'inTaxDelinquency', 'DelinquentAmount', 'DelinquentYear'
+        ];
+
+        const batchRawPayloads: any[] = [];
+        for (const radarId of batchRadarIds) {
+          try {
+            if (!provider.fetchPropertyById) {
+              throw new Error(`Provider ${providerCode} does not support fetching by ID.`);
+            }
+            const rawResponse = await provider.fetchPropertyById(radarId, fields);
+            batchRawPayloads.push(rawResponse);
+          } catch (error) {
+            logger.error(`Error fetching property ${radarId}:`, error);
+          }
+        }
+
+        // Save the full raw payloads to file (main branch behavior)
         try {
-          // Convert job_id to string for use as campaignId
           const campaignId = jobId!.toString();
-          
-          // Get the batch number from the job
           const batchNum = job.batch_number || 1;
-          
-          // Get the pool from the propertyService or use this.pool if available
           const dbPool = this.pool || (this.propertyService as any).pool;
-          
           if (dbPool) {
-            // Create payload service directly
             const payloadService = new PropertyPayloadService(dbPool);
-            
-            // Save raw property data to file system
             await payloadService.savePropertyPayload(
-              propertiesWithCriteria,
+              batchRawPayloads,
               campaignId,
               batchNum
             );
-            
             logger.info(`Saved raw property payload for batch ${batchNum} to file system`);
           } else {
             logger.warn(`Could not save property payload - no database pool available`);
           }
         } catch (payloadError) {
           logger.error(`Error saving property payload to file: ${payloadError instanceof Error ? payloadError.message : String(payloadError)}`);
-          // Continue processing even if payload saving fails
         }
-        
-        // Use the provider code from criteria or default to PR
-        let providerCode = criteria.provider_code || this.propertyService.getProviderCode();
-        
+
+        // Transform each raw property for DB save (main branch behavior)
+        const propertiesWithCriteria = batchRawPayloads.map(raw => {
+          let property = raw;
+          
+          // Handle nested structure where property is in raw.results[0]
+          if (raw && raw.results && Array.isArray(raw.results) && raw.results.length > 0) {
+            // Extract the actual property from the results array
+            const propertyData = raw.results[0];
+            
+            if (provider.transformProperty) {
+              // Transform the property data, not the wrapper
+              const transformed = provider.transformProperty(propertyData);
+              property = transformed && transformed.property ? transformed.property : propertyData;
+            } else {
+              property = propertyData;
+            }
+          } else if (provider.transformProperty) {
+            // For non-nested structures, transform as before
+            const transformed = provider.transformProperty(raw);
+            property = transformed && transformed.property ? transformed.property : raw;
+          }
+          
+          return {
+            ...property,
+            batchJobCriteria: criteria
+          };
+        });
+
         // Use the saveProperties method to save to database
         const savedProperties = await this.propertyService.saveProperties(
           providerCode,
