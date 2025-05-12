@@ -176,12 +176,22 @@ export class LoanRepository extends BaseRepository<Loan> {
           delete consolidatedLoanData.loan_id;
       }
 
+      // Ensure all string values are consistently handled
+      // Use type assertion to avoid TypeScript errors
+      const typedLoanData = consolidatedLoanData as Record<string, any>;
+      Object.keys(typedLoanData).forEach(key => {
+          if (typeof typedLoanData[key] === 'string') {
+              typedLoanData[key] = String(typedLoanData[key]);
+          }
+      });
 
       if (targetLoan) {
           console.log(`[LoanRepo.bulkUpsert] Found existing loan ${targetLoan.loan_id} (active: ${targetLoan.is_active}) for property ${propertyId}. Updating and ensuring active.`);
 
           // Update the existing loan record, making sure is_active is true
-          resultLoan = await this.update(targetLoan.loan_id, consolidatedLoanData, queryExecutor);
+          // Ensure loan_id is consistently a string
+          const loanId = String(targetLoan.loan_id);
+          resultLoan = await this.update(loanId, consolidatedLoanData, queryExecutor);
 
           // Optional: Deactivate any OTHER loans found for the same property
           for (const otherLoan of allExistingLoans) {

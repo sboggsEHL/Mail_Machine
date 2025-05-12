@@ -219,7 +219,7 @@ export class BatchJobRepository {
   ): Promise<BatchJob | null> {
     let query = `
       UPDATE batch_jobs
-      SET status = $2
+      SET status = $2::VARCHAR
     `;
     
     const params: any[] = [jobId, status];
@@ -342,7 +342,7 @@ export class BatchJobRepository {
     const result = await this.pool.query(`
       UPDATE batch_jobs
       SET 
-        status = $2,
+        status = $2::VARCHAR,
         error_details = $3,
         updated_at = NOW(),
         completed_at = CASE WHEN $2 = 'COMPLETED' THEN NOW() ELSE completed_at END

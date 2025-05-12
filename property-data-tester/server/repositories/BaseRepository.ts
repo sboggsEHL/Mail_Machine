@@ -30,9 +30,12 @@ export abstract class BaseRepository<T extends QueryResultRow> {
     const queryExecutor = client || this.pool;
     const idField = this.getIdFieldName();
     
+    // Ensure consistent typing for the id parameter
+    const idValue = typeof id === 'string' ? String(id) : String(id);
+    
     const result = await queryExecutor.query<T>(
-      `SELECT * FROM ${this.tableName} WHERE ${idField} = $1`,
-      [id]
+      `SELECT * FROM ${this.tableName} WHERE ${idField} = $1::VARCHAR`,
+      [idValue]
     );
     
     return result.rows.length > 0 ? result.rows[0] : null;
@@ -71,7 +74,7 @@ export abstract class BaseRepository<T extends QueryResultRow> {
       // Ensure string values for specific fields
       if (typeof value === 'string') {
         // Explicitly cast string values to VARCHAR to avoid text vs varchar issues
-        return value;
+        return String(value);  // Explicitly convert to ensure consistent STRING type
       }
       return value;
     });
@@ -156,12 +159,15 @@ export abstract class BaseRepository<T extends QueryResultRow> {
     const queryExecutor = client || this.pool;
     const idField = this.getIdFieldName();
     
+    // Ensure consistent typing for the id parameter
+    const idValue = typeof id === 'string' ? String(id) : String(id);
+    
     const result = await queryExecutor.query(
       `UPDATE ${this.tableName}
        SET is_active = false, updated_at = NOW()
-       WHERE ${idField} = $1
+       WHERE ${idField} = $1::VARCHAR
        RETURNING ${idField}`,
-      [id]
+      [idValue]
     );
     
     return (result.rowCount ?? 0) > 0;
@@ -177,10 +183,13 @@ export abstract class BaseRepository<T extends QueryResultRow> {
     const queryExecutor = client || this.pool;
     const idField = this.getIdFieldName();
     
+    // Ensure consistent typing for the id parameter
+    const idValue = typeof id === 'string' ? String(id) : String(id);
+    
     const result = await queryExecutor.query(
       `DELETE FROM ${this.tableName}
-       WHERE ${idField} = $1`,
-      [id]
+       WHERE ${idField} = $1::VARCHAR`,
+      [idValue]
     );
     
     return (result.rowCount ?? 0) > 0;
