@@ -126,8 +126,9 @@ export class BatchJobController {
       const status = req.query.status as string | undefined;
       const limit = parseInt(req.query.limit as string || '100');
       const offset = parseInt(req.query.offset as string || '0');
+      const includeChildJobs = req.query.includeChildJobs === 'true';
       
-      const jobs = await this.batchJobService.getJobs(status, limit, offset);
+      const jobs = await this.batchJobService.getJobs(status, limit, offset, includeChildJobs);
       
       res.json({
         success: true,

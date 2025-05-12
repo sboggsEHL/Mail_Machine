@@ -1,6 +1,7 @@
 import { BatchJob, BatchJobLog } from '../models';
 import { BatchJobService } from './BatchJobService';
 import { PropertyBatchService } from './PropertyBatchService';
+import { PropertyPayloadService } from './PropertyPayloadService';
 import { Pool } from 'pg';
 import { AppError, ERROR_CODES } from '../utils/errors';
 import logger from '../utils/logger';
@@ -121,6 +122,12 @@ export class JobQueueService {
         `Job failed: ${error.message}`, 
         'ERROR'
       );
+      
+      // If this is a child job, update the parent's progress even after failure
+      if (job.parent_job_id) {
+        await this.batchJobService.updateParentJobProgress(job.parent_job_id);
+        await this.batchJobService.updateParentJobStatus(job.parent_job_id);
+      }
     } finally {
       // Release the job lock
       await this.releaseJob(job.job_id!);
@@ -156,6 +163,7 @@ export class JobQueueService {
       // Get the next available job
       // IMPORTANT: We only select jobs with status 'PENDING' to prevent failed jobs from being automatically reprocessed
       // Failed jobs must be manually reset to 'PENDING' status if they need to be retried
+      // Also filter out parent jobs (is_parent = true)
       const result = await client.query(`
         UPDATE batch_jobs
         SET 
@@ -170,6 +178,7 @@ export class JobQueueService {
             status = 'PENDING'
             AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
             AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '10 minutes')
+            AND (is_parent = false OR is_parent IS NULL)
           ORDER BY priority DESC, created_at ASC
           LIMIT 1
           FOR UPDATE SKIP LOCKED
@@ -272,12 +281,181 @@ export class JobQueueService {
    */
   private async processJob(job: BatchJob): Promise<void> {
     try {
+      // Check if this is a parent job - if so, just update its progress
+      if (job.is_parent) {
+        await this.batchJobService.logJobProgress(job.job_id!, 'Parent job - updating progress only');
+        await this.batchJobService.updateParentJobProgress(job.job_id!);
+        await this.batchJobService.updateParentJobStatus(job.job_id!);
+        return;
+      }
+
       const { criteria, job_id: jobId } = job;
-      const batchSize = 400; // Default batch size
       
       // Update job status to PROCESSING
       await this.batchJobService.updateJobStatus(jobId!, 'PROCESSING');
       await this.batchJobService.logJobProgress(jobId!, 'Job started processing');
+      
+      // Check if this is a child job
+      if (job.parent_job_id) {
+        await this.batchJobService.logJobProgress(
+          jobId!,
+          `Processing as child job for parent ${job.parent_job_id}, batch ${job.batch_number}`
+        );
+      }
+      
+      // For child jobs, use the batch-specific processing
+      if (job.parent_job_id && job.batch_number && (job.batch_size !== undefined)) {
+        // Process just this batch
+        await this.processBatchJob(job);
+      } else {
+        // For backward compatibility, process as a regular job
+        await this.processRegularJob(job);
+      }
+      
+      // Mark job as completed
+      await this.batchJobService.updateJobStatus(jobId!, 'COMPLETED');
+      
+      // If this is a child job, update the parent's progress
+      if (job.parent_job_id) {
+        await this.batchJobService.updateParentJobProgress(job.parent_job_id);
+        await this.batchJobService.updateParentJobStatus(job.parent_job_id);
+      }
+      
+    } catch (error: any) {
+      // Log error and update job status
+      logger.error(`Job ${job.job_id} failed:`, error);
+      await this.batchJobService.updateJobStatus(job.job_id!, 'FAILED', error.message);
+      await this.batchJobService.logJobProgress(job.job_id!, `Job failed: ${error.message}`, 'ERROR');
+      
+      // If this is a child job, update the parent's progress even after failure
+      if (job.parent_job_id) {
+        await this.batchJobService.updateParentJobProgress(job.parent_job_id);
+        await this.batchJobService.updateParentJobStatus(job.parent_job_id);
+      }
+      
+      throw error;
+    }
+  }
+  
+  /**
+   * Process a batch job (child job)
+   * @param job The batch job to process
+   */
+  private async processBatchJob(job: BatchJob): Promise<void> {
+    try {
+      const { criteria, job_id: jobId, batch_number: batchNumber } = job;
+      
+      // Get batch-specific IDs from criteria
+      const batchRadarIds = criteria.RadarID;
+      if (!batchRadarIds || !Array.isArray(batchRadarIds)) {
+        throw new Error('Invalid batch criteria: RadarID array required');
+      }
+      
+      await this.batchJobService.logJobProgress(
+        jobId!,
+        `Processing batch ${batchNumber} with ${batchRadarIds.length} properties`
+      );
+      
+      // Update job with total count for this batch
+      const totalCount = batchRadarIds.length;
+      await this.batchJobService.updateJobProgress(jobId!, 0, totalCount, 0, 0);
+      
+      // Process and store the properties
+      let processedCount = 0;
+      let successCount = 0;
+      let errorCount = 0;
+      
+      try {
+        // Add batch job criteria to each property
+        const propertiesWithCriteria = batchRadarIds.map(radarId => ({
+          RadarID: radarId,
+          batchJobCriteria: criteria
+        }));
+        
+        // First save the raw property payload to disk for record-keeping
+        try {
+          // Convert job_id to string for use as campaignId
+          const campaignId = jobId!.toString();
+          
+          // Get the batch number from the job
+          const batchNum = job.batch_number || 1;
+          
+          // Get the pool from the propertyService or use this.pool if available
+          const dbPool = this.pool || (this.propertyService as any).pool;
+          
+          if (dbPool) {
+            // Create payload service directly
+            const payloadService = new PropertyPayloadService(dbPool);
+            
+            // Save raw property data to file system
+            await payloadService.savePropertyPayload(
+              propertiesWithCriteria,
+              campaignId,
+              batchNum
+            );
+            
+            logger.info(`Saved raw property payload for batch ${batchNum} to file system`);
+          } else {
+            logger.warn(`Could not save property payload - no database pool available`);
+          }
+        } catch (payloadError) {
+          logger.error(`Error saving property payload to file: ${payloadError instanceof Error ? payloadError.message : String(payloadError)}`);
+          // Continue processing even if payload saving fails
+        }
+        
+        // Use the provider code from criteria or default to PR
+        let providerCode = criteria.provider_code || this.propertyService.getProviderCode();
+        
+        // Use the saveProperties method to save to database
+        const savedProperties = await this.propertyService.saveProperties(
+          providerCode,
+          propertiesWithCriteria
+        );
+        
+        processedCount = batchRadarIds.length;
+        successCount = savedProperties.length;
+        errorCount = batchRadarIds.length - savedProperties.length;
+        
+        await this.batchJobService.logJobProgress(
+          jobId!,
+          `Batch ${batchNumber}: Processed ${processedCount} properties with ${successCount} successes and ${errorCount} errors`
+        );
+      } catch (error) {
+        logger.error('Error processing batch:', error);
+        processedCount = batchRadarIds.length;
+        successCount = 0;
+        errorCount = batchRadarIds.length;
+        
+        await this.batchJobService.logJobProgress(
+          jobId!,
+          `Failed to process batch ${batchNumber}: ${error instanceof Error ? error.message : String(error)}`,
+          'ERROR'
+        );
+        throw error;
+      } finally {
+        // Update progress
+        await this.batchJobService.updateJobProgress(
+          jobId!,
+          processedCount,
+          totalCount,
+          successCount,
+          errorCount
+        );
+      }
+    } catch (error) {
+      logger.error(`Error processing batch job ${job.job_id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process a regular job (non-batch)
+   * @param job The regular job to process
+   */
+  private async processRegularJob(job: BatchJob): Promise<void> {
+    try {
+      const { criteria, job_id: jobId } = job;
+      const batchSize = 400; // Default batch size
       
       // Get total count (could be an estimate)
       const totalCountResult = await this.propertyService.getEstimatedCount(criteria);
@@ -402,18 +580,14 @@ export class JobQueueService {
         }
       }
       
-      // Mark job as completed
-      await this.batchJobService.updateJobStatus(jobId!, 'COMPLETED');
+      // Final log
       await this.batchJobService.logJobProgress(
         jobId!,
         `Job completed. Processed ${processedCount} records with ${successCount} successes and ${errorCount} errors.`
       );
-      
     } catch (error: any) {
       // Log error and update job status
       logger.error(`Job ${job.job_id} failed:`, error);
-      await this.batchJobService.updateJobStatus(job.job_id!, 'FAILED', error.message);
-      await this.batchJobService.logJobProgress(job.job_id!, `Job failed: ${error.message}`, 'ERROR');
       throw error;
     }
   }
@@ -428,6 +602,8 @@ export class JobQueueService {
     completed: number;
     failed: number;
     delayed: number;
+    parentJobs: number;
+    childJobs: number;
   }> {
     try {
       // Query the database for job counts by status
@@ -437,21 +613,26 @@ export class JobQueueService {
           COUNT(*) FILTER (WHERE status = 'PROCESSING') AS active,
           COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed,
           COUNT(*) FILTER (WHERE status = 'FAILED') AS failed,
-          COUNT(*) FILTER (WHERE status = 'PENDING' AND next_attempt_at > NOW()) AS delayed
+          COUNT(*) FILTER (WHERE status = 'PENDING' AND next_attempt_at > NOW()) AS delayed,
+          COUNT(*) FILTER (WHERE is_parent = true) AS parentJobs,
+          COUNT(*) FILTER (WHERE parent_job_id IS NOT NULL) AS childJobs
         FROM batch_jobs
       `;
       
       if (!this.pool) {
         // Simplified implementation without direct pool access
-        const jobs = await this.batchJobService.getJobs();
+        // Must include child jobs here to get accurate stats
+        const jobs = await this.batchJobService.getJobs(undefined, undefined, undefined, true);
         
         const waiting = jobs.filter(j => j.status === 'PENDING').length;
         const active = jobs.filter(j => j.status === 'PROCESSING').length;
         const completed = jobs.filter(j => j.status === 'COMPLETED').length;
         const failed = jobs.filter(j => j.status === 'FAILED').length;
         const delayed = 0; // Can't determine without next_attempt_at
+        const parentJobs = jobs.filter(j => j.is_parent === true).length;
+        const childJobs = jobs.filter(j => j.parent_job_id !== undefined).length;
         
-        return { waiting, active, completed, failed, delayed };
+        return { waiting, active, completed, failed, delayed, parentJobs, childJobs };
       }
       
       const result = await this.pool.query(query);
@@ -462,7 +643,9 @@ export class JobQueueService {
         active: parseInt(stats.active) || 0,
         completed: parseInt(stats.completed) || 0,
         failed: parseInt(stats.failed) || 0,
-        delayed: parseInt(stats.delayed) || 0
+        delayed: parseInt(stats.delayed) || 0,
+        parentJobs: parseInt(stats.parentjobs) || 0,
+        childJobs: parseInt(stats.childjobs) || 0
       };
     } catch (error) {
       logger.error('Error getting queue stats:', error);
@@ -471,7 +654,9 @@ export class JobQueueService {
         active: 0,
         completed: 0,
         failed: 0,
-        delayed: 0
+        delayed: 0,
+        parentJobs: 0,
+        childJobs: 0
       };
     }
   }

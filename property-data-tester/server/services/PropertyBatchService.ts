@@ -170,23 +170,29 @@ export class PropertyBatchService extends PropertyService {
         
         const batchRadarIds = batches[batchIndex];
         const batchProperties: any[] = [];
+        const batchRawPayloads: any[] = [];
         
         console.log(`Processing batch ${batchIndex + 1}/${batches.length} with ${batchRadarIds.length} properties`);
         
         // Fetch properties for this batch
         for (const radarId of batchRadarIds) {
           try {
-            let property = await this.fetchPropertyByRadarId(
-              this.providerCode,
-              radarId,
-              fields,
-              campaignId
-            );
-            
+            // Fetch the full raw property response
+            const provider = leadProviderFactory.getProvider(this.providerCode);
+            if (!provider.fetchPropertyById) {
+              throw new Error(`Provider ${this.providerCode} does not support fetching by ID.`);
+            }
+            const rawResponse = await provider.fetchPropertyById(radarId, fields);
+            // Save the raw response for payload logging
+            batchRawPayloads.push(rawResponse);
+
+            // Transform the property for processing
+            let property = provider.transformProperty(rawResponse);
+
             // Ensure the property has a RadarID
-            if (property && property.RadarID) {
-              batchProperties.push(property);
-              allProperties.push(property);
+            if (rawResponse && rawResponse.RadarID) {
+              batchProperties.push(property.property);
+              allProperties.push(property.property);
             } else {
               logger.error(`Property ${radarId} missing RadarID in response`);
             }
@@ -197,14 +203,14 @@ export class PropertyBatchService extends PropertyService {
         }
         
         // Only save batch if it has properties
-        if (batchProperties.length > 0) {
+        if (batchRawPayloads.length > 0) {
           // Use the expected batch number instead of getting a new one
           const batchNumber = expectedBatchNumber;
           
-          // Save batch properties to file
-          console.log(`Saving batch ${batchNumber} with ${batchProperties.length} properties`);
+          // Save full raw payloads to file
+          console.log(`Saving batch ${batchNumber} with ${batchRawPayloads.length} raw property payloads`);
           await this.propertyPayloadService.savePropertyPayload(
-            batchProperties,
+            batchRawPayloads,
             campaignId,
             batchNumber
           );

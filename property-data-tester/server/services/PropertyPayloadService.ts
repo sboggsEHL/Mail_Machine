@@ -34,13 +34,13 @@ export class PropertyPayloadService {
   
   /**
    * Save property payload to file
-   * @param properties Array of property data
+   * @param rawPayload Full raw payload object from provider API
    * @param campaignId Campaign identifier
    * @param batchNumber Batch sequence number
    * @returns The created batch file status
    */
   async savePropertyPayload(
-    properties: any[],
+    rawPayload: any,
     campaignId: string,
     batchNumber: number
   ): Promise<BatchFileStatus> {
@@ -55,11 +55,21 @@ export class PropertyPayloadService {
     const filePath = path.join(monthDir, filename);
     
     // Calculate checksum of the data
-    const dataString = JSON.stringify(properties, null, 2);
+    const dataString = JSON.stringify(rawPayload, null, 2);
     const checksum = this.calculateChecksum(dataString);
-    
-    // Write properties to file
-    await this.writeJsonToFile(filePath, properties);
+
+    // Determine properties count (try to use .results or .properties, fallback to 0)
+    let propertiesCount = 0;
+    if (rawPayload && Array.isArray(rawPayload.results)) {
+      propertiesCount = rawPayload.results.length;
+    } else if (rawPayload && Array.isArray(rawPayload.properties)) {
+      propertiesCount = rawPayload.properties.length;
+    } else if (Array.isArray(rawPayload)) {
+      propertiesCount = rawPayload.length;
+    }
+
+    // Write raw payload to file
+    await this.writeJsonToFile(filePath, rawPayload);
     
     // Create batch file status record
     const fileStatus: BatchFileStatus = {
@@ -67,7 +77,7 @@ export class PropertyPayloadService {
       campaign_id: campaignId,
       batch_number: batchNumber,
       status: 'PENDING',
-      properties_count: properties.length,
+      properties_count: propertiesCount,
       success_count: 0,
       error_count: 0,
       error_details: JSON.stringify({ checksum })
@@ -79,7 +89,7 @@ export class PropertyPayloadService {
     const pendingMarker = path.join(this.pendingDir, path.basename(filePath));
     await fs.promises.writeFile(pendingMarker, filePath, 'utf8');
     
-    console.log(`Saved property payload to ${filePath} with ${properties.length} properties`);
+    console.log(`Saved property payload to ${filePath} with ${propertiesCount} properties`);
     return result;
   }
   

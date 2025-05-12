@@ -17,6 +17,15 @@ export interface BatchJob {
   priority?: number;
   attempts?: number;
   max_attempts?: number;
+  // New fields for parent-child job relationship
+  parent_job_id?: number;
+  is_parent?: boolean;
+  batch_number?: number;
+  batch_offset?: number;
+  batch_size?: number;
+  locked_at?: Date;
+  locked_by?: string;
+  next_attempt_at?: Date;
 }
 
 /**

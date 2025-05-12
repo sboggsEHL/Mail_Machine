@@ -69,29 +69,29 @@ export class PropertyService {
     }
     
     // Fetch properties from provider
-    const properties = await provider.fetchProperties(criteria, fields);
+    const { results, rawPayload } = await provider.fetchProperties(criteria, fields);
     
     // Save raw payload to file
-    if (properties.length > 0) {
+    if (results.length > 0) {
       try {
         // Get batch number for this campaign
         const batchNumber = this.getNextBatchNumber(campaignId);
         
-        // Save properties to file
+        // Save full raw payload to file
         await this.propertyPayloadService.savePropertyPayload(
-          properties,
+          rawPayload,
           campaignId,
           batchNumber
         );
         
-        logger.info(`Saved raw payload for ${properties.length} properties from individual request`);
+        logger.info(`Saved raw payload for ${results.length} properties from individual request`);
       } catch (error) {
         logger.error('Error saving raw payload:', error);
         // Continue even if saving the payload fails
       }
     }
     
-    return properties;
+    return results;
   }
 
   /**
@@ -314,20 +314,38 @@ export class PropertyService {
             
             let property: Property;
             
-            if (existingProperty) {
-              // Update existing property
-              const updatedProperty = await this.propertyRepo.update(
-                existingProperty.property_id,
-                { ...propertyData, provider_id: providerId, updated_at: new Date() },
-                client
-              );
-              property = updatedProperty!;
-            } else {
-              // Create new property
-              property = await this.propertyRepo.create(
-                { ...propertyData, provider_id: providerId, created_at: new Date(), is_active: true },
-                client
-              );
+            try {
+              // Ensure string fields are explicitly cast to varchar to avoid text vs character varying issues
+              const propertyToSave = Object.entries(propertyData).reduce((acc, [key, value]) => {
+                // Only process string values to ensure proper type casting
+                if (typeof value === 'string') {
+                  // Add explicit cast to varchar for string values
+                  acc[key] = value;
+                } else {
+                  acc[key] = value;
+                }
+                return acc;
+              }, {} as Record<string, any>);
+              
+              if (existingProperty) {
+                // Update existing property
+                const updatedProperty = await this.propertyRepo.update(
+                  existingProperty.property_id,
+                  { ...propertyToSave, provider_id: providerId, updated_at: new Date() },
+                  client
+                );
+                property = updatedProperty!;
+              } else {
+                // Create new property
+                property = await this.propertyRepo.create(
+                  { ...propertyToSave, provider_id: providerId, created_at: new Date(), is_active: true },
+                  client
+                );
+              }
+            } catch (error) {
+              console.error(`Error saving property with radar_id ${propertyData.radar_id}:`, error);
+              // Re-throw to be caught by the batch error handler
+              throw error;
             }
             
             // Process owners if they exist

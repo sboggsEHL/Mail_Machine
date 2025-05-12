@@ -130,6 +130,7 @@ export class ListController {
       const excludeRadarIds = req.body.excludeRadarIds || [];
       const leadCount = req.body.leadCount ? parseInt(req.body.leadCount) : undefined;
       const campaignId = req.body.campaignId ? parseInt(req.body.campaignId) : undefined;
+      const batchSize = req.body.batchSize || 400; // Default batch size
       
       console.log(`Processing list ${listId} with ${excludeRadarIds.length} excluded RadarIDs, leadCount: ${leadCount || 'all'}, campaignId: ${campaignId || 'none'}`);
       
@@ -158,23 +159,37 @@ export class ListController {
         return;
       }
       
-      // Create a batch job with the filtered RadarIDs
-      const job = await this.batchJobService.createJob({
+      // Create a parent job for the full list
+      const parentJob = await this.batchJobService.createParentJob({
         status: 'PENDING',
         criteria: {
           RadarID: filteredRadarIds,
           sourceListId: listId,
-          campaign_id: campaignId // Include campaign ID if provided
+          campaign_id: campaignId
         },
+        total_records: filteredRadarIds.length,
+        processed_records: 0,
         created_by: req.body.userId || 'system',
-        priority: 1
+        priority: 1,
+        is_parent: true
       });
       
-      console.log(`Created batch job ${job.job_id} with ${filteredRadarIds.length} properties${campaignId ? ` and campaign ID ${campaignId}` : ''}`);
+      console.log(`Created parent job ${parentJob.job_id} for ${filteredRadarIds.length} properties`);
+      
+      // Create child jobs for each batch
+      const childJobs = await this.batchJobService.createChildJobsFromList(
+        parentJob.job_id!,
+        parentJob.criteria,
+        batchSize,
+        req.body.userId || 'system'
+      );
+      
+      console.log(`Created ${childJobs.length} child jobs for parent job ${parentJob.job_id}`);
       
       res.json({
         success: true,
-        jobId: job.job_id,
+        parentJobId: parentJob.job_id,
+        childJobs: childJobs.length,
         processedCount: filteredRadarIds.length,
         excludedCount: excludeRadarIds.length,
         campaignId: campaignId
@@ -235,6 +250,7 @@ export class ListController {
     console.log('ListController.processMultipleLists called');
     try {
       const { listIds, excludeRadarIds = [], campaignId, newCampaign, leadCount } = req.body;
+      const batchSize = req.body.batchSize || 400; // Default batch size
       
       if (!listIds || !Array.isArray(listIds) || listIds.length === 0) {
         res.status(400).json({
@@ -256,7 +272,7 @@ export class ListController {
       console.log(`Retrieved ${allItems.length} total items from all lists`);
       
       // Filter out excluded RadarIDs
-      const filteredRadarIds = allItems
+      let filteredRadarIds = allItems
         .map(item => item.RadarID)
         .filter(id => !excludeRadarIds.includes(id));
       
@@ -283,25 +299,43 @@ export class ListController {
         }
       }
       
-      // Create a batch job with the filtered RadarIDs and campaign ID
-      const job = await this.batchJobService.createJob({
+      // Apply lead count limit if specified
+      if (leadCount && leadCount > 0 && leadCount < filteredRadarIds.length) {
+        console.log(`Limiting to ${leadCount} leads as requested`);
+        filteredRadarIds = filteredRadarIds.slice(0, leadCount);
+      }
+      
+      // Create a parent job for the full list
+      const parentJob = await this.batchJobService.createParentJob({
         status: 'PENDING',
         criteria: {
           RadarID: filteredRadarIds,
           sourceListIds: listIds,
-          campaignId: finalCampaignId,
-          // Apply lead count limit if specified
-          ...(leadCount && leadCount > 0 && leadCount < filteredRadarIds.length ? { leadCount } : {})
+          campaignId: finalCampaignId
         },
+        total_records: filteredRadarIds.length,
+        processed_records: 0,
         created_by: req.body.userId || 'system',
-        priority: 1
+        priority: 1,
+        is_parent: true
       });
       
-      console.log(`Created batch job ${job.job_id} with ${filteredRadarIds.length} properties`);
+      console.log(`Created parent job ${parentJob.job_id} for ${filteredRadarIds.length} properties`);
+      
+      // Create child jobs for each batch
+      const childJobs = await this.batchJobService.createChildJobsFromList(
+        parentJob.job_id!,
+        parentJob.criteria,
+        batchSize,
+        req.body.userId || 'system'
+      );
+      
+      console.log(`Created ${childJobs.length} child jobs for parent job ${parentJob.job_id}`);
       
       res.json({
         success: true,
-        jobId: job.job_id,
+        parentJobId: parentJob.job_id,
+        childJobs: childJobs.length,
         campaignId: finalCampaignId,
         processedCount: filteredRadarIds.length,
         excludedCount: excludeRadarIds.length

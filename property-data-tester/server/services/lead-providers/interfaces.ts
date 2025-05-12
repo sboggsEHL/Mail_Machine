@@ -24,7 +24,7 @@ export interface LeadProvider {
    * @param criteria Search criteria specific to the provider
    * @param fields Fields to retrieve
    */
-  fetchProperties(criteria: any, fields: string[]): Promise<any[]>;
+  fetchProperties(criteria: any, fields: string[]): Promise<{ results: any[]; rawPayload: any }>;
   
   /**
    * Fetch a single property by its ID

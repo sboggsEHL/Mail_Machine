@@ -45,7 +45,7 @@ export class PropertyRadarProvider implements LeadProvider {
    * @param criteria Search criteria in user-friendly format
    * @param fields Fields to retrieve
    */
-  async fetchProperties(criteria: PropertyRadarCriteriaInput, fields: string[]): Promise<PropertyRadarProperty[]> {
+  async fetchProperties(criteria: PropertyRadarCriteriaInput, fields: string[]): Promise<{ results: PropertyRadarProperty[], rawPayload: any }> {
     if (!this.isConfigured()) {
       throw new Error('PropertyRadar API is not configured. Please provide a valid API token.');
     }
@@ -77,7 +77,7 @@ export class PropertyRadarProvider implements LeadProvider {
         throw new Error('Unexpected API response structure');
       }
       
-      return response.data.results;
+      return { results: response.data.results, rawPayload: response.data };
     } catch (error) {
       this.handleApiError(error);
       throw error;
@@ -89,7 +89,7 @@ export class PropertyRadarProvider implements LeadProvider {
    * @param radarId The PropertyRadar ID
    * @param fields Fields to retrieve
    */
-  async fetchPropertyById(radarId: string, fields: string[]): Promise<PropertyRadarProperty> {
+  async fetchPropertyById(radarId: string, fields: string[]): Promise<any> {
     if (!this.isConfigured()) {
       throw new Error('PropertyRadar API is not configured. Please provide a valid API token.');
     }
@@ -116,12 +116,7 @@ export class PropertyRadarProvider implements LeadProvider {
         throw new Error('Unexpected API response structure');
       }
       
-      // Check if the response has a results array (which is what we're seeing in the payload)
-      if (response.data.results && Array.isArray(response.data.results) && response.data.results.length > 0) {
-        return response.data.results[0];
-      }
-      
-      // If not, return the data directly
+      // Return the full raw API response data for logging/troubleshooting
       return response.data;
     } catch (error) {
       this.handleApiError(error);
@@ -193,8 +188,14 @@ export class PropertyRadarProvider implements LeadProvider {
       const phoneAvailable = rawProperty.PhoneAvailability === 'owned';
       const emailAvailable = rawProperty.EmailAvailability === 'owned';
       
+      // Special handling for trusts and other entities with only a full name
+      // If first and last names are null but full name exists, use full name as first name
+      const firstName = (!rawProperty.OwnerFirstName && !rawProperty.OwnerLastName && rawProperty.Owner)
+        ? rawProperty.Owner
+        : rawProperty.OwnerFirstName;
+      
       owners.push({
-        first_name: rawProperty.OwnerFirstName,
+        first_name: firstName,
         last_name: rawProperty.OwnerLastName,
         full_name: rawProperty.Owner,
         owner_type: 'PRIMARY',
