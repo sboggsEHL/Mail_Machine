@@ -100,10 +100,10 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     
     const result = await queryExecutor.query<Recipient>(`
       SELECT * FROM mail_recipients
-      WHERE campaign_id = $1
+      WHERE campaign_id = $1::INTEGER
       ORDER BY recipient_id
       LIMIT $2 OFFSET $3
-    `, [campaignId, limit, offset]);
+    `, [Number(campaignId), limit, offset]);
     
     return result.rows;
   }
@@ -120,8 +120,8 @@ export class CampaignRepository extends BaseRepository<Campaign> {
   ): Promise<Map<string, number>> {
     const queryExecutor = client || this.pool;
     const result = await queryExecutor.query<{ loan_id: string, recipient_id: number }>(
-      `SELECT loan_id, recipient_id FROM mail_recipients WHERE campaign_id = $1`,
-      [campaignId]
+      `SELECT loan_id, recipient_id FROM mail_recipients WHERE campaign_id = $1::INTEGER`,
+      [Number(campaignId)]
     );
     const map = new Map<string, any>(); // Use <string, any> to avoid TS inference issue
     result.rows.forEach(row => {
@@ -143,8 +143,8 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     
     const result = await queryExecutor.query<{ count: string }>(`
       SELECT COUNT(*) as count FROM mail_recipients
-      WHERE campaign_id = $1
-    `, [campaignId]);
+      WHERE campaign_id = $1::INTEGER
+    `, [Number(campaignId)]);
     
     return parseInt(result.rows[0].count);
   }
@@ -380,9 +380,9 @@ export class CampaignRepository extends BaseRepository<Campaign> {
         primary_owner_first_name AS first_name,
         primary_owner_last_name AS last_name
       FROM public.complete_property_view
-      WHERE campaign_id = $1
+      WHERE campaign_id = $1::INTEGER
       ORDER BY property_address`,
-      [campaignId]
+      [Number(campaignId)]
     );
     return result.rows;
   }

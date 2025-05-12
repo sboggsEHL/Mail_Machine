@@ -125,12 +125,13 @@ export class PropertyService {
     }
     
     // Fetch property from provider
-    const property = await provider.fetchPropertyById(radarId, fields);
+    const { results, rawPayload } = await provider.fetchPropertyById(radarId, fields);
     
     // Note: We no longer save individual properties to file here
     // They will be saved in batches by the PropertyBatchService
     
-    return property;
+    // Return the raw payload for consistency with the main branch
+    return rawPayload;
   }
   
   /**
@@ -309,11 +310,17 @@ export class PropertyService {
             // Transform the property data
             const { property: propertyData, owners, loans } = provider.transformProperty(rawPropertyData);
             
-            // Validate that radar_id exists
+            // Ensure radar_id exists or create one from the raw data
             if (!propertyData.radar_id) {
-              console.error('Error: Property missing radar_id, skipping:', 
-                JSON.stringify(rawPropertyData).substring(0, 200) + '...');
-              continue; // Skip this property
+              if (rawPropertyData.RadarID) {
+                propertyData.radar_id = String(rawPropertyData.RadarID);
+              } else if (rawPropertyData.radar_id) {
+                propertyData.radar_id = String(rawPropertyData.radar_id);
+              } else {
+                console.error('Error: Property missing radar_id, skipping:', 
+                  JSON.stringify(rawPropertyData).substring(0, 200) + '...');
+                continue; // Skip this property
+              }
             }
             
             // Check if property already exists by radar_id
@@ -353,18 +360,43 @@ export class PropertyService {
                 );
                 property = updatedProperty!;
               } else {
-                // Create new property
-                propertyToSave.created_at = new Date();
-                propertyToSave.is_active = true;
-                property = await this.propertyRepo.create(
-                  propertyToSave,
-                  client
-                );
+                try {
+                  // Create new property
+                  propertyToSave.created_at = new Date();
+                  propertyToSave.is_active = true;
+                  property = await this.propertyRepo.create(
+                    propertyToSave,
+                    client
+                  );
+                } catch (createError: any) {
+                  // If it's a duplicate key error, try to find the property again
+                  // This handles race conditions where the property was created between our check and insert
+                  if (createError.code === '23505' && createError.constraint === 'properties_radar_id_key') {
+                    console.log(`Property with radar_id ${propertyToSave.radar_id} already exists, fetching and updating instead`);
+                    const existingProp = await this.propertyRepo.findByRadarId(propertyToSave.radar_id, client);
+                    if (existingProp) {
+                      // Update the existing property
+                      propertyToSave.updated_at = new Date();
+                      const updatedProperty = await this.propertyRepo.update(
+                        existingProp.property_id,
+                        propertyToSave,
+                        client
+                      );
+                      property = updatedProperty!;
+                    } else {
+                      // This shouldn't happen, but just in case
+                      throw createError;
+                    }
+                  } else {
+                    // Re-throw other errors
+                    throw createError;
+                  }
+                }
               }
             } catch (error) {
               console.error(`Error saving property with radar_id ${propertyData.radar_id}:`, error);
-              // Re-throw to be caught by the batch error handler
-              throw error;
+              // Continue with next property instead of aborting the whole batch
+              continue;
             }
             
             // Process owners if they exist

@@ -26,11 +26,11 @@ export class BatchFileStatusRepository extends BaseRepository<BatchFileStatus> {
       INSERT INTO ${this.tableName} (
         file_path, campaign_id, batch_number, status, 
         properties_count, success_count, error_count
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ) VALUES ($1, $2::VARCHAR, $3, $4, $5, $6, $7)
       RETURNING *
     `, [
       fileStatus.file_path,
-      fileStatus.campaign_id,
+      String(fileStatus.campaign_id), // Ensure campaign_id is a string
       fileStatus.batch_number,
       fileStatus.status || 'PENDING',
       fileStatus.properties_count || 0,
@@ -182,10 +182,10 @@ export class BatchFileStatusRepository extends BaseRepository<BatchFileStatus> {
         SUM(error_count) AS failed_properties,
         AVG(processing_time_ms)/1000 AS avg_processing_time_seconds
       FROM ${this.tableName}
-      WHERE campaign_id = $1
+      WHERE campaign_id = $1::VARCHAR
     `;
     
-    const params: any[] = [campaignId];
+    const params: any[] = [String(campaignId)];
     
     if (startDate) {
       query += ` AND created_at >= $${params.length + 1}`;

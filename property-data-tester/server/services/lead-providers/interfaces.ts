@@ -31,7 +31,7 @@ export interface LeadProvider {
    * @param propertyId The property ID in the provider's system
    * @param fields Fields to retrieve
    */
-  fetchPropertyById?(propertyId: string, fields: string[]): Promise<any>;
+  fetchPropertyById?(propertyId: string, fields: string[]): Promise<{ results: any[]; rawPayload: any }>;
   
   /**
    * Preview properties based on criteria without purchasing

@@ -89,7 +89,7 @@ export class PropertyRadarProvider implements LeadProvider {
    * @param radarId The PropertyRadar ID
    * @param fields Fields to retrieve
    */
-  async fetchPropertyById(radarId: string, fields: string[]): Promise<any> {
+  async fetchPropertyById(radarId: string, fields: string[]): Promise<{ results: PropertyRadarProperty[], rawPayload: any }> {
     if (!this.isConfigured()) {
       throw new Error('PropertyRadar API is not configured. Please provide a valid API token.');
     }
@@ -116,8 +116,12 @@ export class PropertyRadarProvider implements LeadProvider {
         throw new Error('Unexpected API response structure');
       }
       
-      // Return the full raw API response data for logging/troubleshooting
-      return response.data;
+      // Return the same structure as fetchProperties for consistency
+      // For a single property, we put it in an array to match the structure
+      return {
+        results: [response.data],
+        rawPayload: response.data
+      };
     } catch (error) {
       this.handleApiError(error);
       throw error;
@@ -149,45 +153,40 @@ export class PropertyRadarProvider implements LeadProvider {
       propertyData = rawProperty.results[0];
     }
     
-    // Log warning if RadarID is missing
-    if (!propertyData.RadarID) {
-      console.warn('WARNING: Property missing RadarID in transformProperty:', JSON.stringify(propertyData).substring(0, 200) + '...');
-    }
-    
-    // Create property object
+    // Create property object - ensure we're using propertyData consistently
     const property: Partial<Property> = {
-      radar_id: propertyData.RadarID,
-      property_address: rawProperty.Address,
-      property_city: rawProperty.City,
-      property_state: rawProperty.State,
-      property_zip: rawProperty.ZipFive,
-      property_type: rawProperty.PType,
-      county: rawProperty.County,
-      apn: rawProperty.APN,
-      ownership_type: rawProperty.OwnershipType,
-      is_same_mailing_or_exempt: rawProperty.isSameMailingOrExempt,
-      is_mail_vacant: rawProperty.isMailVacant,
-      avm: safeNumber(rawProperty.AVM),
-      available_equity: safeNumber(rawProperty.AvailableEquity),
-      equity_percent: safeNumber(rawProperty.EquityPercent),
-      cltv: safeNumber(rawProperty.CLTV),
-      total_loan_balance: safeNumber(rawProperty.TotalLoanBalance),
-      number_loans: safeNumber(rawProperty.NumberLoans),
-      annual_taxes: safeNumber(rawProperty.AnnualTaxes),
-      estimated_tax_rate: safeNumber(rawProperty.EstimatedTaxRate),
-      last_transfer_rec_date: rawProperty.LastTransferRecDate ? new Date(rawProperty.LastTransferRecDate) : undefined,
-      last_transfer_value: safeNumber(rawProperty.LastTransferValue),
-      last_transfer_down_payment_percent: safeNumber(rawProperty.LastTransferDownPaymentPercent),
-      last_transfer_seller: rawProperty.LastTransferSeller,
-      is_listed_for_sale: rawProperty.isListedForSale,
-      listing_price: safeNumber(rawProperty.ListingPrice),
-      days_on_market: safeNumber(rawProperty.DaysOnMarket),
-      in_foreclosure: rawProperty.inForeclosure,
-      foreclosure_stage: rawProperty.ForeclosureStage,
-      default_amount: safeNumber(rawProperty.DefaultAmount),
-      in_tax_delinquency: rawProperty.inTaxDelinquency,
-      delinquent_amount: safeNumber(rawProperty.DelinquentAmount),
-      delinquent_year: safeNumber(rawProperty.DelinquentYear),
+      radar_id: propertyData.RadarID ? String(propertyData.RadarID) : propertyData.radar_id, // Use existing radar_id if RadarID is missing
+      property_address: propertyData.Address,
+      property_city: propertyData.City,
+      property_state: propertyData.State,
+      property_zip: propertyData.ZipFive,
+      property_type: propertyData.PType,
+      county: propertyData.County,
+      apn: propertyData.APN,
+      ownership_type: propertyData.OwnershipType,
+      is_same_mailing_or_exempt: propertyData.isSameMailingOrExempt,
+      is_mail_vacant: propertyData.isMailVacant,
+      avm: safeNumber(propertyData.AVM),
+      available_equity: safeNumber(propertyData.AvailableEquity),
+      equity_percent: safeNumber(propertyData.EquityPercent),
+      cltv: safeNumber(propertyData.CLTV),
+      total_loan_balance: safeNumber(propertyData.TotalLoanBalance),
+      number_loans: safeNumber(propertyData.NumberLoans),
+      annual_taxes: safeNumber(propertyData.AnnualTaxes),
+      estimated_tax_rate: safeNumber(propertyData.EstimatedTaxRate),
+      last_transfer_rec_date: propertyData.LastTransferRecDate ? new Date(propertyData.LastTransferRecDate) : undefined,
+      last_transfer_value: safeNumber(propertyData.LastTransferValue),
+      last_transfer_down_payment_percent: safeNumber(propertyData.LastTransferDownPaymentPercent),
+      last_transfer_seller: propertyData.LastTransferSeller,
+      is_listed_for_sale: propertyData.isListedForSale,
+      listing_price: safeNumber(propertyData.ListingPrice),
+      days_on_market: safeNumber(propertyData.DaysOnMarket),
+      in_foreclosure: propertyData.inForeclosure,
+      foreclosure_stage: propertyData.ForeclosureStage,
+      default_amount: safeNumber(propertyData.DefaultAmount),
+      in_tax_delinquency: propertyData.inTaxDelinquency,
+      delinquent_amount: safeNumber(propertyData.DelinquentAmount),
+      delinquent_year: safeNumber(propertyData.DelinquentYear),
       is_active: true
     };
 
@@ -195,20 +194,20 @@ export class PropertyRadarProvider implements LeadProvider {
     const owners: Partial<PropertyOwner>[] = [];
     
     // Add primary owner if data exists
-    if (rawProperty.Owner || rawProperty.OwnerFirstName || rawProperty.OwnerLastName) {
-      const phoneAvailable = rawProperty.PhoneAvailability === 'owned';
-      const emailAvailable = rawProperty.EmailAvailability === 'owned';
+    if (propertyData.Owner || propertyData.OwnerFirstName || propertyData.OwnerLastName) {
+      const phoneAvailable = propertyData.PhoneAvailability === 'owned';
+      const emailAvailable = propertyData.EmailAvailability === 'owned';
       
       // Special handling for trusts and other entities with only a full name
       // If first and last names are null but full name exists, use full name as first name
-      const firstName = (!rawProperty.OwnerFirstName && !rawProperty.OwnerLastName && rawProperty.Owner)
-        ? rawProperty.Owner
-        : rawProperty.OwnerFirstName;
+      const firstName = (!propertyData.OwnerFirstName && !propertyData.OwnerLastName && propertyData.Owner)
+        ? propertyData.Owner
+        : propertyData.OwnerFirstName;
       
       owners.push({
         first_name: firstName,
-        last_name: rawProperty.OwnerLastName,
-        full_name: rawProperty.Owner,
+        last_name: propertyData.OwnerLastName,
+        full_name: propertyData.Owner,
         owner_type: 'PRIMARY',
         is_primary_contact: true,
         phone_availability: phoneAvailable,
@@ -218,11 +217,11 @@ export class PropertyRadarProvider implements LeadProvider {
     }
 
     // Add spouse if data exists
-    if (rawProperty.OwnerSpouseFirstName) {
+    if (propertyData.OwnerSpouseFirstName) {
       owners.push({
-        first_name: rawProperty.OwnerSpouseFirstName,
-        last_name: rawProperty.OwnerLastName,
-        full_name: `${rawProperty.OwnerSpouseFirstName} ${rawProperty.OwnerLastName}`.trim(),
+        first_name: propertyData.OwnerSpouseFirstName,
+        last_name: propertyData.OwnerLastName,
+        full_name: `${propertyData.OwnerSpouseFirstName} ${propertyData.OwnerLastName}`.trim(),
         owner_type: 'SPOUSE',
         is_primary_contact: false,
         is_active: true
@@ -234,41 +233,40 @@ export class PropertyRadarProvider implements LeadProvider {
     
     // Create a single loan record that includes both first and second loan details
     // Only create a loan if we have first loan data with a lender name
-    if ((rawProperty.FirstDate || rawProperty.FirstAmount || rawProperty.FirstLoanType) && 
-        rawProperty.FirstLenderOriginal) {
+    if ((propertyData.FirstDate || propertyData.FirstAmount || propertyData.FirstLoanType) && 
+        propertyData.FirstLenderOriginal) {
       const loanData: Partial<Loan> = {
         // Primary loan fields (from first loan)
-        loan_type: rawProperty.FirstLoanType,
-        loan_amount: safeNumber(rawProperty.FirstAmount),
-        interest_rate: safeNumber(rawProperty.FirstRate),
-        rate_type: rawProperty.FirstRateType,
-        term_years: safeNumber(rawProperty.FirstTermInYears),
-        loan_purpose: rawProperty.FirstPurpose,
-        lender_name: rawProperty.FirstLenderOriginal,
+        loan_type: propertyData.FirstLoanType,
+        loan_amount: safeNumber(propertyData.FirstAmount),
+        interest_rate: safeNumber(propertyData.FirstRate),
+        rate_type: propertyData.FirstRateType,
+        term_years: safeNumber(propertyData.FirstTermInYears),
+        loan_purpose: propertyData.FirstPurpose,
+        lender_name: propertyData.FirstLenderOriginal,
         loan_position: 1,
-        origination_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,
+        origination_date: propertyData.FirstDate ? new Date(propertyData.FirstDate) : undefined,
         
         // First loan details
-        first_date: rawProperty.FirstDate ? new Date(rawProperty.FirstDate) : undefined,
-        first_amount: safeNumber(rawProperty.FirstAmount),
-        first_rate: safeNumber(rawProperty.FirstRate),
-        first_rate_type: rawProperty.FirstRateType,
-        first_term_in_years: safeNumber(rawProperty.FirstTermInYears),
-        first_loan_type: rawProperty.FirstLoanType,
-        first_purpose: rawProperty.FirstPurpose,
+        first_date: propertyData.FirstDate ? new Date(propertyData.FirstDate) : undefined,
+        first_amount: safeNumber(propertyData.FirstAmount),
+        first_rate: safeNumber(propertyData.FirstRate),
+        first_rate_type: propertyData.FirstRateType,
+        first_term_in_years: safeNumber(propertyData.FirstTermInYears),
+        first_loan_type: propertyData.FirstLoanType,
+        first_purpose: propertyData.FirstPurpose,
         
         // Second loan details (if they exist)
-        second_date: rawProperty.SecondDate ? new Date(rawProperty.SecondDate) : undefined,
-        second_amount: safeNumber(rawProperty.SecondAmount),
-        second_loan_type: rawProperty.SecondLoanType,
+        second_date: propertyData.SecondDate ? new Date(propertyData.SecondDate) : undefined,
+        second_amount: safeNumber(propertyData.SecondAmount),
+        second_loan_type: propertyData.SecondLoanType,
         
         is_active: true
       };
       
       loans.push(loanData);
-    } else {
-      console.log(`Skipping loan for property ${rawProperty.RadarID} - missing first loan lender name`);
     }
+    // Silently skip loans with missing lender name - no warning needed
 
     return {
       property,

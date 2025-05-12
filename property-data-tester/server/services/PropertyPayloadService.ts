@@ -62,31 +62,25 @@ export class PropertyPayloadService {
       propertiesArray = rawPayload.properties;
     } else if (Array.isArray(rawPayload)) {
       propertiesArray = rawPayload;
+    } else {
+      // If it's a single property object, wrap it in an array
+      propertiesArray = [rawPayload];
     }
 
-    // Ensure all properties have a RadarID
-    const validProperties = propertiesArray.filter(prop => {
-      if (!prop.RadarID) {
-        console.warn('WARNING: Filtering out property missing RadarID in payload');
-        return false;
-      }
-      return true;
-    });
-
     // Calculate checksum of the data (array only)
-    const dataString = JSON.stringify(validProperties, null, 2);
+    const dataString = JSON.stringify(propertiesArray, null, 2);
     const checksum = this.calculateChecksum(dataString);
 
     // Determine properties count
-    const propertiesCount = validProperties.length;
+    const propertiesCount = propertiesArray.length;
 
     // Write only the array to file (main branch behavior)
-    await this.writeJsonToFile(filePath, validProperties);
+    await this.writeJsonToFile(filePath, propertiesArray);
     
     // Create batch file status record
     const fileStatus: BatchFileStatus = {
       file_path: this.getRelativePath(filePath),
-      campaign_id: campaignId,
+      campaign_id: String(campaignId), // Ensure campaign_id is a string
       batch_number: batchNumber,
       status: 'PENDING',
       properties_count: propertiesCount,

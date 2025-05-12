@@ -182,20 +182,22 @@ export class PropertyBatchService extends PropertyService {
             if (!provider.fetchPropertyById) {
               throw new Error(`Provider ${this.providerCode} does not support fetching by ID.`);
             }
-            const rawResponse = await provider.fetchPropertyById(radarId, fields);
+            
+            // Get property with consistent structure
+            const { results, rawPayload } = await provider.fetchPropertyById(radarId, fields);
             
             // Check if the response has a RadarID
-            if (!rawResponse || !rawResponse.RadarID) {
+            if (!rawPayload || !rawPayload.RadarID) {
               logger.error(`Property ${radarId} missing RadarID in response:`, 
-                JSON.stringify(rawResponse).substring(0, 200) + '...');
+                JSON.stringify(rawPayload).substring(0, 200) + '...');
               continue; // Skip this property
             }
             
             // Save the raw response for payload logging
-            batchRawPayloads.push(rawResponse);
+            batchRawPayloads.push(rawPayload);
 
             // Transform the property for processing
-            let property = provider.transformProperty(rawResponse);
+            let property = provider.transformProperty(rawPayload);
 
             // Double-check the transformed property has a RadarID
             if (property.property && property.property.radar_id) {
@@ -289,9 +291,9 @@ export class PropertyBatchService extends PropertyService {
     try {
       const result = await this.dbPool.query(`
         SELECT * FROM batch_file_status
-        WHERE campaign_id = $1
+        WHERE campaign_id = $1::VARCHAR
         ORDER BY batch_number ASC
-      `, [campaignId]);
+      `, [String(campaignId)]);
       
       return result.rows;
     } catch (error) {
@@ -360,7 +362,8 @@ export class PropertyBatchService extends PropertyService {
       const batchJobCriteria = rawPropertiesData[0].batchJobCriteria || {};
       
       if (batchJobCriteria.campaign_id) {
-        campaignId = batchJobCriteria.campaign_id;
+        // Ensure campaign_id is a number
+        campaignId = Number(batchJobCriteria.campaign_id);
         console.log(`Found campaign ID ${campaignId} in batch job criteria, will assign properties to this campaign`);
       }
       
@@ -376,7 +379,8 @@ export class PropertyBatchService extends PropertyService {
       // Then check in the property criteria
       else if (rawPropertiesData[0].criteria) {
         if (rawPropertiesData[0].criteria.campaignId || rawPropertiesData[0].criteria.campaign_id) {
-          campaignId = rawPropertiesData[0].criteria.campaignId || rawPropertiesData[0].criteria.campaign_id;
+          // Ensure campaign_id is a number
+          campaignId = Number(rawPropertiesData[0].criteria.campaignId || rawPropertiesData[0].criteria.campaign_id);
           console.log(`Found campaign ID ${campaignId} in property criteria, will assign properties to this campaign`);
         }
         

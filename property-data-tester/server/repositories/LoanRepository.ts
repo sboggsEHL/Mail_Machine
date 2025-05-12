@@ -58,9 +58,12 @@ export class LoanRepository extends BaseRepository<Loan> {
   async findByLoanId(loanId: string, client?: PoolClient): Promise<Loan | null> {
     const queryExecutor = client || this.pool;
     
+    // Ensure loanId is a string and use explicit type casting
+    const loanIdString = String(loanId);
+    
     const result = await queryExecutor.query<Loan>(
-      `SELECT * FROM ${this.tableName} WHERE loan_id = $1 AND is_active = true`,
-      [loanId]
+      `SELECT * FROM ${this.tableName} WHERE loan_id = $1::VARCHAR AND is_active = true`,
+      [loanIdString]
     );
     
     return result.rows.length > 0 ? result.rows[0] : null;
@@ -90,15 +93,25 @@ export class LoanRepository extends BaseRepository<Loan> {
     }
     
     const whereClauses = entries.map(([key], index) => {
-      if (typeof criteria[key] === 'string' && key !== 'loan_id') {
-        return `${key} ILIKE $${index + 1}`;
+      if (typeof criteria[key] === 'string') {
+        if (key !== 'loan_id') {
+          return `${key} ILIKE $${index + 1}`;
+        } else {
+          // Use explicit type casting for loan_id
+          return `${key} = $${index + 1}::VARCHAR`;
+        }
       }
       return `${key} = $${index + 1}`;
     });
     
     const values = entries.map(([key, value]) => {
-      if (typeof value === 'string' && key !== 'loan_id') {
-        return `%${value}%`;
+      if (typeof value === 'string') {
+        if (key !== 'loan_id') {
+          return `%${value}%`;
+        } else {
+          // Ensure loan_id is a string
+          return String(value);
+        }
       }
       return value;
     });
@@ -254,8 +267,13 @@ export class LoanRepository extends BaseRepository<Loan> {
     
     if (entries.length > 0) {
       const whereClauses = entries.map(([key], index) => {
-        if (typeof criteria[key] === 'string' && key !== 'loan_id') {
-          return `${key} ILIKE $${index + 1}`;
+        if (typeof criteria[key] === 'string') {
+          if (key !== 'loan_id') {
+            return `${key} ILIKE $${index + 1}`;
+          } else {
+            // Use explicit type casting for loan_id
+            return `${key} = $${index + 1}::VARCHAR`;
+          }
         }
         return `${key} = $${index + 1}`;
       });
@@ -263,8 +281,13 @@ export class LoanRepository extends BaseRepository<Loan> {
       query += ` AND ${whereClauses.join(' AND ')}`;
       
       values.push(...entries.map(([key, value]) => {
-        if (typeof value === 'string' && key !== 'loan_id') {
-          return `%${value}%`;
+        if (typeof value === 'string') {
+          if (key !== 'loan_id') {
+            return `%${value}%`;
+          } else {
+            // Ensure loan_id is a string
+            return String(value);
+          }
         }
         return value;
       }));

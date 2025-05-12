@@ -264,9 +264,9 @@ export class JobQueueService {
     try {
       const result = await this.pool.query(`
         SELECT * FROM batch_file_status
-        WHERE campaign_id = $1
+        WHERE campaign_id = $1::VARCHAR
         ORDER BY batch_number ASC
-      `, [campaignId]);
+      `, [String(campaignId)]);
       
       return result.rows;
     } catch (error) {
@@ -400,7 +400,7 @@ export class JobQueueService {
 
         // Save the full raw payloads to file (main branch behavior)
         try {
-          const campaignId = jobId!.toString();
+          const campaignId = String(jobId); // Ensure campaignId is a string
           const batchNum = job.batch_number || 1;
           const dbPool = this.pool || (this.propertyService as any).pool;
           if (dbPool) {

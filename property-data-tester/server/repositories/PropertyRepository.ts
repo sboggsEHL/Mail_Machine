@@ -19,9 +19,12 @@ export class PropertyRepository extends BaseRepository<Property> {
   async findByRadarId(radarId: string, client?: PoolClient): Promise<Property | null> {
     const queryExecutor = client || this.pool;
     
+    // Ensure radarId is a string and use explicit type casting in the query
+    const radarIdString = String(radarId);
+    
     const result = await queryExecutor.query<Property>(
-      `SELECT * FROM ${this.tableName} WHERE radar_id = $1 AND is_active = true`,
-      [radarId]
+      `SELECT * FROM ${this.tableName} WHERE radar_id = $1::VARCHAR AND is_active = true`,
+      [radarIdString]
     );
     
     return result.rows.length > 0 ? result.rows[0] : null;
@@ -113,15 +116,25 @@ export class PropertyRepository extends BaseRepository<Property> {
     }
     
     const whereClauses = entries.map(([key], index) => {
-      if (typeof criteria[key] === 'string' && !['provider_id', 'property_id', 'radar_id'].includes(key)) {
-        return `${key} ILIKE $${index + 1}`;
+      if (typeof criteria[key] === 'string') {
+        if (!['provider_id', 'property_id', 'radar_id'].includes(key)) {
+          return `${key} ILIKE $${index + 1}`;
+        } else if (key === 'radar_id') {
+          // Use explicit type casting for radar_id
+          return `${key} = $${index + 1}::VARCHAR`;
+        }
       }
       return `${key} = $${index + 1}`;
     });
     
     const values = entries.map(([key, value]) => {
-      if (typeof value === 'string' && !['provider_id', 'property_id', 'radar_id'].includes(key)) {
-        return `%${value}%`;
+      if (typeof value === 'string') {
+        if (!['provider_id', 'property_id', 'radar_id'].includes(key)) {
+          return `%${value}%`;
+        } else if (key === 'radar_id') {
+          // Ensure radar_id is a string
+          return String(value);
+        }
       }
       return value;
     });
@@ -164,15 +177,25 @@ export class PropertyRepository extends BaseRepository<Property> {
     }
     
     const whereClauses = entries.map(([key], index) => {
-      if (typeof criteria[key] === 'string' && !['provider_id', 'property_id', 'radar_id'].includes(key)) {
-        return `${key} ILIKE $${index + 1}`;
+      if (typeof criteria[key] === 'string') {
+        if (!['provider_id', 'property_id', 'radar_id'].includes(key)) {
+          return `${key} ILIKE $${index + 1}`;
+        } else if (key === 'radar_id') {
+          // Use explicit type casting for radar_id
+          return `${key} = $${index + 1}::VARCHAR`;
+        }
       }
       return `${key} = $${index + 1}`;
     });
     
     const values = entries.map(([key, value]) => {
-      if (typeof value === 'string' && !['provider_id', 'property_id', 'radar_id'].includes(key)) {
-        return `%${value}%`;
+      if (typeof value === 'string') {
+        if (!['provider_id', 'property_id', 'radar_id'].includes(key)) {
+          return `%${value}%`;
+        } else if (key === 'radar_id') {
+          // Ensure radar_id is a string
+          return String(value);
+        }
       }
       return value;
     });

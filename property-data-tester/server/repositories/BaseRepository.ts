@@ -108,20 +108,39 @@ export abstract class BaseRepository<T extends QueryResultRow> {
     
     // Filter out undefined values and create set clauses
     const entries = Object.entries(entity).filter(([_, value]) => value !== undefined);
-    const setClauses = entries.map(([key], index) => `${key} = $${index + 2}`).join(', ');
-    const values = entries.map(([_, value]) => value);
+    
+    // Create set clauses with explicit type casting for string values
+    const setClauses = entries.map(([key, value], index) => {
+      if (typeof value === 'string') {
+        // Use explicit type casting for string values
+        return `${key} = $${index + 2}::VARCHAR`;
+      }
+      return `${key} = $${index + 2}`;
+    }).join(', ');
+    
+    // Process values to ensure consistent types
+    const values = entries.map(([key, value]) => {
+      // Ensure string values for specific fields
+      if (typeof value === 'string') {
+        return String(value); // Explicitly convert to string to ensure consistent typing
+      }
+      return value;
+    });
     
     if (entries.length === 0) {
       // No fields to update
       return this.findById(id, client);
     }
     
+    // Ensure consistent typing for the id parameter
+    const idValue = typeof id === 'string' ? String(id) : String(id);
+    
     const result = await queryExecutor.query<T>(
       `UPDATE ${this.tableName}
        SET ${setClauses}
-       WHERE ${idField} = $1
+       WHERE ${idField} = $1::VARCHAR
        RETURNING *`,
-      [id, ...values]
+      [idValue, ...values]
     );
     
     return result.rows.length > 0 ? result.rows[0] : null;
