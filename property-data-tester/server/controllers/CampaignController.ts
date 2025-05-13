@@ -492,7 +492,13 @@ export class CampaignController {
       const rows = recipients.map(row => {
         // Apply normalization to specific fields
         if (row.first_name) {
-          row.first_name = proper(getFirstWord(row.first_name));
+          // If "TRUST" is in the first name (case-insensitive), use as-is. Otherwise, use proper case of first word.
+          if (row.first_name.toUpperCase().includes("TRUST")) {
+            // Use as-is
+            row.first_name = row.first_name;
+          } else {
+            row.first_name = proper(getFirstWord(row.first_name));
+          }
         }
         
         if (row.last_name) {
