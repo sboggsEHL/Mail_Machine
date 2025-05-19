@@ -17,6 +17,8 @@ export function createListRoutes(pool: Pool): Router {
   
   // Check for duplicates in a list
   router.get('/lists/:listId/check-duplicates', (req, res) => listController.checkDuplicates(req, res));
+// Download duplicates as CSV for a list
+  router.get('/lists/:listId/duplicates/csv', (req, res) => listController.downloadDuplicatesCsv(req, res));
   
   // Check for duplicates in a batch of radar IDs
   router.post('/lists/:listId/check-duplicates-batch', (req, res) => listController.checkDuplicatesBatch(req, res));

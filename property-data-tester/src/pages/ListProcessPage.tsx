@@ -37,6 +37,33 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{inserted: number, updated: number, errors: string[]} | null>(null);
+// Handler to download duplicates CSV
+const handleDownloadDuplicatesCsv = async () => {
+  if (!listId) return;
+  try {
+    const response = await fetch(`/api/lists/${listId}/duplicates/csv`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/csv'
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to download duplicates CSV');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `list_${listId}_duplicates.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    // Optionally set error state
+    alert('Failed to download duplicates CSV');
+  }
+};
   const [uploadError, setUploadError] = useState<string | null>(null);
   
   const fetchListDetails = React.useCallback(async () => {
@@ -640,9 +667,17 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
                         variant={activeFilter === 'exclude-all-mailed' ? 'primary' : 'outline-primary'}
                         className="me-2 mb-1"
                         onClick={() => applyFilter('exclude-all-mailed')}
-                      >
-                        Exclude All Mailed
-                      </Button>
+                        >
+                          Exclude All Mailed
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="success"
+                          className="ms-2 mb-1"
+                          onClick={handleDownloadDuplicatesCsv}
+                        >
+                          Download Duplicates CSV
+                        </Button>
                       <Button
                         size="sm"
                         variant={activeFilter === 'exclude-30-days' ? 'primary' : 'outline-primary'}

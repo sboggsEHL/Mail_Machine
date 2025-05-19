@@ -203,3 +203,86 @@ router.get('/:id/check-duplicates', async (req, res) => {
 });
 
 export default router;
+
+/**
+ * Download duplicates as CSV for a list
+ * GET /api/lists/:listId/duplicates/csv
+ */
+router.get('/:listId/duplicates/csv', async (req, res) => {
+  try {
+    const listId = parseInt(req.params.listId);
+    if (isNaN(listId)) {
+      return res.status(400).json({ success: false, error: 'Invalid list ID' });
+    }
+
+    const listService = getListService();
+    // Get all items for the list
+    const items = await listService.getAllListItems(listId);
+    const radarIds = items.map(item => item.RadarID).filter(Boolean);
+    console.log('[Download Duplicates CSV] Extracted radarIds:', radarIds);
+
+    if (!radarIds.length) {
+      console.log('[Download Duplicates CSV] No items found for this list');
+      return res.status(404).json({ success: false, error: 'No items found for this list' });
+    }
+
+    // Find duplicates
+    const duplicates = await listService.checkDuplicates(radarIds);
+    const duplicateRadarIds = duplicates.map(d => d.radar_id);
+    console.log('[Download Duplicates CSV] duplicateRadarIds:', duplicateRadarIds);
+
+    if (!duplicateRadarIds.length) {
+      console.log('[Download Duplicates CSV] No duplicates found for this list');
+      return res.status(404).json({ success: false, error: 'No duplicates found for this list' });
+    }
+
+    // Query complete_property_view for duplicate radarIds
+    const { Pool } = require('pg');
+    const dbPool = pool; // pool is initialized at the top of this file
+    const result = await dbPool.query(
+      `SELECT
+        property_address AS address,
+        property_city AS city,
+        property_state AS state,
+        property_zip AS zip,
+        loan_id,
+        primary_owner_first_name AS first_name,
+        primary_owner_last_name AS last_name
+      FROM public.complete_property_view
+      WHERE radar_id = ANY($1)`,
+      [duplicateRadarIds]
+    );
+    console.log('[Download Duplicates CSV] leads returned:', result.rows.length);
+
+    const leads = result.rows;
+    if (!leads.length) {
+      console.log('[Download Duplicates CSV] No property data found for duplicate records');
+      return res.status(404).json({ success: false, error: 'No property data found for duplicate records' });
+    }
+
+    // Prepare CSV header and rows (same columns as batch jobs CSV)
+    const columns = ['address', 'city', 'state', 'zip', 'loan_id', 'first_name', 'last_name'];
+    const header = columns.join(',');
+    const rows = leads.map((row) =>
+      columns.map(col => {
+        const value = row[col] !== undefined && row[col] !== null ? String(row[col]) : '';
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      }).join(',')
+    );
+    const csv = [header, ...rows].join('\r\n');
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="list_${listId}_duplicates.csv"`);
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Error downloading duplicates CSV:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to download duplicates CSV'
+    });
+  }
+});

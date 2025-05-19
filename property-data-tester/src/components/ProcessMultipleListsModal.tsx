@@ -37,6 +37,33 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
   const [processing, setProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+// Handler to download duplicates CSV
+const handleDownloadDuplicatesCsv = async () => {
+  if (!selectedLists.length) return;
+  const listId = selectedLists[0];
+  try {
+    const response = await fetch(`/api/lists/${listId}/duplicates/csv`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/csv'
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to download duplicates CSV');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `list_${listId}_duplicates.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    setError('Failed to download duplicates CSV');
+  }
+};
   const [leadCount, setLeadCount] = useState<number>(0);
   
   // Load campaigns on component mount
@@ -414,7 +441,6 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
               <ProgressBar
                 now={checkingProgress}
                 label={`${checkingProgress}%`}
-                className="mt-3"
               />
             </div>
           )}
@@ -465,6 +491,15 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
                         onClick={() => applyFilter('exclude-90-days')}
                       >
                         Exclude Last 90 Days
+                      </Button>
+                    </div>
+                    <div className="mb-3">
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={handleDownloadDuplicatesCsv}
+                      >
+                        Download Duplicates CSV
                       </Button>
                     </div>
                     
