@@ -22,7 +22,7 @@ export class ListController {
     this.batchJobService = new BatchJobService(batchJobRepository, dnmService);
     const campaignRepository = new CampaignRepository(pool);
     const propertyOwnerRepository = new PropertyOwnerRepository(pool);
-    this.campaignService = new CampaignService(campaignRepository, propertyOwnerRepository);
+    this.campaignService = new CampaignService(campaignRepository, propertyOwnerRepository, dnmRepository);
   }
 /**
    * Download duplicates as CSV for a list
