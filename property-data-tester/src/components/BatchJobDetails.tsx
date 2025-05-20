@@ -33,7 +33,6 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showDnmModal, setShowDnmModal] = useState(false);
   const [dnmPreviewData, setDnmPreviewData] = useState<any>(null);
-  const [remailRadarIds, setRemailRadarIds] = useState<string[]>([]);
 
   // Download CSV function (optionally with remailRadarIds)
   const downloadCsv = async (jobId: number, remailIds?: string[]) => {
@@ -428,7 +427,6 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
                   setPreviewError(null);
                   setShowDnmModal(false);
                   setDnmPreviewData(null);
-                  setRemailRadarIds([]);
                   try {
                     const response = await fetch(`/api/batch-jobs/${job.job_id}/leads-csv-preview`, {
                       method: 'GET',
@@ -460,7 +458,6 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
                 dnmLeads={dnmPreviewData?.dnmLeads || []}
                 includedLeadsCount={dnmPreviewData?.includedLeadsCount || 0}
                 onConfirmRemail={ids => {
-                  setRemailRadarIds(ids);
                   setShowDnmModal(false);
                   // Optionally: pass remail list to backend, or just download as normal
                       downloadCsv(job.job_id!, ids);

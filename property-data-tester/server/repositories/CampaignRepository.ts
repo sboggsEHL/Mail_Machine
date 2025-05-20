@@ -274,46 +274,31 @@ export class CampaignRepository extends BaseRepository<Campaign> {
     // Process recipients in batches
     for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
       const batch = recipients.slice(i, i + BATCH_SIZE);
-      
-      // Explicitly type updates as string[]
-      const updates: string[] = [];
-      const params: any[] = [];
-      let paramIndex = 1;
+      let batchRowsAffected = 0;
 
       for (const rec of batch) {
         // Build SET clauses for this recipient
         const setClauses = columns
-          .map(col => `"${col}" = $${paramIndex++}`)
+          .map((col, idx) => `"${col}" = $${idx + 1}`)
           .join(', ');
-        
+
         // Add updated_at separately
         const finalSetClause = `${setClauses}, "updated_at" = NOW()`;
-        
-        // Add recipient_id placeholder for the WHERE clause
-        const whereClause = `"recipient_id" = $${paramIndex++}`;
 
-        // Construct the full UPDATE statement for this recipient
-        const updateStatement = `UPDATE mail_recipients SET ${finalSetClause} WHERE ${whereClause};`;
-        updates.push(updateStatement);
-
-        // Add parameters for this recipient's SET clauses
-        params.push(...columns.map(col => rec[col]));
+        // Prepare parameters for SET columns
+        const setParams = columns.map(col => rec[col]);
         // Add the recipient_id parameter for the WHERE clause
-        params.push(rec.recipient_id);
+        setParams.push(rec.recipient_id);
+
+        // Construct the UPDATE statement for this recipient
+        const updateStatement = `UPDATE mail_recipients SET ${finalSetClause} WHERE "recipient_id" = $${columns.length + 1};`;
+
+        // Execute the UPDATE statement for this recipient
+        const result = await queryExecutor.query(updateStatement, setParams);
+        batchRowsAffected += result.rowCount ?? 0;
       }
 
-      // Join all individual UPDATE statements into one multi-statement query for this batch
-      const query = updates.join('\n');
-      
-      // Execute the multi-statement query with all parameters for this batch
-      const result = await queryExecutor.query(query, params);
-      
-      // Sum up row counts from potentially multiple result objects
-      if (Array.isArray(result)) {
-        totalRowsAffected += result.reduce((sum, res) => sum + (res.rowCount ?? 0), 0);
-      } else {
-        totalRowsAffected += result.rowCount ?? 0;
-      }
+      totalRowsAffected += batchRowsAffected;
     }
     
     return totalRowsAffected;
