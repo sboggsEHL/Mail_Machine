@@ -119,6 +119,20 @@ export class DnmRepository extends BaseRepository<DnmRegistry> {
   }
 
   /**
+   * Find active DNM radar_ids from a list.
+   * @param radarIds List of radar_ids to check
+   * @returns List of radar_ids present and active in DNM
+   */
+  async findActiveRadarIds(radarIds: string[]): Promise<string[]> {
+    if (!radarIds.length) return [];
+    const result = await this.pool.query(
+      `SELECT radar_id FROM ${this.tableName} WHERE radar_id = ANY($1) AND is_active = TRUE`,
+      [radarIds]
+    );
+    return result.rows.map(row => row.radar_id);
+  }
+
+  /**
    * Find DNM registry entries by source
    * @param source Source of the DNM entry
    * @param limit Maximum number of entries to return

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
+import { Modal } from 'react-bootstrap';
 import { Card, Badge, Button, Spinner, Alert, ListGroup, Row, Col, ProgressBar, Form } from 'react-bootstrap';
 import {
   getBatchJobById, 
@@ -26,6 +27,139 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
   const [radarIdSearch, setRadarIdSearch] = useState<string>('');
+
+  // DNM CSV Preview state
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showDnmModal, setShowDnmModal] = useState(false);
+  const [dnmPreviewData, setDnmPreviewData] = useState<any>(null);
+  const [remailRadarIds, setRemailRadarIds] = useState<string[]>([]);
+
+  // Download CSV function (optionally with remailRadarIds)
+  const downloadCsv = async (jobId: number, remailIds?: string[]) => {
+    try {
+      // Optionally: pass remailIds to backend as query param or body if supported
+      const response = await fetch(`/api/batch-jobs/${jobId}/leads-csv`, {
+        method: 'GET',
+        headers: { 'Accept': 'text/csv' }
+      });
+      if (!response.ok) {
+        alert('Failed to download CSV.');
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `batch_job_${jobId}_leads.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Error downloading CSV.');
+    }
+  };
+
+  // DNM CSV Preview Modal component
+  const DnmCsvPreviewModal = ({
+    show,
+    onHide,
+    dnmLeads,
+    includedLeadsCount,
+    onConfirmRemail,
+    missingLeadsCount,
+    totalRadarIds
+  }: {
+    show: boolean;
+    onHide: () => void;
+    dnmLeads: any[];
+    includedLeadsCount: number;
+    onConfirmRemail: (ids: string[]) => void;
+    missingLeadsCount?: number;
+    totalRadarIds?: number;
+  }) => {
+    const [selected, setSelected] = useState<string[]>([]);
+    useEffect(() => {
+      setSelected([]);
+    }, [show]);
+    return (
+      <Modal show={show} onHide={onHide} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>DNM Check</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>
+            <b>{totalRadarIds ?? includedLeadsCount + (dnmLeads?.length || 0) + (missingLeadsCount || 0)}</b> total records in original list.<br />
+            <b>{includedLeadsCount}</b> leads will be included in the CSV.<br />
+            <b>{dnmLeads.length}</b> leads are on the DNM list and will be excluded by default.<br />
+            <b>{missingLeadsCount ?? 0}</b> records were not found in the property database and will not be included.
+          </p>
+          {dnmLeads.length > 0 && (
+            <>
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                <ListGroup>
+                  {dnmLeads.map((lead: any) => (
+                    <ListGroup.Item key={lead.radar_id}>
+                      <Form.Check
+                        type="checkbox"
+                        checked={selected.includes(lead.radar_id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelected([...selected, lead.radar_id]);
+                          } else {
+                            setSelected(selected.filter(id => id !== lead.radar_id));
+                          }
+                        }}
+                        label={
+                          <>
+                            <b>Radar ID:</b> {lead.radar_id}
+                            {lead.blocked_at && (
+                              <> | <b>Blocked At:</b> {lead.blocked_at}</>
+                            )}
+                            {lead.address && (
+                              <> | <b>Address:</b> {lead.address}, {lead.city}, {lead.state} {lead.zip}</>
+                            )}
+                          </>
+                        }
+                      />
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              </div>
+              <div className="mt-3">
+                <Button
+                  variant="primary"
+                  onClick={() => onConfirmRemail(selected)}
+                  disabled={selected.length === 0}
+                >
+                  Include Selected in CSV (Remail)
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="ms-2"
+                  onClick={() => onConfirmRemail([])}
+                >
+                  Continue Without DNM
+                </Button>
+              </div>
+            </>
+          )}
+          {/* If no DNM leads, always show Continue button */}
+          {dnmLeads.length === 0 && (
+            <div className="mt-3">
+              <Button
+                variant="primary"
+                onClick={() => onConfirmRemail([])}
+              >
+                Continue to Download
+              </Button>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
+    );
+  };
 
   // Load job details on component mount
   useEffect(() => {
@@ -285,36 +419,63 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
 
           {/* Download CSV Button - only enabled if job is completed and has RadarIDs */}
           {job && job.status === 'COMPLETED' && job.criteria && Array.isArray(job.criteria.RadarID) && job.criteria.RadarID.length > 0 && (
-            <Button
-              variant="info"
-              className="me-2"
-              onClick={async () => {
-                try {
-                  const response = await fetch(`/api/batch-jobs/${job.job_id}/leads-csv`, {
-                    method: 'GET',
-                    headers: { 'Accept': 'text/csv' }
-                  });
-                  if (!response.ok) {
-                    alert('Failed to download CSV.');
-                    return;
+            <>
+              <Button
+                variant="info"
+                className="me-2"
+                onClick={async () => {
+                  setPreviewLoading(true);
+                  setPreviewError(null);
+                  setShowDnmModal(false);
+                  setDnmPreviewData(null);
+                  setRemailRadarIds([]);
+                  try {
+                    const response = await fetch(`/api/batch-jobs/${job.job_id}/leads-csv-preview`, {
+                      method: 'GET',
+                      headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) {
+                      setPreviewError('Failed to check DNM status.');
+                      setPreviewLoading(false);
+                      return;
+                    }
+                    const data = await response.json();
+                    setPreviewLoading(false);
+                    setDnmPreviewData(data);
+                    setDnmPreviewData(data);
+                    setShowDnmModal(true);
+                  } catch (err) {
+                    setPreviewError('Error checking DNM status.');
+                    setPreviewLoading(false);
                   }
-                  const blob = await response.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `batch_job_${job.job_id}_leads.csv`;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  window.URL.revokeObjectURL(url);
-                } catch (err) {
-                  alert('Error downloading CSV.');
-                }
-              }}
-              title="Download all leads as CSV for this batch job"
-            >
-              Download CSV
-            </Button>
+                }}
+                title="Download all leads as CSV for this batch job"
+              >
+                Download CSV
+              </Button>
+              {/* DNM Modal */}
+              <DnmCsvPreviewModal
+                show={showDnmModal}
+                onHide={() => setShowDnmModal(false)}
+                dnmLeads={dnmPreviewData?.dnmLeads || []}
+                includedLeadsCount={dnmPreviewData?.includedLeadsCount || 0}
+                onConfirmRemail={ids => {
+                  setRemailRadarIds(ids);
+                  setShowDnmModal(false);
+                  // Optionally: pass remail list to backend, or just download as normal
+                      downloadCsv(job.job_id!, ids);
+                }}
+              />
+              {/* Loading/Checking UI */}
+              {previewLoading && (
+                <Spinner animation="border" role="status" className="ms-2">
+                  <span className="visually-hidden">Checking DNM...</span>
+                </Spinner>
+              )}
+              {previewError && (
+                <Alert variant="danger" className="mt-2">{previewError}</Alert>
+              )}
+            </>
           )}
 
           <Button 

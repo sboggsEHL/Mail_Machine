@@ -5,6 +5,8 @@ import { JobQueueService } from '../services/JobQueueService';
 import { BatchJobRepository } from '../repositories/BatchJobRepository';
 import { PropertyBatchService } from '../services/PropertyBatchService';
 import { Pool } from 'pg';
+import { DnmRepository } from '../repositories/DnmRepository';
+import { DnmService } from '../services/DnmService';
 
 /**
  * Create batch job routes
@@ -14,7 +16,9 @@ import { Pool } from 'pg';
 export function createBatchJobRoutes(pool: Pool): Router {
   // Create instances
   const batchJobRepository = new BatchJobRepository(pool);
-  const batchJobService = new BatchJobService(batchJobRepository);
+  const dnmRepository = new DnmRepository(pool);
+  const dnmService = new DnmService(dnmRepository);
+  const batchJobService = new BatchJobService(batchJobRepository, dnmService);
   const propertyBatchService = new PropertyBatchService(pool);
   const jobQueueService = new JobQueueService(batchJobService, propertyBatchService);
   const batchJobController = new BatchJobController(batchJobService, jobQueueService);
@@ -35,6 +39,9 @@ export function createBatchJobRoutes(pool: Pool): Router {
 
   // Get job progress
   router.get('/:id/progress', (req, res) => batchJobController.getJobProgress(req, res));
+
+  // Preview leads for a batch job CSV (count + DNM exclusions)
+  router.get('/:id/leads-csv-preview', (req, res) => batchJobController.leadsCsvPreview(req, res));
 
   // Download leads as CSV for a batch job
   router.get('/:id/leads-csv', (req, res) => batchJobController.downloadLeadsCsv(req, res));
