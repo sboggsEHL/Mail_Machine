@@ -6,6 +6,8 @@ import { PropertyBatchService } from './services/PropertyBatchService';
 import { JobQueueService } from './services/JobQueueService';
 import { createPropertyRadarProvider } from './services/lead-providers/propertyradar';
 import { leadProviderFactory } from './services/lead-providers/LeadProviderFactory';
+import { DnmRepository } from './repositories/DnmRepository';
+import { DnmService } from './services/DnmService';
 
 // Load environment variables
 dotenv.config();
@@ -33,7 +35,9 @@ async function startWorker() {
     
     // Create services
     const batchJobRepository = new BatchJobRepository(dbPool);
-    const batchJobService = new BatchJobService(batchJobRepository);
+    const dnmRepository = new DnmRepository(dbPool);
+    const dnmService = new DnmService(dnmRepository);
+    const batchJobService = new BatchJobService(batchJobRepository, dnmService);
     const propertyBatchService = new PropertyBatchService(dbPool);
     
     // Create job queue service (this will start processing jobs)

@@ -243,6 +243,58 @@ export class BatchJobController {
   }
 
   /**
+   * Preview leads for a batch job CSV, showing count and DNM exclusions.
+   * @param req Express request
+   * @param res Express response
+   */
+  async leadsCsvPreview(req: Request, res: Response): Promise<void> {
+    try {
+      const jobId = parseInt(req.params.id);
+      if (isNaN(jobId)) {
+        res.status(400).json({ success: false, error: 'Invalid job ID' });
+        return;
+      }
+
+      // Load the batch job
+      const job = await this.batchJobService.getJobById(jobId);
+      if (!job) {
+        logger.error(`[leads-csv-preview] Batch job not found for jobId=${jobId}`);
+        res.status(404).json({ success: false, error: 'Batch job not found' });
+        return;
+      }
+
+      // Get preview data
+      const { includedLeads, dnmLeads, missingLeadsCount, totalRadarIds } = await this.batchJobService.getLeadsCsvPreview(job);
+
+      // Only return count for included, and minimal info for DNM
+      const dnmLeadsPreview = dnmLeads.map((lead: any) => ({
+        radar_id: lead.radar_id,
+        blocked_at: lead.blocked_at, // If available, else null
+        address: lead.address,
+        city: lead.city,
+        state: lead.state,
+        zip: lead.zip,
+        loan_id: lead.loan_id,
+        // Add more fields if needed
+      }));
+
+      res.json({
+        success: true,
+        includedLeadsCount: includedLeads.length,
+        dnmLeads: dnmLeadsPreview,
+        missingLeadsCount,
+        totalRadarIds
+      });
+    } catch (error) {
+      logger.error('Error in leadsCsvPreview for batch job:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to preview leads CSV'
+      });
+    }
+  }
+
+  /**
    * Download leads for a batch job as CSV using RadarIDs from criteria
    * @param req Express request
    * @param res Express response
@@ -272,30 +324,13 @@ export class BatchJobController {
         return;
       }
 
-      // Query complete_property_view for these RadarIDs
-      // (Assume dbPool is imported from config/database)
-      // Columns: address, city, state, zip, loan_id, first_name, last_name
-      const { dbPool } = require('../config/database');
-      const result = await dbPool.query(
-        `SELECT
-          property_address AS address,
-          property_city AS city,
-          property_state AS state,
-          property_zip AS zip,
-          loan_id,
-          primary_owner_first_name AS first_name,
-          primary_owner_last_name AS last_name
-        FROM public.complete_property_view
-        WHERE radar_id = ANY($1)`,
-        [radarIds]
-      );
-
-      const leads = result.rows;
+      // Get leads for CSV, filtering out DNM entries
+      const leads = await this.batchJobService.getLeadsForCsvWithDnmFilter(job);
       logger.info(`[leads-csv] jobId=${jobId} leads.length=${leads.length}`);
 
       if (!leads.length) {
-        logger.error(`[leads-csv] No leads found for these RadarIDs for jobId=${jobId}`);
-        res.status(404).json({ success: false, error: 'No leads found for these RadarIDs' });
+        logger.error(`[leads-csv] No leads found for these RadarIDs after DNM filtering for jobId=${jobId}`);
+        res.status(404).json({ success: false, error: 'No leads found for these RadarIDs after DNM filtering' });
         return;
       }
 

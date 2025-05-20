@@ -10,18 +10,22 @@ import logger from '../utils/logger';
 export class CampaignService {
   private campaignRepository: CampaignRepository;
   private propertyOwnerRepository: PropertyOwnerRepository;
+  private dnmRepository: import('../repositories/DnmRepository').DnmRepository;
 
   /**
    * Create a new CampaignService
    * @param campaignRepository Repository for campaign operations
    * @param propertyOwnerRepository Repository for property owner operations
+   * @param dnmRepository Repository for DNM operations
    */
   constructor(
     campaignRepository: CampaignRepository,
-    propertyOwnerRepository: PropertyOwnerRepository
+    propertyOwnerRepository: PropertyOwnerRepository,
+    dnmRepository: import('../repositories/DnmRepository').DnmRepository
   ) {
     this.campaignRepository = campaignRepository;
     this.propertyOwnerRepository = propertyOwnerRepository;
+    this.dnmRepository = dnmRepository;
   }
 
   /**
@@ -355,32 +359,32 @@ export class CampaignService {
       const loanIdMap = await this.campaignRepository.getRecipientLoanIdsByCampaignId(campaignId);
       logger.info(`Found ${loanIdMap.size} existing recipients for campaign ${campaignId}`);
 
-    // Date calculations (mimic Python logic)
-    const now = new Date();
-    const addDays = (date: Date, days: number) => {
-      const d = new Date(date);
-      d.setDate(d.getDate() + days);
-      return d;
-    };
-    const monthName = (date: Date) => date.toLocaleString('default', { month: 'long' });
+      // Date calculations (mimic Python logic)
+      const now = new Date();
+      const addDays = (date: Date, days: number) => {
+        const d = new Date(date);
+        d.setDate(d.getDate() + days);
+        return d;
+      };
+      const monthName = (date: Date) => date.toLocaleString('default', { month: 'long' });
 
-    const closeMonth = monthName(addDays(now, 21));
-    const skipMonth = monthName(addDays(now, 21 + 32));
-    const nextPayMonth = monthName(addDays(now, 21 + 32 + 32));
+      const closeMonth = monthName(addDays(now, 21));
+      const skipMonth = monthName(addDays(now, 21 + 32));
+      const nextPayMonth = monthName(addDays(now, 21 + 32 + 32));
 
-    // Next Friday for mail_date
-    const daysUntilFriday = (5 - now.getDay() + 7) % 7;
-    const mailDate = addDays(now, daysUntilFriday);
-    const mailDateStr = mailDate.toISOString().slice(0, 10);
+      // Next Friday for mail_date
+      const daysUntilFriday = (5 - now.getDay() + 7) % 7;
+      const mailDate = addDays(now, daysUntilFriday);
+      const mailDateStr = mailDate.toISOString().slice(0, 10);
 
-    const phoneNumber = '855-235-5834';
-    const qrBaseUrl = 'https://elevated.loans/my-loan/';
+      const phoneNumber = '855-235-5834';
+      const qrBaseUrl = 'https://elevated.loans/my-loan/';
 
-    const toInsert: any[] = [];
-    const toUpdate: any[] = [];
-    const ownerUpdates: {owner_id: number, first_name: string}[] = [];
+      const toInsert: any[] = [];
+      const toUpdate: any[] = [];
+      const ownerUpdates: {owner_id: number, first_name: string}[] = [];
 
-    for (const row of records) {
+      for (const row of records) {
       try {
         const loan_id = row['loan_id']?.trim();
         if (!loan_id) {

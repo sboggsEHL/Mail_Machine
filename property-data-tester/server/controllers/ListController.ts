@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PropertyRadarListService } from '../services/PropertyRadarListService';
 import { BatchJobService } from '../services/BatchJobService';
 import { BatchJobRepository } from '../repositories/BatchJobRepository';
+import { DnmRepository } from '../repositories/DnmRepository';
+import { DnmService } from '../services/DnmService';
 import { CampaignService } from '../services/CampaignService';
 import { CampaignRepository } from '../repositories/CampaignRepository';
 import { PropertyOwnerRepository } from '../repositories/PropertyOwnerRepository';
@@ -15,10 +17,12 @@ export class ListController {
   constructor(pool: Pool) {
     this.listService = new PropertyRadarListService(pool);
     const batchJobRepository = new BatchJobRepository(pool);
-    this.batchJobService = new BatchJobService(batchJobRepository);
+    const dnmRepository = new DnmRepository(pool);
+    const dnmService = new DnmService(dnmRepository);
+    this.batchJobService = new BatchJobService(batchJobRepository, dnmService);
     const campaignRepository = new CampaignRepository(pool);
     const propertyOwnerRepository = new PropertyOwnerRepository(pool);
-    this.campaignService = new CampaignService(campaignRepository, propertyOwnerRepository);
+    this.campaignService = new CampaignService(campaignRepository, propertyOwnerRepository, dnmRepository);
   }
 /**
    * Download duplicates as CSV for a list
