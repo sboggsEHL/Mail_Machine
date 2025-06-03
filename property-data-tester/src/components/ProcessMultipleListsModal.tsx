@@ -40,28 +40,61 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
 // Handler to download duplicates CSV
 const handleDownloadDuplicatesCsv = async () => {
   if (!selectedLists.length) return;
-  const listId = selectedLists[0];
   try {
-    const response = await fetch(`/api/lists/${listId}/duplicates/csv`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/csv'
+    // Fetch CSVs for all selected lists
+    const csvs: string[] = [];
+    for (const listId of selectedLists) {
+      const response = await fetch(`/api/lists/${listId}/duplicates/csv`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/csv'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to download duplicates CSV for list ${listId}`);
       }
-    });
-    if (!response.ok) {
-      throw new Error('Failed to download duplicates CSV');
+      const text = await response.text();
+      csvs.push(text);
     }
-    const blob = await response.blob();
+
+    // Combine CSVs: merge headers, deduplicate rows
+    let combinedRows: string[] = [];
+    let header: string | null = null;
+    const seenRows = new Set<string>();
+
+    for (const csv of csvs) {
+      const lines = csv.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (!lines.length) continue;
+      if (!header) {
+        header = lines[0];
+        combinedRows.push(header);
+      }
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i];
+        if (row && !seenRows.has(row)) {
+          combinedRows.push(row);
+          seenRows.add(row);
+        }
+      }
+    }
+
+    if (!header) {
+      setError('No data found to download.');
+      return;
+    }
+
+    const combinedCsv = combinedRows.join('\r\n');
+    const blob = new Blob([combinedCsv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `list_${listId}_duplicates.csv`;
+    a.download = `combined_duplicates.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (err) {
-    setError('Failed to download duplicates CSV');
+    setError('Failed to download combined duplicates CSV');
   }
 };
   const [leadCount, setLeadCount] = useState<number>(0);
