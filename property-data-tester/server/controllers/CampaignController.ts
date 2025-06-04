@@ -446,18 +446,25 @@ export class CampaignController {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
+        logger.error(`Invalid campaign ID for downloadRecipientsCsv: ${req.params.id}`);
         res.status(400).json({ success: false, error: 'Invalid campaign ID' });
         return;
       }
 
-      // Fetch all recipients
-      const recipients = await this.campaignService.getAllRecipientsByCampaignId(id);
+      logger.info(`Starting download of recipients CSV for campaign ${id}`);
+
+      // Fetch all recipients, excluding those in the DNM registry
+      logger.info(`Fetching recipients for campaign ${id} with DNM filtering`);
+      const recipients = await this.campaignService.getAllRecipientsByCampaignId(id, true);
 
       // If no recipients, return 404
       if (!recipients || recipients.length === 0) {
+        logger.warn(`No recipients found for campaign ${id}`);
         res.status(404).json({ success: false, error: 'No recipients found for this campaign' });
         return;
       }
+
+      logger.info(`Found ${recipients.length} recipients for campaign ${id} after DNM filtering`);
 
       // Helper function to capitalize first letter of each word (like Excel's PROPER function)
       const proper = (str: string | null | undefined): string => {

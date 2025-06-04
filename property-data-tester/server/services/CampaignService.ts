@@ -199,19 +199,78 @@ export class CampaignService {
   /**
    * Get all recipients for a campaign
    * @param campaignId Campaign ID
+   * @param excludeDnm Whether to exclude recipients in the DNM registry (default: true)
    * @returns Array of all recipients
    */
-  async getAllRecipientsByCampaignId(campaignId: number): Promise<any[]> {
-    // Get total count first
-    const count = await this.campaignRepository.countRecipientsByCampaignId(campaignId);
-    
-    // If there are no recipients, return empty array
-    if (count === 0) {
-      return [];
+  async getAllRecipientsByCampaignId(campaignId: number, excludeDnm: boolean = true): Promise<any[]> {
+    try {
+      logger.info(`Getting all recipients for campaign ${campaignId}, excludeDnm=${excludeDnm}`);
+      
+      // If we don't need to exclude DNM records or there's no DNM repository, use simple query
+      if (!excludeDnm || !this.dnmRepository) {
+        logger.info(`Returning all recipients without DNM filtering for campaign ${campaignId}`);
+        const count = await this.campaignRepository.countRecipientsByCampaignId(campaignId);
+        return this.campaignRepository.getRecipientsByCampaignId(campaignId, count, 0);
+      }
+      
+      // Use a more efficient approach with a single query that joins with the DNM registry
+      logger.info(`Fetching recipients for campaign ${campaignId} with efficient DNM filtering`);
+      
+      // Execute the optimized query directly using the pool from the campaign repository
+      const pool = (this.campaignRepository as any).pool;
+      if (!pool) {
+        logger.error(`Cannot access database pool for optimized query`);
+        // Fall back to the old method if we can't access the pool
+        const count = await this.campaignRepository.countRecipientsByCampaignId(campaignId);
+        const allRecipients = await this.campaignRepository.getRecipientsByCampaignId(campaignId, count, 0);
+        return allRecipients;
+      }
+      
+      // Get total count first to log it
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM mail_recipients 
+        WHERE campaign_id = $1
+      `, [campaignId]);
+      
+      const totalCount = parseInt(countResult.rows[0].count);
+      logger.info(`Found ${totalCount} total recipients for campaign ${campaignId}`);
+      
+      // If there are no recipients, return empty array
+      if (totalCount === 0) {
+        return [];
+      }
+      
+      // Execute the optimized query that filters out DNM records in a single operation
+      const startTime = Date.now();
+      logger.info(`Starting optimized DNM filtering query`);
+      
+      const result = await pool.query(`
+        SELECT r.* 
+        FROM mail_recipients r
+        WHERE r.campaign_id = $1
+        AND NOT EXISTS (
+          SELECT 1 FROM dnm_registry d 
+          WHERE d.is_active = TRUE 
+          AND (
+            (d.loan_id IS NOT NULL AND d.loan_id = r.loan_id)
+            OR 
+            (d.property_id IS NOT NULL AND d.property_id = r.property_id)
+          )
+        )
+      `, [campaignId]);
+      
+      const endTime = Date.now();
+      const duration = (endTime - startTime) / 1000;
+      
+      const filteredCount = totalCount - result.rows.length;
+      logger.info(`Optimized query completed in ${duration} seconds. Filtered out ${filteredCount} DNM recipients from campaign ${campaignId}`);
+      
+      return result.rows;
+    } catch (error) {
+      logger.error(`Error getting recipients with DNM filtering for campaign ${campaignId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     }
-    
-    // Fetch all recipients at once
-    return this.campaignRepository.getRecipientsByCampaignId(campaignId, count, 0);
   }
 
   /**

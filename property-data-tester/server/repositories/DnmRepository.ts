@@ -133,6 +133,42 @@ export class DnmRepository extends BaseRepository<DnmRegistry> {
   }
 
   /**
+   * Find DNM entries by multiple loan IDs
+   * @param loanIds Array of loan IDs to check
+   * @returns Array of DNM registry entries
+   */
+  async findByLoanIds(loanIds: string[]): Promise<DnmRegistry[]> {
+    if (!loanIds.length) return [];
+    
+    const result = await this.pool.query<DnmRegistry>(
+      `SELECT * FROM ${this.tableName} 
+       WHERE loan_id = ANY($1) AND is_active = TRUE
+       ORDER BY blocked_at DESC`,
+      [loanIds]
+    );
+    
+    return result.rows;
+  }
+
+  /**
+   * Find DNM entries by multiple property IDs
+   * @param propertyIds Array of property IDs to check
+   * @returns Array of DNM registry entries
+   */
+  async findByPropertyIds(propertyIds: number[]): Promise<DnmRegistry[]> {
+    if (!propertyIds.length) return [];
+    
+    const result = await this.pool.query<DnmRegistry>(
+      `SELECT * FROM ${this.tableName} 
+       WHERE property_id = ANY($1) AND is_active = TRUE
+       ORDER BY blocked_at DESC`,
+      [propertyIds]
+    );
+    
+    return result.rows;
+  }
+
+  /**
    * Find DNM registry entries by source
    * @param source Source of the DNM entry
    * @param limit Maximum number of entries to return
