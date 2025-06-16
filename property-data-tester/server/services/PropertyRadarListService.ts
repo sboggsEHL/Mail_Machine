@@ -29,10 +29,10 @@ export interface DuplicateProperty {
   city: string;
   state: string;
   zip_code: string;
-  created_at: Date;
+  created_at: Date | null;
   last_campaign_id?: number;
   last_campaign_name?: string;
-  last_campaign_date?: Date;
+  last_campaign_date?: Date | null;
 }
 
 export interface DuplicateCheckResult extends DuplicateProperty {
