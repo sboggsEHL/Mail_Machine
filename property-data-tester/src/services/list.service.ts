@@ -50,10 +50,8 @@ class ListService {
   /**
    * Check for duplicates in a list
    */
-  async checkDuplicates(listId: number, page: number = 1, pageSize: number = 1000) {
-    const response = await api.get(`/lists/${listId}/check-duplicates`, {
-      params: { page, pageSize }
-    });
+  async checkDuplicates(listId: number) {
+    const response = await api.get(`/lists/${listId}/check-duplicates`);
     return response.data;
   }
   

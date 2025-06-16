@@ -20,11 +20,13 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [success, setSuccess] = useState<string | null>(null);
   const [excludeAll, setExcludeAll] = useState<boolean>(true);
   const [excludedRadarIds, setExcludedRadarIds] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
+  const [currentPage] = useState<number>(1);
+  const [totalPages] = useState<number>(1);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const [pageSize] = useState<number>(1000); // Removed unused setPageSize
+
   const [allDuplicates, setAllDuplicates] = useState<any[]>([]);
+  const [duplicatesPage, setDuplicatesPage] = useState<number>(1);
+  const DUPLICATES_PER_PAGE = 100;
   const [showLeadCountModal, setShowLeadCountModal] = useState<boolean>(false);
   const [leadCount, setLeadCount] = useState<number>(0);
   const [campaignId, setCampaignId] = useState<number | null>(null);
@@ -118,57 +120,44 @@ const handleDownloadDuplicatesCsv = async () => {
     }
   };
   
-  const checkDuplicates = async (page: number = 1) => {
+  const checkDuplicates = async () => {
     if (!listId) return;
-    
+
     try {
       setChecking(true);
-      
-      // First, fetch all properties from the list
-      if (page === 1) {
-        try {
-          const listItemsResponse = await listService.getListItems(parseInt(listId));
-          if (listItemsResponse.success) {
-            // Convert list items to property format for display
-            const properties = listItemsResponse.items.map((item: any) => ({
-              radar_id: item.RadarID,
-              address: 'N/A', // These will be populated if they're duplicates
-              city: 'N/A',
-              state: 'N/A',
-              zip_code: 'N/A',
-              created_at: new Date(item.AddedDate),
-              last_campaign_id: null,
-              last_campaign_name: 'N/A',
-              last_campaign_date: null
-            }));
-            setAllProperties(properties);
-          }
-        } catch (err) {
-          console.error('Error fetching list items:', err);
+
+      // Fetch all properties from the list (for display, if needed)
+      try {
+        const listItemsResponse = await listService.getListItems(parseInt(listId));
+        if (listItemsResponse.success) {
+          // Convert list items to property format for display
+          const properties = listItemsResponse.items.map((item: any) => ({
+            radar_id: item.RadarID,
+            address: 'N/A', // These will be populated if they're duplicates
+            city: 'N/A',
+            state: 'N/A',
+            zip_code: 'N/A',
+            created_at: new Date(item.AddedDate),
+            last_campaign_id: null,
+            last_campaign_name: 'N/A',
+            last_campaign_date: null
+          }));
+          setAllProperties(properties);
         }
+      } catch (err) {
+        console.error('Error fetching list items:', err);
       }
-      
-      // Then check for duplicates
-      const result = await listService.checkDuplicates(parseInt(listId), page, pageSize);
+
+      // Single request for all duplicates (no pagination)
+      const result = await listService.checkDuplicates(parseInt(listId));
       console.log('Duplicate check result:', result);
-      
+
       if (result.success) {
         setTotalItems(result.totalItems);
         setDuplicates(result.duplicates || []);
-        
-        // Update pagination info
-        if (result.pagination) {
-          setCurrentPage(result.pagination.page);
-          setTotalPages(result.pagination.totalPages);
-        }
-        
-        // Accumulate duplicates if this is not the first page
-        if (page === 1) {
-          setAllDuplicates(result.duplicates || []);
-        } else {
-          setAllDuplicates(prev => [...prev, ...(result.duplicates || [])]);
-        }
-        
+        setAllDuplicates(result.duplicates || []);
+        setDuplicatesPage(1);
+
         // Update allProperties with duplicate information
         if (result.duplicates && result.duplicates.length > 0) {
           setAllProperties(prevProperties => {
@@ -182,33 +171,21 @@ const handleDownloadDuplicatesCsv = async () => {
             return updatedProperties;
           });
         }
-        
+
         setError(null);
-        
-        // If there are more pages, load the next page
-        if (result.pagination && result.pagination.hasMore) {
-          // Wait a short time before loading the next page to avoid overwhelming the server
-          setTimeout(() => {
-            checkDuplicates(page + 1);
-          }, 500);
+
+        // Update excluded RadarIDs
+        if (excludeAll) {
+          setExcludedRadarIds((result.duplicates || []).map((d: any) => d.radar_id));
         } else {
-          // All pages loaded, update excluded RadarIDs
-          if (excludeAll) {
-            setExcludedRadarIds(allDuplicates.map((d: any) => d.radar_id));
-          } else {
-            setExcludedRadarIds([]);
-          }
+          setExcludedRadarIds([]);
         }
       } else {
         setError(result.error || 'Failed to check duplicates');
         console.error('Error checking duplicates:', result.details);
       }
-      
-      // Make sure to set checking to false when there are no more pages
-      if (!result.pagination || !result.pagination.hasMore) {
-        setChecking(false);
-      }
-      
+
+      setChecking(false);
       setError(null);
     } catch (err) {
       setError('Failed to check duplicates. Please try again.');
@@ -230,66 +207,63 @@ const handleDownloadDuplicatesCsv = async () => {
       }
       return;
     }
-    
+
     setActiveFilter(filterType);
-    
-    const today = new Date();
+
     let filteredRadarIds: string[] = [];
-    
+
+    const now = new Date();
+
     switch (filterType) {
       case 'exclude-all-mailed':
-        // Exclude all properties that have been mailed (have a campaign date)
-        filteredRadarIds = allDuplicates
-          .filter(property => property.last_campaign_date !== null)
-          .map(property => property.radar_id);
+      case 'exclude-all-time':
+        // Exclude all duplicates
+        filteredRadarIds = allDuplicates.map(property => property.radar_id);
         break;
-        
       case 'exclude-30-days':
-        // Exclude properties mailed in the last 30 days
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        
         filteredRadarIds = allDuplicates
           .filter(property => {
-            if (!property.last_campaign_date) return false;
-            const campaignDate = new Date(property.last_campaign_date);
-            return campaignDate >= thirtyDaysAgo;
+            if (!property.created_at) return false;
+            const created = new Date(property.created_at);
+            const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+            return diffDays <= 30;
           })
           .map(property => property.radar_id);
         break;
-        
       case 'exclude-60-days':
-        // Exclude properties mailed in the last 60 days
-        const sixtyDaysAgo = new Date();
-        sixtyDaysAgo.setDate(today.getDate() - 60);
-        
         filteredRadarIds = allDuplicates
           .filter(property => {
-            if (!property.last_campaign_date) return false;
-            const campaignDate = new Date(property.last_campaign_date);
-            return campaignDate >= sixtyDaysAgo;
+            if (!property.created_at) return false;
+            const created = new Date(property.created_at);
+            const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+            return diffDays <= 60;
           })
           .map(property => property.radar_id);
         break;
-        
       case 'exclude-90-days':
-        // Exclude properties mailed in the last 90 days
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(today.getDate() - 90);
-        
         filteredRadarIds = allDuplicates
           .filter(property => {
-            if (!property.last_campaign_date) return false;
-            const campaignDate = new Date(property.last_campaign_date);
-            return campaignDate >= ninetyDaysAgo;
+            if (!property.created_at) return false;
+            const created = new Date(property.created_at);
+            const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+            return diffDays <= 90;
           })
           .map(property => property.radar_id);
         break;
-        
+      case 'exclude-6-months':
+        filteredRadarIds = allDuplicates
+          .filter(property => {
+            if (!property.created_at) return false;
+            const created = new Date(property.created_at);
+            const diffMonths = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+            return diffMonths <= 6;
+          })
+          .map(property => property.radar_id);
+        break;
       default:
         break;
     }
-    
+
     setExcludedRadarIds(filteredRadarIds);
   };
   
@@ -486,7 +460,7 @@ const handleDownloadDuplicatesCsv = async () => {
             {!checking && allDuplicates.length === 0 && (
               <Button
                 variant="primary"
-                onClick={() => checkDuplicates(1)}
+                onClick={checkDuplicates}
                 disabled={checking}
               >
                 {checking ? 'Checking...' : 'Check Duplicates'}
@@ -702,6 +676,22 @@ const handleDownloadDuplicatesCsv = async () => {
                       >
                         Exclude Last 90 Days
                       </Button>
+                      <Button
+                        size="sm"
+                        variant={activeFilter === 'exclude-6-months' ? 'primary' : 'outline-primary'}
+                        className="me-2 mb-1"
+                        onClick={() => applyFilter('exclude-6-months')}
+                      >
+                        Exclude Last 6 Months
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={activeFilter === 'exclude-all-time' ? 'primary' : 'outline-primary'}
+                        className="me-2 mb-1"
+                        onClick={() => applyFilter('exclude-all-time')}
+                      >
+                        Exclude All Time
+                      </Button>
                     </div>
                   )}
                 </Col>
@@ -732,6 +722,8 @@ const handleDownloadDuplicatesCsv = async () => {
                         {activeFilter === 'exclude-30-days' && 'Excluding Last 30 Days'}
                         {activeFilter === 'exclude-60-days' && 'Excluding Last 60 Days'}
                         {activeFilter === 'exclude-90-days' && 'Excluding Last 90 Days'}
+                        {activeFilter === 'exclude-6-months' && 'Excluding Last 6 Months'}
+                        {activeFilter === 'exclude-all-time' && 'Excluding All Time'}
                       </Badge>
                     )}
                   </div>
@@ -772,33 +764,61 @@ const handleDownloadDuplicatesCsv = async () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {allDuplicates.map(property => (
-                        <tr
-                          key={property.radar_id}
-                          className={excludedRadarIds.includes(property.radar_id) ? 'table-danger' : ''}
-                        >
-                          <td>
-                            <Form.Check
-                              type="checkbox"
-                              checked={excludedRadarIds.includes(property.radar_id)}
-                              onChange={() => toggleExcludeProperty(property.radar_id)}
-                            />
-                          </td>
-                          <td>{property.radar_id}</td>
-                          <td>
-                            {property.address}, {property.city}, {property.state} {property.zip_code}
-                          </td>
-                          <td>{new Date(property.created_at).toLocaleDateString()}</td>
-                          <td>{property.last_campaign_name || 'N/A'}</td>
-                          <td>
-                            {property.last_campaign_date 
-                              ? new Date(property.last_campaign_date).toLocaleDateString() 
-                              : 'N/A'}
-                          </td>
-                        </tr>
-                      ))}
+                      {allDuplicates
+                        .slice((duplicatesPage - 1) * DUPLICATES_PER_PAGE, duplicatesPage * DUPLICATES_PER_PAGE)
+                        .map(property => (
+                          <tr
+                            key={property.radar_id}
+                            className={excludedRadarIds.includes(property.radar_id) ? 'table-danger' : ''}
+                          >
+                            <td>
+                              <Form.Check
+                                type="checkbox"
+                                checked={excludedRadarIds.includes(property.radar_id)}
+                                onChange={() => toggleExcludeProperty(property.radar_id)}
+                              />
+                            </td>
+                            <td>{property.radar_id}</td>
+                            <td>
+                              {property.address}, {property.city}, {property.state} {property.zip_code}
+                            </td>
+                            <td>{new Date(property.created_at).toLocaleDateString()}</td>
+                            <td>{property.last_campaign_name || 'N/A'}</td>
+                            <td>
+                              {property.last_campaign_date 
+                                ? new Date(property.last_campaign_date).toLocaleDateString() 
+                                : 'N/A'}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </Table>
+                  {/* Pagination controls for duplicates */}
+                  {allDuplicates.length > DUPLICATES_PER_PAGE && (
+                    <div className="d-flex justify-content-center align-items-center my-3">
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        className="me-2"
+                        disabled={duplicatesPage === 1}
+                        onClick={() => setDuplicatesPage(duplicatesPage - 1)}
+                      >
+                        Previous
+                      </Button>
+                      <span>
+                        Page {duplicatesPage} of {Math.ceil(allDuplicates.length / DUPLICATES_PER_PAGE)}
+                      </span>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        className="ms-2"
+                        disabled={duplicatesPage === Math.ceil(allDuplicates.length / DUPLICATES_PER_PAGE)}
+                        onClick={() => setDuplicatesPage(duplicatesPage + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <Alert variant="success">

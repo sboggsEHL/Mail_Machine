@@ -158,38 +158,22 @@ export class ListController {
     console.log('ListController.checkDuplicates called with listId:', req.params.listId);
     try {
       const listId = parseInt(req.params.listId);
-      const page = req.query.page ? parseInt(req.query.page as string) : 1;
-      const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 1000;
-      
+
       // Get all items from the list
       const items = await this.listService.getAllListItems(listId);
       console.log(`Retrieved ${items.length} items from list ${listId}`);
       const allRadarIds = items.map(item => item.RadarID);
-      
-      // Calculate total pages
-      const totalPages = Math.ceil(allRadarIds.length / pageSize);
-      
+
       // Process all radar IDs at once for better performance
       console.log(`Processing all ${allRadarIds.length} items at once for better performance`);
       const allDuplicates = await this.listService.checkDuplicates(allRadarIds);
       console.log(`Found ${allDuplicates.length} duplicates out of ${allRadarIds.length} items`);
-      
-      // Return only the duplicates for the current page
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = Math.min(startIndex + pageSize, allDuplicates.length);
-      const pageDuplicates = allDuplicates.slice(startIndex, endIndex);
-      
+
       res.json({
         success: true,
         totalItems: allRadarIds.length,
         duplicateCount: allDuplicates.length,
-        duplicates: pageDuplicates,
-        pagination: {
-          page,
-          pageSize,
-          totalPages: Math.ceil(allDuplicates.length / pageSize),
-          hasMore: page < Math.ceil(allDuplicates.length / pageSize)
-        }
+        duplicates: allDuplicates
       });
     } catch (error) {
       console.error('Error in checkDuplicates:', error);

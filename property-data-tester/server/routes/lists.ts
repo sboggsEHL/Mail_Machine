@@ -135,62 +135,40 @@ router.get('/:id/items', async (req, res) => {
 /**
  * Check for duplicates in a list
  * GET /api/lists/:id/check-duplicates
+ * Returns ALL duplicates in one response (no pagination)
  */
 router.get('/:id/check-duplicates', async (req, res) => {
   try {
     const listId = parseInt(req.params.id);
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 1000;
-    
+
     if (isNaN(listId)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid list ID'
       });
     }
-    
+
     const listService = getListService();
-    
-    // Calculate pagination
-    const start = (page - 1) * pageSize;
-    
-    // Get items for the current page
-    const items = await listService.getListItems(listId, start, pageSize);
-    
-    // Extract RadarIDs
+
+    // Get all items for the list
+    const items = await listService.getAllListItems(listId);
     const radarIds = items.map(item => item.RadarID);
-    
-    // Check for duplicates
+
+    // Check for duplicates among all radarIds
     const duplicates = await listService.checkDuplicates(radarIds);
-    
+
     // Get total count of items in the list
     let totalItems = 0;
-    if (page === 1) {
-      // Only make this additional API call on the first page
-      const allItems = await listService.getListItems(listId, 0, 1);
-      const list = await listService.getLists();
-      const currentList = list.find(l => l.ListID === listId);
-      if (currentList) {
-        totalItems = parseInt(currentList.TotalCount || currentList.Count || '0');
-      }
+    const lists = await listService.getLists();
+    const currentList = lists.find(l => l.ListID === listId);
+    if (currentList) {
+      totalItems = parseInt(currentList.TotalCount || currentList.Count || '0');
     }
-    
-    // Calculate total pages
-    const totalPages = Math.ceil(totalItems / pageSize);
-    
-    // Determine if there are more pages
-    const hasMore = page < totalPages;
-    
+
     return res.json({
       success: true,
       duplicates,
-      totalItems,
-      pagination: {
-        page,
-        pageSize,
-        totalPages,
-        hasMore
-      }
+      totalItems
     });
   } catch (error) {
     console.error(`Error checking duplicates:`, error);

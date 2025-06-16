@@ -111,69 +111,73 @@ export class PropertyRadarListService {
    */
   async checkDuplicates(radarIds: string[]): Promise<DuplicateProperty[]> {
     if (radarIds.length === 0) return [];
-    
+
+    // Batch size for queries (tune as needed)
+    const BATCH_SIZE = 2000;
+    const allExistingRadarIds: string[] = [];
+
     try {
-      console.log(`Checking for duplicates among ${radarIds.length} RadarIDs`);
-      
-      // First, check which RadarIDs exist in the database
-      const existsResult = await this.pool.query(`
-        SELECT radar_id
-        FROM properties
-        WHERE radar_id = ANY($1) AND is_active = true
-      `, [radarIds]);
-      
-      if (existsResult.rows.length === 0) {
+      console.log(`Checking for duplicates among ${radarIds.length} RadarIDs (batched)`);
+
+      // Batch the radarIds for the existence check
+      for (let i = 0; i < radarIds.length; i += BATCH_SIZE) {
+        const batch = radarIds.slice(i, i + BATCH_SIZE);
+        const existsResult = await this.pool.query(
+          `SELECT radar_id FROM properties WHERE radar_id = ANY($1) AND is_active = true`,
+          [batch]
+        );
+        allExistingRadarIds.push(...existsResult.rows.map(row => row.radar_id));
+      }
+
+      if (allExistingRadarIds.length === 0) {
         console.log('No duplicates found in the database');
         return [];
       }
-      
-      // Get the list of RadarIDs that exist in the database
-      const existingRadarIds = existsResult.rows.map(row => row.radar_id);
-      console.log(`Found ${existingRadarIds.length} matching properties in the database`);
-      
-      // Now get the full details for the existing RadarIDs
-      const result = await this.pool.query(`
-        SELECT
-          cpv.radar_id,
-          cpv.property_address as address,
-          cpv.property_city as city,
-          cpv.property_state as state,
-          cpv.property_zip as zip_code,
-          cpv.property_created_at as created_at,
-          cpv.campaign_id as last_campaign_id,
-          cpv.campaign_name as last_campaign_name,
-          cpv.campaign_date as last_campaign_date
-        FROM public.complete_property_view cpv
-        WHERE cpv.radar_id = ANY($1)
-        ORDER BY cpv.property_created_at DESC
-      `, [existingRadarIds]);
-      
-      // Group by radar_id to get the latest campaign for each property
+
+      console.log(`Found ${allExistingRadarIds.length} matching properties in the database`);
+
+      // Now get the full details for the existing RadarIDs (also batched)
       const duplicateMap = new Map<string, DuplicateProperty>();
-      
-      for (const row of result.rows) {
-        if (!duplicateMap.has(row.radar_id)) {
-          // Convert timestamps to Arizona time (UTC-7) for display
-          if (row.created_at) {
-            const date = new Date(row.created_at);
-            row.created_at = date;
+      for (let i = 0; i < allExistingRadarIds.length; i += BATCH_SIZE) {
+        const batch = allExistingRadarIds.slice(i, i + BATCH_SIZE);
+        const result = await this.pool.query(
+          `SELECT
+            cpv.radar_id,
+            cpv.property_address as address,
+            cpv.property_city as city,
+            cpv.property_state as state,
+            cpv.property_zip as zip_code,
+            cpv.property_created_at as created_at,
+            cpv.campaign_id as last_campaign_id,
+            cpv.campaign_name as last_campaign_name,
+            cpv.campaign_date as last_campaign_date
+          FROM public.complete_property_view cpv
+          WHERE cpv.radar_id = ANY($1)
+          ORDER BY cpv.property_created_at DESC`,
+          [batch]
+        );
+
+        for (const row of result.rows) {
+          if (!duplicateMap.has(row.radar_id)) {
+            // Convert timestamps to Arizona time (UTC-7) for display
+            if (row.created_at) {
+              const date = new Date(row.created_at);
+              row.created_at = date;
+            }
+            if (row.last_campaign_date) {
+              const date = new Date(row.last_campaign_date);
+              row.last_campaign_date = date;
+            }
+            duplicateMap.set(row.radar_id, row);
           }
-          
-          if (row.last_campaign_date) {
-            const date = new Date(row.last_campaign_date);
-            row.last_campaign_date = date;
-          }
-          
-          duplicateMap.set(row.radar_id, row);
         }
       }
-      
+
       return Array.from(duplicateMap.values());
     } catch (error) {
       console.error('Error checking for duplicates:', error);
       throw error;
     }
-    
   }
 
   /**
