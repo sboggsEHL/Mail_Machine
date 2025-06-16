@@ -16,12 +16,13 @@ const ListProcessPage: React.FC<{ listId?: string }> = ({ listId }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [checking, setChecking] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
+  // Progress tracking for duplicate check job
+  const [jobProgress, setJobProgress] = useState<{ completed: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [excludeAll, setExcludeAll] = useState<boolean>(true);
   const [excludedRadarIds, setExcludedRadarIds] = useState<string[]>([]);
-  const [currentPage] = useState<number>(1);
-  const [totalPages] = useState<number>(1);
+
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   const [allDuplicates, setAllDuplicates] = useState<any[]>([]);
@@ -125,10 +126,12 @@ const handleDownloadDuplicatesCsv = async () => {
 
     try {
       setChecking(true);
+      setError(null);
+      setSuccess(null);
 
       // Fetch all properties from the list (for display, if needed)
       try {
-        const listItemsResponse = await listService.getListItems(parseInt(listId));
+        const listItemsResponse = await listService.getAllListItems(parseInt(listId));
         if (listItemsResponse.success) {
           // Convert list items to property format for display
           const properties = listItemsResponse.items.map((item: any) => ({
@@ -148,45 +151,72 @@ const handleDownloadDuplicatesCsv = async () => {
         console.error('Error fetching list items:', err);
       }
 
-      // Single request for all duplicates (no pagination)
-      const result = await listService.checkDuplicates(parseInt(listId));
-      console.log('Duplicate check result:', result);
-
-      if (result.success) {
-        setTotalItems(result.totalItems);
-        setDuplicates(result.duplicates || []);
-        setAllDuplicates(result.duplicates || []);
-        setDuplicatesPage(1);
-
-        // Update allProperties with duplicate information
-        if (result.duplicates && result.duplicates.length > 0) {
-          setAllProperties(prevProperties => {
-            const updatedProperties = [...prevProperties];
-            for (const duplicate of result.duplicates) {
-              const index = updatedProperties.findIndex(p => p.radar_id === duplicate.radar_id);
-              if (index !== -1) {
-                updatedProperties[index] = duplicate;
-              }
-            }
-            return updatedProperties;
-          });
-        }
-
-        setError(null);
-
-        // Update excluded RadarIDs
-        if (excludeAll) {
-          setExcludedRadarIds((result.duplicates || []).map((d: any) => d.radar_id));
-        } else {
-          setExcludedRadarIds([]);
-        }
-      } else {
-        setError(result.error || 'Failed to check duplicates');
-        console.error('Error checking duplicates:', result.details);
+      // Start duplicate check job
+      const jobStart = await listService.startCheckDuplicatesJob(parseInt(listId));
+      if (!jobStart.success || !jobStart.jobId) {
+        setError('Failed to start duplicate check job');
+        setChecking(false);
+        return;
       }
+      const jobId = jobStart.jobId;
 
-      setChecking(false);
-      setError(null);
+      // Poll for job status
+      let polling = true;
+      const pollInterval = 2000;
+      const pollJobStatus = async () => {
+        if (!polling) return;
+        try {
+          const status = await listService.getCheckDuplicatesJobStatus(parseInt(listId), jobId);
+          // Update progress bar state
+          setJobProgress({
+            completed: status.completedBatches || 0,
+            total: status.totalBatches || 1,
+          });
+          if (status.status === 'completed') {
+            setJobProgress(null);
+            const duplicatesArr = status.result || [];
+            // Merge duplicates into the full list of properties
+            setAllProperties(prevProperties => {
+              const updatedProperties = prevProperties.map((prop: any) => {
+                const dup = duplicatesArr.find((d: any) => d.radar_id === prop.radar_id);
+                return dup
+                  ? { ...prop, ...dup, is_duplicate: true }
+                  : { ...prop, is_duplicate: false };
+              });
+              // Update allDuplicates and Duplicates for UI
+              setAllDuplicates(updatedProperties.filter((p: any) => p.is_duplicate));
+              setDuplicates(updatedProperties.filter((p: any) => p.is_duplicate));
+              setTotalItems(updatedProperties.length);
+              setDuplicatesPage(1);
+              // Exclude logic
+              if (excludeAll) {
+                setExcludedRadarIds(updatedProperties.filter((p: any) => p.is_duplicate).map((d: any) => d.radar_id));
+              } else {
+                setExcludedRadarIds([]);
+              }
+              return updatedProperties;
+            });
+
+            setError(null);
+            setChecking(false);
+            polling = false;
+          } else if (status.status === 'failed') {
+            setJobProgress(null);
+            setError(status.error || 'Duplicate check job failed');
+            setChecking(false);
+            polling = false;
+          } else {
+            // Still in progress, update progress bar
+            setTimeout(pollJobStatus, pollInterval);
+          }
+        } catch (err) {
+          setJobProgress(null);
+          setError('Error polling duplicate check job');
+          setChecking(false);
+          polling = false;
+        }
+      };
+      pollJobStatus();
     } catch (err) {
       setError('Failed to check duplicates. Please try again.');
       console.error(err);
@@ -606,12 +636,14 @@ const handleDownloadDuplicatesCsv = async () => {
             <Spinner animation="border" />
             <p className="mt-2">
               Checking for duplicates...
-              {totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
+              {jobProgress
+                ? ` (${jobProgress.completed} of ${jobProgress.total} batches completed)`
+                : ''}
             </p>
-            {totalPages > 1 && (
+            {jobProgress && (
               <ProgressBar
-                now={(currentPage / totalPages) * 100}
-                label={`${Math.round((currentPage / totalPages) * 100)}%`}
+                now={(jobProgress.completed / jobProgress.total) * 100}
+                label={`${Math.round((jobProgress.completed / jobProgress.total) * 100)}%`}
                 className="mt-3"
               />
             )}

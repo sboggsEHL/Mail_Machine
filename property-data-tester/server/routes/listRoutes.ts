@@ -5,6 +5,11 @@ import { Pool } from 'pg';
 export function createListRoutes(pool: Pool): Router {
   const router = Router();
   const listController = new ListController(pool);
+
+  // Start duplicate check as a background job and return jobId
+  router.post('/lists/:listId/check-duplicates-job', (req, res) => listController.startCheckDuplicatesJob(req, res));
+  // Get status/progress/result of a duplicate check job
+  router.get('/lists/:listId/check-duplicates-status/:jobId', (req, res) => listController.getCheckDuplicatesJobStatus(req, res));
   
   // Get all lists
   router.get('/lists', (req, res) => listController.getLists(req, res));

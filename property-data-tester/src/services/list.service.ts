@@ -1,6 +1,16 @@
 import api from './api';
 import { PropertyRadarCriteria } from '../types/api'; // Import the type
 
+interface DuplicateCheckJobStatusResult {
+  success: boolean;
+  jobId: string;
+  status: string;
+  totalBatches: number;
+  completedBatches: number;
+  result?: any[];
+  error?: string;
+}
+
 class ListService {
   /**
    * Get all PropertyRadar lists
@@ -48,10 +58,26 @@ class ListService {
   }
   
   /**
-   * Check for duplicates in a list
+   * Check for duplicates in a list (old, direct call - deprecated)
    */
   async checkDuplicates(listId: number) {
     const response = await api.get(`/lists/${listId}/check-duplicates`);
+    return response.data;
+  }
+
+  /**
+   * Start duplicate check as a background job (new)
+   */
+  async startCheckDuplicatesJob(listId: number): Promise<{ success: boolean; jobId: string }> {
+    const response = await api.post(`/lists/${listId}/check-duplicates-job`);
+    return response.data;
+  }
+
+  /**
+   * Poll duplicate check job status/progress/result (new)
+   */
+  async getCheckDuplicatesJobStatus(listId: number, jobId: string): Promise<DuplicateCheckJobStatusResult> {
+    const response = await api.get(`/lists/${listId}/check-duplicates-status/${jobId}`);
     return response.data;
   }
   

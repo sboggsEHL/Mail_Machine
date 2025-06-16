@@ -8,6 +8,7 @@ import { CampaignService } from '../services/CampaignService';
 import { CampaignRepository } from '../repositories/CampaignRepository';
 import { PropertyOwnerRepository } from '../repositories/PropertyOwnerRepository';
 import { Pool } from 'pg';
+import { duplicateCheckJobService } from '../services/DuplicateCheckJobService';
 
 export class ListController {
   private listService: PropertyRadarListService;
@@ -24,7 +25,139 @@ export class ListController {
     const propertyOwnerRepository = new PropertyOwnerRepository(pool);
     this.campaignService = new CampaignService(campaignRepository, propertyOwnerRepository, dnmRepository);
   }
-/**
+
+  /**
+   * Get status/progress/result of a duplicate check job
+   */
+  async getCheckDuplicatesJobStatus(req: Request, res: Response): Promise<void> {
+    const jobId = req.params.jobId;
+    const job = duplicateCheckJobService.getJob(jobId);
+    if (!job) {
+      res.status(404).json({ success: false, error: 'Job not found' });
+      return;
+    }
+    res.json({
+      success: true,
+      jobId: job.jobId,
+      status: job.status,
+      totalBatches: job.totalBatches,
+      completedBatches: job.completedBatches,
+      result: job.status === 'completed' ? job.result : undefined,
+      error: job.status === 'failed' ? job.error : undefined,
+    });
+  }
+
+  /**
+   * Start duplicate check as a background job and return jobId
+   */
+  async startCheckDuplicatesJob(req: Request, res: Response): Promise<void> {
+    try {
+      const listId = parseInt(req.params.listId);
+      if (isNaN(listId)) {
+        res.status(400).json({ success: false, error: 'Invalid list ID' });
+        return;
+      }
+      // Get all items for the list (fetch ALL, not just first 1000)
+      const items = await this.listService.getAllListItems(listId);
+      const radarIds = items.map(item => item.RadarID).filter(Boolean);
+
+      // Calculate total batches
+      const BATCH_SIZE = 2000;
+      const totalBatches = Math.ceil(radarIds.length / BATCH_SIZE);
+
+      // Create job and return jobId
+      const jobId = duplicateCheckJobService.createJob(totalBatches);
+      res.json({ success: true, jobId });
+
+      // Start background processing
+      (async () => {
+        try {
+          duplicateCheckJobService.setJobInProgress(jobId);
+
+          // Save the full list of properties (from the list)
+          const allProperties = items.map((item: any) => ({
+            radar_id: item.RadarID,
+            address: 'N/A',
+            city: 'N/A',
+            state: 'N/A',
+            zip_code: 'N/A',
+            created_at: new Date(item.AddedDate),
+            last_campaign_id: null,
+            last_campaign_name: 'N/A',
+            last_campaign_date: null
+          }));
+
+          // Find duplicates
+          const allExistingRadarIds: string[] = [];
+          for (let i = 0; i < radarIds.length; i += BATCH_SIZE) {
+            const batch = radarIds.slice(i, i + BATCH_SIZE);
+            const existsResult = await (this.listService as any).pool.query(
+              `SELECT radar_id FROM properties WHERE radar_id = ANY($1) AND is_active = true`,
+              [batch]
+            );
+            allExistingRadarIds.push(...existsResult.rows.map((row: any) => row.radar_id));
+          }
+
+          // Get full details for duplicates (batched)
+          const duplicateMap = new Map<string, any>();
+          for (let i = 0; i < allExistingRadarIds.length; i += BATCH_SIZE) {
+            const batch = allExistingRadarIds.slice(i, i + BATCH_SIZE);
+            const result = await (this.listService as any).pool.query(
+              `SELECT
+                cpv.radar_id,
+                cpv.property_address as address,
+                cpv.property_city as city,
+                cpv.property_state as state,
+                cpv.property_zip as zip_code,
+                cpv.property_created_at as created_at,
+                cpv.campaign_id as last_campaign_id,
+                cpv.campaign_name as last_campaign_name,
+                cpv.campaign_date as last_campaign_date
+              FROM public.complete_property_view cpv
+              WHERE cpv.radar_id = ANY($1)
+              ORDER BY cpv.property_created_at DESC`,
+              [batch]
+            );
+            for (const row of result.rows) {
+              if (!duplicateMap.has(row.radar_id)) {
+                if (row.created_at) row.created_at = new Date(row.created_at);
+                if (row.last_campaign_date) row.last_campaign_date = new Date(row.last_campaign_date);
+                duplicateMap.set(row.radar_id, row);
+              }
+            }
+          }
+
+          // Now, for each batch, update progress and partial results
+          for (let i = 0; i < radarIds.length; i += BATCH_SIZE) {
+            const batch = radarIds.slice(i, i + BATCH_SIZE);
+            const batchDuplicates: any[] = [];
+            for (const radarId of batch) {
+              const dup = duplicateMap.get(radarId);
+              if (dup) batchDuplicates.push(dup);
+            }
+            duplicateCheckJobService.incrementBatch(jobId, batchDuplicates);
+          }
+          // Merge duplicate details into allProperties, and mark is_duplicate
+          const mergedProperties = allProperties.map((prop: any) => {
+            const dup = duplicateMap.get(prop.radar_id);
+            if (dup) {
+              return { ...prop, ...dup, is_duplicate: true };
+            } else {
+              return { ...prop, is_duplicate: false };
+            }
+          });
+
+          duplicateCheckJobService.setJobCompleted(jobId, mergedProperties);
+        } catch (err: any) {
+          duplicateCheckJobService.setJobFailed(jobId, err?.message || 'Unknown error');
+        }
+      })();
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to start duplicate check job' });
+    }
+  }
+
+  /**
    * Download duplicates as CSV for a list
    */
   async downloadDuplicatesCsv(req: Request, res: Response): Promise<void> {
