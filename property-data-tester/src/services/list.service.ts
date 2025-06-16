@@ -80,6 +80,22 @@ class ListService {
     const response = await api.get(`/lists/${listId}/check-duplicates-status/${jobId}`);
     return response.data;
   }
+
+  /**
+   * Connect to SSE stream for duplicate check job
+   */
+  connectDuplicateCheckStream(listId: number, jobId: string, onMessage: (data: any) => void) {
+    const source = new EventSource(`/api/lists/${listId}/check-duplicates-stream/${jobId}`);
+    source.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onMessage(data);
+      } catch (e) {
+        console.error('Failed to parse SSE data', e);
+      }
+    };
+    return source;
+  }
   
   /**
    * Process a list (excluding specified duplicates)

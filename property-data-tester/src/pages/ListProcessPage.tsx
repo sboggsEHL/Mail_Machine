@@ -160,63 +160,41 @@ const handleDownloadDuplicatesCsv = async () => {
       }
       const jobId = jobStart.jobId;
 
-      // Poll for job status
-      let polling = true;
-      const pollInterval = 2000;
-      const pollJobStatus = async () => {
-        if (!polling) return;
-        try {
-          const status = await listService.getCheckDuplicatesJobStatus(parseInt(listId), jobId);
-          // Update progress bar state
-          setJobProgress({
-            completed: status.completedBatches || 0,
-            total: status.totalBatches || 1,
-          });
-          if (status.status === 'completed') {
-            setJobProgress(null);
-            const duplicatesArr = status.result || [];
-            // Merge duplicates into the full list of properties
-            setAllProperties(prevProperties => {
-              const updatedProperties = prevProperties.map((prop: any) => {
-                const dup = duplicatesArr.find((d: any) => d.radar_id === prop.radar_id);
-                return dup
-                  ? { ...prop, ...dup, is_duplicate: true }
-                  : { ...prop, is_duplicate: false };
-              });
-              // Update allDuplicates and Duplicates for UI
-              setAllDuplicates(updatedProperties.filter((p: any) => p.is_duplicate));
-              setDuplicates(updatedProperties.filter((p: any) => p.is_duplicate));
-              setTotalItems(updatedProperties.length);
-              setDuplicatesPage(1);
-              // Exclude logic
-              if (excludeAll) {
-                setExcludedRadarIds(updatedProperties.filter((p: any) => p.is_duplicate).map((d: any) => d.radar_id));
-              } else {
-                setExcludedRadarIds([]);
-              }
-              return updatedProperties;
-            });
-
-            setError(null);
-            setChecking(false);
-            polling = false;
-          } else if (status.status === 'failed') {
-            setJobProgress(null);
-            setError(status.error || 'Duplicate check job failed');
-            setChecking(false);
-            polling = false;
-          } else {
-            // Still in progress, update progress bar
-            setTimeout(pollJobStatus, pollInterval);
-          }
-        } catch (err) {
+      // Stream updates via SSE
+      const source = listService.connectDuplicateCheckStream(parseInt(listId), jobId, (status: any) => {
+        setJobProgress({
+          completed: status.completedBatches || 0,
+          total: status.totalBatches || 1,
+        });
+        if (status.status === 'completed') {
           setJobProgress(null);
-          setError('Error polling duplicate check job');
+          const duplicatesArr = status.result || [];
+          setAllProperties(prevProperties => {
+            const updatedProperties = prevProperties.map((prop: any) => {
+              const dup = duplicatesArr.find((d: any) => d.radar_id === prop.radar_id);
+              return dup ? { ...prop, ...dup, is_duplicate: true } : { ...prop, is_duplicate: false };
+            });
+            setAllDuplicates(updatedProperties.filter((p: any) => p.is_duplicate));
+            setDuplicates(updatedProperties.filter((p: any) => p.is_duplicate));
+            setTotalItems(updatedProperties.length);
+            setDuplicatesPage(1);
+            if (excludeAll) {
+              setExcludedRadarIds(updatedProperties.filter((p: any) => p.is_duplicate).map((d: any) => d.radar_id));
+            } else {
+              setExcludedRadarIds([]);
+            }
+            return updatedProperties;
+          });
+          setError(null);
           setChecking(false);
-          polling = false;
+          source.close();
+        } else if (status.status === 'failed') {
+          setJobProgress(null);
+          setError(status.error || 'Duplicate check job failed');
+          setChecking(false);
+          source.close();
         }
-      };
-      pollJobStatus();
+      });
     } catch (err) {
       setError('Failed to check duplicates. Please try again.');
       console.error(err);

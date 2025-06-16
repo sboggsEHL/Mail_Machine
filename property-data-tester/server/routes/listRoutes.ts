@@ -10,6 +10,8 @@ export function createListRoutes(pool: Pool): Router {
   router.post('/lists/:listId/check-duplicates-job', (req, res) => listController.startCheckDuplicatesJob(req, res));
   // Get status/progress/result of a duplicate check job
   router.get('/lists/:listId/check-duplicates-status/:jobId', (req, res) => listController.getCheckDuplicatesJobStatus(req, res));
+  // Stream duplicate check job updates
+  router.get('/lists/:listId/check-duplicates-stream/:jobId', (req, res) => listController.streamDuplicateCheck(req, res));
   
   // Get all lists
   router.get('/lists', (req, res) => listController.getLists(req, res));
