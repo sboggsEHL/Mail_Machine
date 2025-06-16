@@ -48,6 +48,35 @@ export class ListController {
   }
 
   /**
+   * Stream duplicate check job updates via SSE
+   */
+  async streamDuplicateCheck(req: Request, res: Response): Promise<void> {
+    const jobId = req.params.jobId;
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const sendUpdate = () => {
+      const job = duplicateCheckJobService.getJob(jobId);
+      if (!job) {
+        res.write(`event: error\ndata: Job not found\n\n`);
+        clearInterval(interval);
+        res.end();
+        return;
+      }
+      res.write(`data: ${JSON.stringify(job)}\n\n`);
+      if (job.status === 'completed' || job.status === 'failed') {
+        clearInterval(interval);
+        res.end();
+      }
+    };
+
+    const interval = setInterval(sendUpdate, 2000);
+    req.on('close', () => clearInterval(interval));
+  }
+
+  /**
    * Start duplicate check as a background job and return jobId
    */
   async startCheckDuplicatesJob(req: Request, res: Response): Promise<void> {
@@ -57,96 +86,20 @@ export class ListController {
         res.status(400).json({ success: false, error: 'Invalid list ID' });
         return;
       }
-      // Get all items for the list (fetch ALL, not just first 1000)
+      // Get all items for the list (fetch ALL)
       const items = await this.listService.getAllListItems(listId);
-      const radarIds = items.map(item => item.RadarID).filter(Boolean);
 
-      // Calculate total batches
-      const BATCH_SIZE = 2000;
-      const totalBatches = Math.ceil(radarIds.length / BATCH_SIZE);
-
-      // Create job and return jobId
-      const jobId = duplicateCheckJobService.createJob(totalBatches);
+      // For the new single-query method we treat the whole list as one batch
+      const jobId = duplicateCheckJobService.createJob(1);
       res.json({ success: true, jobId });
 
       // Start background processing
       (async () => {
         try {
           duplicateCheckJobService.setJobInProgress(jobId);
+          const mergedProperties = await this.listService.checkDuplicatesAll(items);
 
-          // Save the full list of properties (from the list)
-          const allProperties = items.map((item: any) => ({
-            radar_id: item.RadarID,
-            address: 'N/A',
-            city: 'N/A',
-            state: 'N/A',
-            zip_code: 'N/A',
-            created_at: new Date(item.AddedDate),
-            last_campaign_id: null,
-            last_campaign_name: 'N/A',
-            last_campaign_date: null
-          }));
-
-          // Find duplicates
-          const allExistingRadarIds: string[] = [];
-          for (let i = 0; i < radarIds.length; i += BATCH_SIZE) {
-            const batch = radarIds.slice(i, i + BATCH_SIZE);
-            const existsResult = await (this.listService as any).pool.query(
-              `SELECT radar_id FROM properties WHERE radar_id = ANY($1) AND is_active = true`,
-              [batch]
-            );
-            allExistingRadarIds.push(...existsResult.rows.map((row: any) => row.radar_id));
-          }
-
-          // Get full details for duplicates (batched)
-          const duplicateMap = new Map<string, any>();
-          for (let i = 0; i < allExistingRadarIds.length; i += BATCH_SIZE) {
-            const batch = allExistingRadarIds.slice(i, i + BATCH_SIZE);
-            const result = await (this.listService as any).pool.query(
-              `SELECT
-                cpv.radar_id,
-                cpv.property_address as address,
-                cpv.property_city as city,
-                cpv.property_state as state,
-                cpv.property_zip as zip_code,
-                cpv.property_created_at as created_at,
-                cpv.campaign_id as last_campaign_id,
-                cpv.campaign_name as last_campaign_name,
-                cpv.campaign_date as last_campaign_date
-              FROM public.complete_property_view cpv
-              WHERE cpv.radar_id = ANY($1)
-              ORDER BY cpv.property_created_at DESC`,
-              [batch]
-            );
-            for (const row of result.rows) {
-              if (!duplicateMap.has(row.radar_id)) {
-                if (row.created_at) row.created_at = new Date(row.created_at);
-                if (row.last_campaign_date) row.last_campaign_date = new Date(row.last_campaign_date);
-                duplicateMap.set(row.radar_id, row);
-              }
-            }
-          }
-
-          // Now, for each batch, update progress and partial results
-          for (let i = 0; i < radarIds.length; i += BATCH_SIZE) {
-            const batch = radarIds.slice(i, i + BATCH_SIZE);
-            const batchDuplicates: any[] = [];
-            for (const radarId of batch) {
-              const dup = duplicateMap.get(radarId);
-              if (dup) batchDuplicates.push(dup);
-            }
-            duplicateCheckJobService.incrementBatch(jobId, batchDuplicates);
-          }
-          // Merge duplicate details into allProperties, and mark is_duplicate
-          const mergedProperties = allProperties.map((prop: any) => {
-            const dup = duplicateMap.get(prop.radar_id);
-            if (dup) {
-              return { ...prop, ...dup, is_duplicate: true };
-            } else {
-              return { ...prop, is_duplicate: false };
-            }
-          });
-
+          duplicateCheckJobService.incrementBatch(jobId, mergedProperties);
           duplicateCheckJobService.setJobCompleted(jobId, mergedProperties);
         } catch (err: any) {
           duplicateCheckJobService.setJobFailed(jobId, err?.message || 'Unknown error');
@@ -170,46 +123,23 @@ export class ListController {
 
       // Get all items for the list
       const items = await this.listService.getAllListItems(listId);
-      const radarIds = items.map(item => item.RadarID).filter(Boolean);
 
-      if (!radarIds.length) {
+      if (!items.length) {
         res.status(404).json({ success: false, error: 'No items found for this list' });
         return;
       }
 
-      // Find duplicates
-      const duplicates = await this.listService.checkDuplicates(radarIds);
-      const duplicateRadarIds = duplicates.map(d => d.radar_id);
+      // Find duplicates using the new method
+      const allResults = await this.listService.checkDuplicatesAll(items);
+      const duplicateRadarIds = allResults.filter(r => r.is_duplicate).map(r => r.radar_id);
 
       if (!duplicateRadarIds.length) {
         res.status(404).json({ success: false, error: 'No duplicates found for this list' });
         return;
       }
 
-      // Query complete_property_view for duplicate radarIds
-      const dbPool = (this.listService as any).pool; // Access the pool from the service
-      const result = await dbPool.query(
-        `SELECT
-          property_address AS address,
-          property_city AS city,
-          property_state AS state,
-          property_zip AS zip,
-          loan_id,
-          primary_owner_first_name AS first_name,
-          primary_owner_last_name AS last_name
-        FROM public.complete_property_view
-        WHERE radar_id = ANY($1)`,
-        [duplicateRadarIds]
-      );
-
-      const leads = result.rows;
-      if (!leads.length) {
-        res.status(404).json({ success: false, error: 'No property data found for duplicate records' });
-        return;
-      }
-
-      // Prepare CSV header and rows (same columns as batch jobs CSV)
-      const columns = ['address', 'city', 'state', 'zip', 'loan_id', 'first_name', 'last_name'];
+      const leads = allResults.filter(r => r.is_duplicate);
+      const columns = ['address', 'city', 'state', 'zip_code', 'radar_id'];
       const header = columns.join(',');
       const rows = leads.map((row: any) =>
         columns.map(col => {

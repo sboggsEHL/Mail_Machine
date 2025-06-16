@@ -35,6 +35,11 @@ export interface DuplicateProperty {
   last_campaign_date?: Date;
 }
 
+export interface DuplicateCheckResult extends DuplicateProperty {
+  is_duplicate: boolean;
+  added_date?: string;
+}
+
 export class PropertyRadarListService {
   private apiBaseUrl: string;
   private authToken: string;
@@ -178,6 +183,48 @@ export class PropertyRadarListService {
       console.error('Error checking for duplicates:', error);
       throw error;
     }
+  }
+
+  /**
+   * Check duplicates for all items in one query using UNNEST
+   */
+  async checkDuplicatesAll(items: { RadarID: string; AddedDate: string }[]): Promise<DuplicateCheckResult[]> {
+    if (items.length === 0) return [];
+
+    const radarIdArray = items.map(i => i.RadarID);
+    const addedArray = items.map(i => i.AddedDate);
+
+    const query = `
+      SELECT
+        inp.radar_id,
+        inp.added_date,
+        cpv.property_address AS address,
+        cpv.property_city AS city,
+        cpv.property_state AS state,
+        cpv.property_zip AS zip_code,
+        cpv.property_created_at AS created_at,
+        cpv.campaign_id AS last_campaign_id,
+        cpv.campaign_name AS last_campaign_name,
+        cpv.campaign_date AS last_campaign_date
+      FROM UNNEST($1::text[], $2::text[]) WITH ORDINALITY AS inp(radar_id, added_date, ord)
+      LEFT JOIN public.complete_property_view cpv ON LOWER(cpv.radar_id) = LOWER(inp.radar_id)
+      ORDER BY inp.ord`;
+
+    const result = await this.pool.query(query, [radarIdArray, addedArray]);
+
+    return result.rows.map(row => ({
+      radar_id: row.radar_id,
+      address: row.address,
+      city: row.city,
+      state: row.state,
+      zip_code: row.zip_code,
+      created_at: row.created_at ? new Date(row.created_at) : null,
+      last_campaign_id: row.last_campaign_id,
+      last_campaign_name: row.last_campaign_name,
+      last_campaign_date: row.last_campaign_date ? new Date(row.last_campaign_date) : null,
+      is_duplicate: row.address ? true : false,
+      added_date: row.added_date
+    }));
   }
 
   /**
