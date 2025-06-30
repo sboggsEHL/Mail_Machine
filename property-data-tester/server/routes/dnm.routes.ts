@@ -47,5 +47,12 @@ export function createDnmRoutes(): Router {
    */
   router.get('/dnm/blocked-by/:blockedBy', dnmController.getDnmByBlockedBy);
   
+  /**
+   * @route POST /api/dnm/check-with-history
+   * @desc Get DNM records with mailing history for list processing
+   * @access Public
+   */
+  router.post('/dnm/check-with-history', dnmController.getDnmWithMailHistory);
+  
   return router;
 }

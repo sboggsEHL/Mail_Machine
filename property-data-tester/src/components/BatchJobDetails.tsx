@@ -1,6 +1,6 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { Modal } from 'react-bootstrap';
-import { Card, Badge, Button, Spinner, Alert, ListGroup, Row, Col, ProgressBar, Form } from 'react-bootstrap';
+import { Card, Badge, Button, Spinner, Alert, ListGroup, Row, Col, ProgressBar, Form, Table } from 'react-bootstrap';
 import {
   getBatchJobById, 
   getJobLogs, 
@@ -34,10 +34,16 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
   const [showDnmModal, setShowDnmModal] = useState(false);
   const [dnmPreviewData, setDnmPreviewData] = useState<any>(null);
 
-  // Download CSV function (optionally with remailRadarIds)
+  // DNM Registry Check state (separate from CSV preview)
+  const [checkingDnm, setCheckingDnm] = useState(false);
+  const [dnmRecords, setDnmRecords] = useState<any[]>([]);
+  const [showDnmRegistryModal, setShowDnmRegistryModal] = useState(false);
+  const [dnmError, setDnmError] = useState<string | null>(null);
+  const [excludedDnmRadarIds, setExcludedDnmRadarIds] = useState<string[]>([]);
+
+  // Download CSV function with DNM exclusions
   const downloadCsv = async (jobId: number, remailIds?: string[]) => {
     try {
-      // Optionally: pass remailIds to backend as query param or body if supported
       const response = await fetch(`/api/batch-jobs/${jobId}/leads-csv`, {
         method: 'GET',
         headers: { 'Accept': 'text/csv' }
@@ -46,17 +52,46 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
         alert('Failed to download CSV.');
         return;
       }
-      const blob = await response.blob();
+      
+      const csvText = await response.text();
+      
+      // If there are excluded DNM records, filter them out
+      let filteredCsvText = csvText;
+      if (excludedDnmRadarIds.length > 0) {
+        const lines = csvText.split('\n');
+        const header = lines[0];
+        const dataLines = lines.slice(1);
+        
+        // Filter out rows that contain excluded radar IDs
+        const filteredDataLines = dataLines.filter(line => {
+          const columns = line.split(',');
+          // Find radar_id column (assuming it's in the CSV)
+          // You might need to adjust this based on your CSV structure
+          const radarIdColumn = columns.find(col => 
+            excludedDnmRadarIds.some(excludedId => 
+              col.includes(excludedId) || col.replace(/"/g, '') === excludedId
+            )
+          );
+          return !radarIdColumn;
+        });
+        
+        filteredCsvText = [header, ...filteredDataLines].join('\n');
+        
+        console.log(`Filtered out ${dataLines.length - filteredDataLines.length} DNM records from CSV`);
+      }
+      
+      const blob = new Blob([filteredCsvText], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `batch_job_${jobId}_leads.csv`;
+      a.download = `batch_job_${jobId}_leads${excludedDnmRadarIds.length > 0 ? '_dnm_filtered' : ''}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
       alert('Error downloading CSV.');
+      console.error(err);
     }
   };
 
@@ -158,6 +193,50 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
         </Modal.Body>
       </Modal>
     );
+  };
+
+  // DNM Registry check function
+  const checkDnmRegistry = async () => {
+    if (!job || !job.criteria || !Array.isArray(job.criteria.RadarID)) {
+      setDnmError('No radar IDs found in this batch job');
+      return;
+    }
+
+    try {
+      setCheckingDnm(true);
+      setDnmError(null);
+      setDnmRecords([]);
+
+      const radarIds = job.criteria.RadarID;
+
+      // Check DNM registry
+      const response = await fetch('/api/dnm/check-with-history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ radarIds })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to check DNM registry');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setDnmRecords(result.dnmRecords || []);
+        setShowDnmRegistryModal(true);
+      } else {
+        setDnmError(result.error || 'Failed to check DNM registry');
+      }
+
+      setCheckingDnm(false);
+    } catch (err) {
+      setDnmError('Failed to check DNM registry. Please try again.');
+      console.error(err);
+      setCheckingDnm(false);
+    }
   };
 
   // Load job details on component mount
@@ -420,6 +499,14 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
           {job && job.status === 'COMPLETED' && job.criteria && Array.isArray(job.criteria.RadarID) && job.criteria.RadarID.length > 0 && (
             <>
               <Button
+                variant="warning"
+                onClick={checkDnmRegistry}
+                disabled={checkingDnm}
+                className="me-2"
+              >
+                {checkingDnm ? 'Checking DNM...' : 'Check DNM Registry'}
+              </Button>
+              <Button
                 variant="info"
                 className="me-2"
                 onClick={async () => {
@@ -450,6 +537,11 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
                 title="Download all leads as CSV for this batch job"
               >
                 Download CSV
+                {excludedDnmRadarIds.length > 0 && (
+                  <Badge bg="warning" className="ms-1">
+                    -{excludedDnmRadarIds.length} DNM
+                  </Badge>
+                )}
               </Button>
               {/* DNM Modal */}
               <DnmCsvPreviewModal
@@ -471,6 +563,9 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
               )}
               {previewError && (
                 <Alert variant="danger" className="mt-2">{previewError}</Alert>
+              )}
+              {dnmError && (
+                <Alert variant="danger" className="mt-2">{dnmError}</Alert>
               )}
             </>
           )}
@@ -674,6 +769,140 @@ const BatchJobDetails: React.FC<BatchJobDetailsProps> = ({ jobId, onBack }) => {
           </Card>
         </>
       )}
+
+      {/* DNM Registry Check Modal */}
+      <Modal show={showDnmRegistryModal} onHide={() => setShowDnmRegistryModal(false)} size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title>DNM Registry Check Results - Batch Job #{job?.job_id}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {dnmRecords.length === 0 ? (
+            <Alert variant="success">
+              <h5>✅ No DNM Records Found</h5>
+              <p>None of the properties in this batch job are currently in the Do Not Mail registry.</p>
+            </Alert>
+          ) : (
+            <>
+              <Alert variant="warning">
+                <h5>⚠️ {dnmRecords.length} Properties Found in DNM Registry</h5>
+                <p>The following properties from this batch job are currently on the Do Not Mail list and should not be mailed to:</p>
+              </Alert>
+              
+              <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                <Table striped bordered hover size="sm">
+                  <thead className="table-dark">
+                    <tr>
+                      <th>Radar ID</th>
+                      <th>Name</th>
+                      <th>State</th>
+                      <th>Added to DNM</th>
+                      <th>Originally Created</th>
+                      <th>Last Mailed</th>
+                      <th>Reason</th>
+                      <th>Category</th>
+                      <th>Blocked By</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dnmRecords.map((record, index) => (
+                      <tr key={index}>
+                        <td>
+                          <code>{record.radar_id}</code>
+                        </td>
+                        <td>
+                          {record.first_name} {record.last_name}
+                        </td>
+                        <td>
+                          <Badge bg="secondary">{record.state}</Badge>
+                        </td>
+                        <td>{record.blocked_at}</td>
+                        <td>{record.created_at}</td>
+                        <td>
+                          <Badge bg={record.last_mailed === 'Never' ? 'secondary' : 'info'}>
+                            {record.last_mailed}
+                          </Badge>
+                        </td>
+                        <td>{record.reason}</td>
+                        <td>
+                          <Badge bg="warning">{record.reason_category}</Badge>
+                        </td>
+                        <td>{record.blocked_by}</td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => {
+                              // Add to excluded radar IDs to filter from CSV download
+                              setExcludedDnmRadarIds(prev => {
+                                if (!prev.includes(record.radar_id)) {
+                                  return [...prev, record.radar_id];
+                                }
+                                return prev;
+                              });
+                            }}
+                            disabled={excludedDnmRadarIds.includes(record.radar_id)}
+                          >
+                            {excludedDnmRadarIds.includes(record.radar_id) ? 'Excluded' : 'Exclude'}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+              
+              <Alert variant="info" className="mt-3">
+                <strong>Note:</strong> You can exclude individual DNM records or all DNM records from the CSV download. 
+                Excluded records will be filtered out when you click "Download CSV".
+                {excludedDnmRadarIds.length > 0 && (
+                  <div className="mt-2">
+                    <Badge bg="warning">{excludedDnmRadarIds.length} record(s) will be excluded from CSV download</Badge>
+                  </div>
+                )}
+              </Alert>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDnmRegistryModal(false)}>
+            Close
+          </Button>
+          {dnmRecords.length > 0 && (
+            <>
+              <Button
+                variant="warning"
+                onClick={() => {
+                  // Exclude all DNM records
+                  const dnmRadarIds = dnmRecords.map(record => record.radar_id);
+                  setExcludedDnmRadarIds(prev => {
+                    const newExcluded = [...prev];
+                    dnmRadarIds.forEach(id => {
+                      if (!newExcluded.includes(id)) {
+                        newExcluded.push(id);
+                      }
+                    });
+                    return newExcluded;
+                  });
+                }}
+              >
+                Exclude All DNM Records
+              </Button>
+              {excludedDnmRadarIds.length > 0 && (
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => {
+                    // Clear all exclusions
+                    setExcludedDnmRadarIds([]);
+                  }}
+                >
+                  Clear Exclusions
+                </Button>
+              )}
+            </>
+          )}
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

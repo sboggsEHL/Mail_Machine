@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Spinner, Alert, ListGroup, Badge, ProgressBar } from 'react-bootstrap';
+import { Modal, Button, Form, Spinner, Alert, ListGroup, Badge, ProgressBar, Table } from 'react-bootstrap';
 import { listService } from '../services/list.service';
 import { CampaignCreationModal } from './campaigns/CampaignCreationModal';
 import api, { fetchCampaigns, Campaign } from '../services/api';
@@ -37,6 +37,12 @@ const ProcessMultipleListsModal: React.FC<ProcessMultipleListsModalProps> = ({
   const [processing, setProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // State for DNM checking
+  const [checkingDnm, setCheckingDnm] = useState<boolean>(false);
+  const [dnmRecords, setDnmRecords] = useState<any[]>([]);
+  const [showDnmModal, setShowDnmModal] = useState<boolean>(false);
+  const [dnmError, setDnmError] = useState<string | null>(null);
 // Handler to download duplicates CSV
 const handleDownloadDuplicatesCsv = async () => {
   if (!selectedLists.length) return;
@@ -236,6 +242,69 @@ const handleDownloadDuplicatesCsv = async () => {
     } finally {
       setChecking(false);
       setCheckingProgress(100);
+    }
+  };
+
+  // DNM check function for multiple lists
+  const checkDnmRegistry = async () => {
+    if (selectedLists.length === 0) return;
+
+    try {
+      setCheckingDnm(true);
+      setDnmError(null);
+      setDnmRecords([]);
+
+      // Get all radar IDs from all selected lists
+      let allRadarIds: string[] = [];
+      
+      for (const listId of selectedLists) {
+        try {
+          const listItemsResponse = await listService.getAllListItems(listId);
+          if (listItemsResponse.success) {
+            const radarIds = listItemsResponse.items.map((item: any) => item.RadarID);
+            allRadarIds = [...allRadarIds, ...radarIds];
+          }
+        } catch (err) {
+          console.error(`Error fetching items for list ${listId}:`, err);
+        }
+      }
+
+      // Remove duplicates from radar IDs
+      const uniqueRadarIds = Array.from(new Set(allRadarIds));
+
+      if (uniqueRadarIds.length === 0) {
+        setDnmError('No radar IDs found in selected lists');
+        setCheckingDnm(false);
+        return;
+      }
+
+      // Check DNM registry
+      const response = await fetch('/api/dnm/check-with-history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ radarIds: uniqueRadarIds })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to check DNM registry');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setDnmRecords(result.dnmRecords || []);
+        setShowDnmModal(true);
+      } else {
+        setDnmError(result.error || 'Failed to check DNM registry');
+      }
+
+      setCheckingDnm(false);
+    } catch (err) {
+      setDnmError('Failed to check DNM registry. Please try again.');
+      console.error(err);
+      setCheckingDnm(false);
     }
   };
   
@@ -442,6 +511,7 @@ const handleDownloadDuplicatesCsv = async () => {
         <Modal.Body>
           {error && <Alert variant="danger">{error}</Alert>}
           {success && <Alert variant="success">{success}</Alert>}
+          {dnmError && <Alert variant="danger">{dnmError}</Alert>}
           
           <h5>Selected Lists ({selectedLists.length})</h5>
           <ListGroup className="mb-4">
@@ -461,8 +531,16 @@ const handleDownloadDuplicatesCsv = async () => {
                 variant="primary"
                 onClick={checkDuplicates}
                 disabled={checking}
+                className="me-2"
               >
                 {checking ? 'Checking...' : 'Check Duplicates'}
+              </Button>
+              <Button
+                variant="warning"
+                onClick={checkDnmRegistry}
+                disabled={checkingDnm}
+              >
+                {checkingDnm ? 'Checking DNM...' : 'Check DNM Registry'}
               </Button>
             </div>
           )}
@@ -531,8 +609,17 @@ const handleDownloadDuplicatesCsv = async () => {
                         size="sm"
                         variant="success"
                         onClick={handleDownloadDuplicatesCsv}
+                        className="me-2"
                       >
                         Download Duplicates CSV
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="warning"
+                        onClick={checkDnmRegistry}
+                        disabled={checkingDnm}
+                      >
+                        {checkingDnm ? 'Checking DNM...' : 'Check DNM Registry'}
                       </Button>
                     </div>
                     
@@ -699,6 +786,123 @@ const handleDownloadDuplicatesCsv = async () => {
           ? listData.find((l: any) => l.ListID === selectedLists[0])?.ListName 
           : `Multiple Lists (${selectedLists.length})`}
       />
+
+      {/* DNM Check Modal */}
+      <Modal show={showDnmModal} onHide={() => setShowDnmModal(false)} size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title>DNM Registry Check Results - Multiple Lists</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {dnmRecords.length === 0 ? (
+            <Alert variant="success">
+              <h5>✅ No DNM Records Found</h5>
+              <p>None of the properties in the selected lists are currently in the Do Not Mail registry.</p>
+            </Alert>
+          ) : (
+            <>
+              <Alert variant="warning">
+                <h5>⚠️ {dnmRecords.length} Properties Found in DNM Registry</h5>
+                <p>The following properties from your selected lists are currently on the Do Not Mail list and should not be mailed to:</p>
+              </Alert>
+              
+              <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                <Table striped bordered hover size="sm">
+                  <thead className="table-dark">
+                    <tr>
+                      <th>Radar ID</th>
+                      <th>Name</th>
+                      <th>State</th>
+                      <th>Added to DNM</th>
+                      <th>Originally Created</th>
+                      <th>Last Mailed</th>
+                      <th>Reason</th>
+                      <th>Category</th>
+                      <th>Blocked By</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dnmRecords.map((record, index) => (
+                      <tr key={index}>
+                        <td>
+                          <code>{record.radar_id}</code>
+                        </td>
+                        <td>
+                          {record.first_name} {record.last_name}
+                        </td>
+                        <td>
+                          <Badge bg="secondary">{record.state}</Badge>
+                        </td>
+                        <td>{record.blocked_at}</td>
+                        <td>{record.created_at}</td>
+                        <td>
+                          <Badge bg={record.last_mailed === 'Never' ? 'secondary' : 'info'}>
+                            {record.last_mailed}
+                          </Badge>
+                        </td>
+                        <td>{record.reason}</td>
+                        <td>
+                          <Badge bg="warning">{record.reason_category}</Badge>
+                        </td>
+                        <td>{record.blocked_by}</td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => {
+                              // Add to excluded radar IDs to filter from processing
+                              setExcludedRadarIds(prev => {
+                                if (!prev.includes(record.radar_id)) {
+                                  return [...prev, record.radar_id];
+                                }
+                                return prev;
+                              });
+                            }}
+                            disabled={excludedRadarIds.includes(record.radar_id)}
+                          >
+                            {excludedRadarIds.includes(record.radar_id) ? 'Excluded' : 'Exclude'}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+              
+              <Alert variant="info" className="mt-3">
+                <strong>Note:</strong> You can exclude individual properties from processing by clicking the "Exclude" button. 
+                These properties will not be included when you process the lists.
+              </Alert>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDnmModal(false)}>
+            Close
+          </Button>
+          {dnmRecords.length > 0 && (
+            <Button
+              variant="warning"
+              onClick={() => {
+                // Exclude all DNM records
+                const dnmRadarIds = dnmRecords.map(record => record.radar_id);
+                setExcludedRadarIds(prev => {
+                  const newExcluded = [...prev];
+                  dnmRadarIds.forEach(id => {
+                    if (!newExcluded.includes(id)) {
+                      newExcluded.push(id);
+                    }
+                  });
+                  return newExcluded;
+                });
+                setShowDnmModal(false);
+              }}
+            >
+              Exclude All DNM Records
+            </Button>
+          )}
+        </Modal.Footer>
+      </Modal>
     </>
   );
 };
